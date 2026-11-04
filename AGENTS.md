@@ -75,7 +75,7 @@ and appropriate for a small hackathon team.
   belong in `frontend/package.json`. Root manifests coordinate workspaces and
   shared tooling when configured.
 - Use uv for Python. Use the frontend package manager selected by the repository;
-  do not switch between npm and Bun or maintain competing frontend lockfiles.
+  the frontend uses npm; do not maintain competing frontend lockfiles.
 - Update lockfiles through their package managers, never by hand.
 - Do not hand-edit generated API clients, generated route trees, or frontend build
   output. Change their source and regenerate them using the documented commands.

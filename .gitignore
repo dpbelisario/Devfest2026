@@ -1,3 +1,17 @@
+# Secrets and local config
 .env
+.env.*
+!.env.example
+
+# Python
 .venv/
+__pycache__/
+.pytest_cache/
+
+# Node
 node_modules/
+frontend/dist/
+
+# Firebase
+.firebase/
+firebase-debug.log
