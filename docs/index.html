@@ -1,0 +1,899 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+</head>
+<body>
+<title>Minh AI</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Zen+Kaku+Gothic+New:wght@500;700&family=Zen+Maru+Gothic:wght@500;700;900&display=swap">
+<style>
+/* Layout: phone-width column on soft lavender. A slim pinned status bar (place, date, checklist),
+   then greeting, seasonal task card, pastel shortcut tiles, checklist, route donut, documents, ask,
+   and a white bottom bar with a raised mic button. Single light look by choice; the accent and
+   task card follow the season (body[data-season]). */
+:root {
+  color-scheme: light;
+  --bg: #fbf5ef;
+  --card: #ffffff;
+  --card-2: #f9f5f1;
+  --ink: #241c1a;
+  --ink-dim: #675a55;
+  --rule: #eee6df;
+  /* season tokens: autumn is the default */
+  --accent: #c2410c;
+  --accent-deep: #7c2d12;
+  --accent-tint: #ffedd5;
+  --accent-ring: #fb923c;
+  --hero: linear-gradient(135deg, #f97316 0%, #c2410c 40%, #991b1b 75%, #6b1d1d 100%);
+  --hero-soft: #ffe4cc;
+  --hero-glow: rgba(194, 65, 12, .32);
+  --fab: linear-gradient(140deg, #f97316, #b91c1c);
+  --lilac: #ece6fd;
+  --mint: #dcf5ea;   --mint-ink: #047857;
+  --peach: #ffe9dc;  --peach-ink: #c2410c;
+  --sky: #e0efff;    --sky-ink: #0369a1;
+  --rose: #ffe4ea;   --rose-ink: #be123c;
+  --amber: #fff1d6;  --amber-ink: #92400e;
+  --f-ui: "Plus Jakarta Sans", "Hiragino Sans", "Noto Sans JP", "Segoe UI", system-ui, sans-serif;
+  --f-jp: "Zen Kaku Gothic New", "Hiragino Sans", "Noto Sans JP", "Yu Gothic", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --f-round: "Zen Maru Gothic", "Hiragino Maru Gothic ProN", "Plus Jakarta Sans", sans-serif;
+  --r-card: 22px;
+  --r-ctl: 14px;
+  --shadow: 0 1px 2px rgba(60, 30, 20, .04), 0 8px 24px rgba(60, 30, 20, .06);
+}
+body[data-season="spring"] {
+  --bg: #fdf4f7; --accent: #be185d; --accent-deep: #831843; --accent-tint: #fce7f3; --accent-ring: #f472b6;
+  --hero: linear-gradient(135deg, #f472b6 0%, #db2777 40%, #9d174d 100%);
+  --hero-soft: #ffe4f1; --hero-glow: rgba(190, 24, 93, .3); --fab: linear-gradient(140deg, #f472b6, #be185d);
+}
+body[data-season="summer"] {
+  --bg: #eff9fb; --accent: #0e7490; --accent-deep: #164e63; --accent-tint: #cffafe; --accent-ring: #22d3ee;
+  --hero: linear-gradient(135deg, #22d3ee 0%, #0891b2 40%, #155e75 100%);
+  --hero-soft: #d5f7ff; --hero-glow: rgba(14, 116, 144, .3); --fab: linear-gradient(140deg, #22d3ee, #0e7490);
+}
+body[data-season="winter"] {
+  --bg: #f3f5fb; --accent: #4f46e5; --accent-deep: #312e81; --accent-tint: #e0e7ff; --accent-ring: #818cf8;
+  --hero: linear-gradient(135deg, #818cf8 0%, #4f46e5 40%, #1e1b4b 100%);
+  --hero-soft: #e3e6ff; --hero-glow: rgba(79, 70, 229, .3); --fab: linear-gradient(140deg, #818cf8, #4338ca);
+}
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-ui); font-size: 15px; line-height: 1.45; }
+body::before {
+  content: ""; position: fixed; inset: 0 0 auto;
+  height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg);
+}
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+h1, h2, h3, p { margin: 0; }
+:focus-visible { outline: 3px solid var(--accent-ring); outline-offset: 2px; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.jp { font-family: var(--f-jp); }
+
+/* ---- pinned status bar ---- */
+.status {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 15;
+  padding-top: 10px; padding-bottom: 6px;
+  background: linear-gradient(var(--bg) 70%, transparent);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.status-in {
+  max-width: 448px; margin: 0 auto; min-height: 64px; padding: 8px 8px 8px 10px;
+  background: var(--card); border-radius: 20px;
+  box-shadow: 0 1px 2px rgba(60, 30, 20, .05), 0 6px 18px rgba(60, 30, 20, .07);
+  display: grid; grid-template-columns: minmax(0, 1.25fr) 1px minmax(0, 1fr) auto; align-items: center; gap: 10px;
+  transition: box-shadow .2s;
+}
+.status.is-stuck .status-in { box-shadow: 0 2px 4px rgba(60, 30, 20, .06), 0 12px 28px rgba(60, 30, 20, .12); }
+.sep { width: 1px; height: 30px; background: var(--rule); }
+.seg { display: flex; align-items: center; gap: 9px; min-width: 0; }
+.seg-ico { width: 34px; height: 34px; border-radius: 12px; display: grid; place-items: center; flex: none; }
+.seg.place .seg-ico { background: var(--rose); color: var(--rose-ink); }
+.seg.date .seg-ico { background: var(--sky); color: var(--sky-ink); }
+.seg-txt { min-width: 0; display: flex; flex-direction: column; }
+.seg-txt small { font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-dim); line-height: 1.2; }
+.seg-txt b { font-family: var(--f-round); font-weight: 700; font-size: 15px; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.prog {
+  display: flex; align-items: center; gap: 8px; border: 0; cursor: pointer;
+  background: var(--accent-tint); color: var(--accent-deep); border-radius: 16px; padding: 5px 12px 5px 5px; min-height: 48px;
+}
+.prog:hover { filter: brightness(.97); }
+.ring-wrap { position: relative; width: 38px; height: 38px; flex: none; }
+.ring { width: 38px; height: 38px; transform: rotate(-90deg); display: block; }
+.ring-num { position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--f-round); font-weight: 900; font-size: 12.5px; }
+.prog .seg-txt b { font-size: 14px; }
+.prog .seg-txt small { color: var(--accent-deep); opacity: .8; }
+
+/* ---- page ---- */
+.app {
+  max-width: 480px; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 8px calc(110px + env(safe-area-inset-bottom, 0px));
+  display: flex; flex-direction: column; gap: 14px;
+}
+.greet { display: flex; align-items: center; gap: 12px; }
+.logo {
+  width: 44px; height: 44px; border-radius: 14px; flex: none; display: grid; place-items: center;
+  background: var(--fab); box-shadow: 0 6px 16px var(--hero-glow);
+}
+.greet h1 { font-family: var(--f-round); font-size: 22px; font-weight: 900; letter-spacing: -.01em; }
+.greet p { color: var(--ink-dim); font-size: 13px; }
+.proto {
+  margin-left: auto; font-size: 10.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--accent); background: var(--accent-tint); border-radius: 999px; padding: 4px 10px;
+}
+
+/* ---- hero task card ---- */
+.hero {
+  position: relative; overflow: hidden; color: #fff;
+  border-radius: var(--r-card); padding: 18px;
+  background: var(--hero);
+  box-shadow: 0 14px 30px var(--hero-glow);
+  display: flex; flex-direction: column; gap: 12px;
+}
+.hero > * { position: relative; z-index: 1; }
+.hero > canvas.season { position: absolute; inset: 0; z-index: 0; width: 100%; height: 100%; pointer-events: none; }
+.hero-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.hero-kicker { font-size: 12px; font-weight: 600; color: var(--hero-soft); }
+.hero-tag { font-family: var(--f-round); font-weight: 700; font-size: 12px; background: rgba(255,255,255,.18); border-radius: 999px; padding: 3px 10px; backdrop-filter: blur(4px); }
+.hero-step { font-family: var(--f-round); font-size: 32px; font-weight: 900; letter-spacing: -.01em; line-height: 1.1; font-variant-numeric: tabular-nums; text-shadow: 0 2px 10px rgba(0,0,0,.15); }
+.hero-step small { font-size: 17px; font-weight: 700; color: var(--hero-soft); }
+.hero-next { font-size: 15px; font-weight: 600; text-shadow: 0 1px 6px rgba(0,0,0,.15); }
+.hero-bar { height: 6px; border-radius: 999px; background: rgba(255,255,255,.22); overflow: hidden; }
+.hero-bar i { display: block; height: 100%; border-radius: inherit; background: #fff; transition: width .3s ease; }
+.hero-foot { display: flex; gap: 14px; font-size: 12.5px; color: var(--hero-soft); flex-wrap: wrap; }
+.hero-foot span { display: inline-flex; align-items: center; gap: 5px; }
+
+/* ---- shortcut tiles ---- */
+.tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.tile {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  background: transparent; border: 0; padding: 0; font-size: 12px; font-weight: 600; color: var(--ink);
+  text-decoration: none; cursor: pointer;
+}
+.tile-ico { width: 56px; height: 56px; border-radius: 18px; display: grid; place-items: center; transition: transform .15s; }
+.tile:hover .tile-ico { transform: translateY(-2px); }
+.tile.t1 .tile-ico { background: var(--peach); color: var(--peach-ink); }
+.tile.t2 .tile-ico { background: var(--mint); color: var(--mint-ink); }
+.tile.t3 .tile-ico { background: var(--accent-tint); color: var(--accent); }
+.tile.t4 .tile-ico { background: var(--sky); color: var(--sky-ink); }
+.tile:focus-within .tile-ico { outline: 3px solid var(--accent-ring); outline-offset: 2px; }
+
+/* ---- cards ---- */
+.card { background: var(--card); border-radius: var(--r-card); padding: 16px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 12px; scroll-margin-top: 100px; }
+.card-head { display: flex; align-items: center; gap: 10px; }
+.card-title { font-family: var(--f-round); font-size: 17px; font-weight: 700; }
+.card-meta { margin-left: auto; color: var(--ink-dim); font-size: 12.5px; font-weight: 500; }
+.ghost {
+  flex: none; min-height: 34px; padding: 5px 12px; border-radius: 10px;
+  border: 0; background: var(--accent-tint); color: var(--accent); font-size: 13px; font-weight: 700;
+}
+.ghost:hover { filter: brightness(.96); }
+.label { font-size: 11px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--ink-dim); }
+
+/* ---- checklist ---- */
+.steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.step { position: relative; display: grid; grid-template-columns: 44px minmax(0, 1fr); column-gap: 6px; padding-bottom: 6px; }
+.step:not(:last-child)::before { content: ""; position: absolute; left: 21px; top: 36px; bottom: -2px; width: 2px; background: var(--rule); border-radius: 1px; }
+.step.is-done:not(:last-child)::before { background: #86d9b4; }
+.step.is-new .step-body { animation: arrive .9s ease; }
+@keyframes arrive { from { background: var(--amber); } }
+.tick { width: 44px; height: 44px; border: 0; background: transparent; padding: 0; display: grid; place-items: center; }
+.tick .dot { width: 26px; height: 26px; border-radius: 50%; border: 2px solid #ddd3ca; background: var(--card); display: grid; place-items: center; color: #fff; }
+.step.is-done .tick .dot { background: #10b981; border-color: #10b981; }
+.step.is-next .tick .dot { border-color: var(--accent); box-shadow: 0 0 0 5px var(--accent-tint); }
+.step-body { border-radius: 16px; padding: 10px 12px; min-width: 0; }
+.step.is-next .step-body { background: var(--accent-tint); }
+.step-top { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.step-n { font-family: var(--f-mono); font-size: 11.5px; color: var(--ink-dim); }
+.badge { font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; border-radius: 999px; padding: 2px 8px; }
+.badge.next { background: var(--accent); color: #fff; }
+.badge.mic { background: var(--amber); color: var(--amber-ink); }
+.step-task { margin-top: 2px; font-weight: 600; font-size: 15px; }
+.step.is-done .step-task { color: var(--ink-dim); text-decoration: line-through; text-decoration-color: #c9bbb2; font-weight: 500; }
+.step-guide { margin-top: 6px; font-size: 13.5px; color: #3d302b; }
+.kanji { margin-top: 8px; display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--card); border-radius: 12px; padding: 8px 8px 8px 12px; }
+.kanji span { font-family: var(--f-jp); font-weight: 700; font-size: 16px; letter-spacing: .03em; min-width: 0; overflow-wrap: anywhere; }
+.all-done { padding: 12px; border-radius: 14px; background: var(--mint); color: #064e3b; font-weight: 600; }
+
+/* ---- route ---- */
+.route { display: grid; grid-template-columns: 116px minmax(0, 1fr); gap: 16px; align-items: center; }
+.donut { position: relative; width: 116px; height: 116px; }
+.donut svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.donut-mid { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; }
+.donut-mid b { font-size: 24px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+.donut-mid small { font-size: 11.5px; color: var(--ink-dim); font-weight: 600; }
+.legend { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.legend li { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; gap: 8px; align-items: center; font-size: 13.5px; }
+.legend i { width: 10px; height: 10px; border-radius: 50%; }
+.legend b { font-family: var(--f-mono); font-weight: 500; font-variant-numeric: tabular-nums; }
+.dest { padding: 10px 12px; border-radius: 14px; background: var(--card-2); display: flex; align-items: center; gap: 10px; }
+.dest-pin { width: 34px; height: 34px; border-radius: 11px; background: #e11d48; color: #fff; display: grid; place-items: center; font-weight: 800; flex: none; }
+.dest b { display: block; font-size: 14px; }
+.dest small { color: var(--ink-dim); font-size: 12.5px; }
+.maps-btn {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 46px; border-radius: var(--r-ctl);
+  background: var(--sky-ink); color: #fff; text-decoration: none; font-weight: 700; font-size: 14px;
+}
+.maps-btn:hover { background: #075985; }
+
+/* ---- documents ---- */
+.docs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.doc { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 8px 0; }
+.doc + .doc { border-top: 1px solid var(--rule); }
+.doc-ico { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; font-family: var(--f-mono); font-size: 10px; font-weight: 500; }
+.doc-ico.pdf { background: var(--rose); color: var(--rose-ink); }
+.doc-ico.img { background: var(--peach); color: var(--peach-ink); }
+.doc b { display: block; font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.doc small { color: var(--ink-dim); font-size: 12.5px; }
+.doc-when { font-size: 12px; color: var(--ink-dim); text-align: right; }
+.upload {
+  display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; border-radius: var(--r-ctl);
+  border: 1.5px dashed var(--accent-ring); color: var(--accent); font-weight: 700; font-size: 13.5px; cursor: pointer;
+}
+.upload:hover { background: var(--card-2); }
+.upload:focus-within { outline: 3px solid var(--accent-ring); outline-offset: 2px; }
+
+/* ---- ask ---- */
+.chips { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; margin-inline: -16px; padding-inline: 16px; }
+.chips::-webkit-scrollbar { display: none; }
+.chip { flex: none; max-width: 230px; min-height: 40px; padding: 8px 12px; border-radius: 14px; text-align: left; border: 0; font-size: 13px; line-height: 1.35; font-weight: 500; }
+.chip:nth-child(3n+1) { background: var(--accent-tint); color: var(--accent-deep); }
+.chip:nth-child(3n+2) { background: var(--mint); color: #065f46; }
+.chip:nth-child(3n+3) { background: var(--peach); color: #9a3412; }
+.chip:hover { filter: brightness(.97); }
+.thread { display: flex; flex-direction: column; gap: 8px; }
+.thread:empty { display: none; }
+.msg { max-width: 88%; padding: 9px 13px; border-radius: 16px; font-size: 14px; }
+.msg.me { align-self: flex-end; background: var(--accent); color: #fff; border-bottom-right-radius: 5px; }
+.msg.ai { align-self: flex-start; background: var(--card-2); color: var(--ink); border-bottom-left-radius: 5px; }
+.msg.ai a { color: var(--accent); font-weight: 600; }
+.msg.typing { color: var(--ink-dim); }
+.ask { display: flex; gap: 6px; background: var(--card-2); border-radius: 16px; padding: 4px; }
+.ask:focus-within { box-shadow: 0 0 0 2px var(--accent); }
+.ask input { flex: 1; min-width: 0; min-height: 44px; padding: 8px 12px; border: 0; background: transparent; outline: none; }
+.ask input::placeholder { color: #857771; }
+.send { flex: none; width: 44px; height: 44px; border-radius: 12px; border: 0; background: var(--accent); color: #fff; display: grid; place-items: center; }
+
+/* ---- bottom bar ---- */
+.dock {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  background: var(--card); box-shadow: 0 -6px 24px rgba(60, 30, 20, .08);
+  border-radius: 24px 24px 0 0;
+}
+.dock-in { max-width: 400px; margin: 0 auto; height: 74px; display: grid; grid-template-columns: 1fr 1fr 1fr; align-items: center; }
+.dock-btn { display: flex; flex-direction: column; align-items: center; gap: 4px; border: 0; background: transparent; font-size: 12px; font-weight: 700; color: var(--ink-dim); padding: 6px 0; }
+.dock-btn .di { width: 40px; height: 32px; border-radius: 12px; display: grid; place-items: center; }
+.dock-btn.lang .di { background: var(--accent-tint); color: var(--accent); }
+.dock-btn.cam .di { background: var(--rose); color: var(--rose-ink); }
+.dock-btn.mic { color: var(--ink); transform: translateY(-16px); }
+.dock-btn.mic .fab {
+  width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; color: #fff;
+  background: var(--fab);
+  box-shadow: 0 10px 22px var(--hero-glow), 0 0 0 6px var(--card);
+}
+.dock-btn:hover .di, .dock-btn:hover .fab { filter: brightness(1.05); }
+
+/* ---- sheets ---- */
+.scrim { position: fixed; inset: 0; z-index: 30; background: rgba(36, 28, 26, .45); }
+.sheet {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 31; max-height: 86%; overflow-y: auto;
+  background: var(--card); border-radius: 26px 26px 0 0;
+  padding-top: 8px; padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  animation: rise .22s ease;
+}
+.sheet::before { content: ""; display: block; width: 40px; height: 5px; border-radius: 3px; background: var(--rule); margin: 0 auto 10px; }
+@keyframes rise { from { transform: translateY(24px); opacity: .4; } }
+.sheet-in { max-width: 480px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
+.sheet h2 { font-size: 18px; font-weight: 800; }
+.sheet-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.close { width: 44px; height: 44px; border-radius: 14px; border: 0; background: var(--card-2); display: grid; place-items: center; }
+.listen { display: flex; align-items: center; gap: 12px; padding: 14px; border-radius: 16px; background: var(--mint); color: #064e3b; font-weight: 600; }
+.wave { display: flex; align-items: center; gap: 3px; height: 26px; }
+.wave i { width: 4px; border-radius: 2px; background: var(--mint-ink); animation: wave 1s ease-in-out infinite; }
+.wave i:nth-child(2) { animation-delay: .1s } .wave i:nth-child(3) { animation-delay: .2s }
+.wave i:nth-child(4) { animation-delay: .3s } .wave i:nth-child(5) { animation-delay: .4s }
+@keyframes wave { 0%,100% { height: 6px } 50% { height: 24px } }
+.stack { display: flex; flex-direction: column; gap: 12px; }
+.transcript { background: var(--sky); border-radius: 16px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; }
+.transcript .label { color: var(--sky-ink); }
+.transcript .jp { font-weight: 700; font-size: 17px; }
+.added { font-size: 13.5px; font-weight: 600; color: var(--amber-ink); background: var(--amber); border-radius: 12px; padding: 9px 12px; }
+.phrases { display: flex; flex-direction: column; gap: 6px; }
+.phrase { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; align-items: center; padding: 10px 12px; border-radius: 14px; background: var(--card-2); }
+.phrase .jp { font-weight: 700; font-size: 19px; }
+.phrase .ro { font-size: 12.5px; color: var(--ink-dim); grid-column: 1; }
+.phrase .ghost { grid-row: 1 / span 2; grid-column: 2; }
+.primary {
+  min-height: 48px; border: 0; border-radius: var(--r-ctl); padding: 10px 16px;
+  background: #e11d48; color: #fff; font-weight: 700; font-size: 14px; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+}
+.primary.alt { background: var(--accent-tint); color: var(--accent); }
+.primary:focus-within { outline: 3px solid var(--accent-ring); outline-offset: 2px; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; }
+.row > * { flex: 1 1 160px; }
+.preview { border-radius: 14px; overflow: hidden; background: var(--card-2); }
+.preview img { display: block; width: 100%; max-height: 240px; object-fit: contain; }
+.preview .fname { padding: 12px 14px; font-family: var(--f-mono); font-size: 13px; overflow-wrap: anywhere; }
+.fields { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.field { padding: 10px 12px; border-radius: 14px; display: flex; flex-direction: column; gap: 2px; }
+.field:nth-child(1) { background: var(--rose); } .field:nth-child(2) { background: var(--sky); }
+.field:nth-child(3) { background: var(--mint); } .field:nth-child(4) { background: var(--peach); }
+.field .jp { font-weight: 700; font-size: 17px; }
+.field .fe { font-weight: 700; font-size: 13.5px; }
+.field .fi { font-size: 12.5px; color: #3d302b; }
+.note { font-size: 12px; color: var(--ink-dim); }
+
+.toast {
+  position: fixed; left: 50%; z-index: 40; transform: translateX(-50%);
+  bottom: calc(100px + env(safe-area-inset-bottom, 0px));
+  background: var(--ink); color: #fff; padding: 9px 16px; border-radius: 999px;
+  font-size: 13.5px; font-weight: 600; box-shadow: 0 8px 24px rgba(36, 28, 26, .3); max-width: calc(100% - 32px);
+}
+
+@media (max-width: 370px) { .seg.date .seg-ico { display: none; } .status-in { gap: 8px; } }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+</style>
+
+<header class="status" id="status">
+  <div class="status-in">
+    <div class="seg place">
+      <span class="seg-ico" aria-hidden="true"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg></span>
+      <span class="seg-txt"><small>Aichi</small><b>Nagoya</b></span>
+    </div>
+    <span class="sep" aria-hidden="true"></span>
+    <div class="seg date">
+      <span class="seg-ico" aria-hidden="true"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg></span>
+      <span class="seg-txt"><small id="today-y">2026年</small><b id="today">11月4日 (水)</b></span>
+    </div>
+    <button class="prog" type="button" id="bar-prog" aria-label="Go to checklist">
+      <span class="ring-wrap" aria-hidden="true">
+        <svg class="ring" viewBox="0 0 40 40">
+          <circle cx="20" cy="20" r="16" fill="none" stroke="rgba(0,0,0,.08)" stroke-width="4"/>
+          <circle id="ring-fill" cx="20" cy="20" r="16" fill="none" stroke="var(--accent)" stroke-width="4" stroke-linecap="round" stroke-dasharray="100.53" stroke-dashoffset="67"/>
+        </svg>
+        <span class="ring-num" id="ring-num">1/3</span>
+      </span>
+      <span class="seg-txt"><small>Checklist</small><b id="bar-count">Step 2</b></span>
+    </button>
+  </div>
+</header>
+
+<main class="app">
+  <div class="greet">
+    <div class="logo" aria-hidden="true">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17c3-6 15-6 18 0"/><path d="M6 13.5V19M18 13.5V19M12 11v8"/><path d="M2 19h20"/></svg>
+    </div>
+    <div>
+      <h1 id="hello">Good afternoon</h1>
+      <p>Minh AI · <span id="season-name">Autumn</span></p>
+    </div>
+    <span class="proto">Prototype</span>
+  </div>
+
+  <section class="hero" aria-label="Current task">
+    <canvas class="season" id="season-fx" aria-hidden="true"></canvas>
+    <div class="hero-top">
+      <span class="hero-kicker">Send a parcel · Japan Post</span>
+      <span class="hero-tag" id="season-tag">秋 · ゆうパック</span>
+    </div>
+    <p class="hero-step" id="hero-step">Step 2 <small>of 3</small></p>
+    <p class="hero-next" id="hero-next">Write the sender address in Kanji</p>
+    <div class="hero-bar" aria-hidden="true"><i id="hero-fill"></i></div>
+    <div class="hero-foot">
+      <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="13" cy="4" r="2"/><path d="m9 20 3-6 3 3v4M7 12l3-3 4 1 3 3"/></svg>12 min walk</span>
+      <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span id="hero-total">21 min total</span></span>
+    </div>
+  </section>
+
+  <nav class="tiles" aria-label="Shortcuts">
+    <label class="tile t1" for="upload-input">
+      <span class="tile-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg></span>
+      Upload
+      <input class="sr" type="file" id="upload-input" accept="image/*,application/pdf">
+    </label>
+    <button class="tile t2" type="button" data-copy="愛知県名古屋市中村区名駅4-1-1">
+      <span class="tile-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></svg></span>
+      Copy address
+    </button>
+    <button class="tile t3" type="button" id="tile-ask">
+      <span class="tile-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg></span>
+      Ask
+    </button>
+    <a class="tile t4" href="https://www.google.com/maps/dir/?api=1&amp;destination=Nagoya+Central+Post+Office&amp;travelmode=walking" target="_blank" rel="noopener">
+      <span class="tile-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 11 18-8-8 18-2-8z"/></svg></span>
+      Directions
+    </a>
+  </nav>
+
+  <section class="card" id="checklist" aria-labelledby="plan-h">
+    <div class="card-head">
+      <h2 class="card-title" id="plan-h">Checklist</h2>
+      <span class="card-meta" id="count">1 of 3 done</span>
+    </div>
+    <ol class="steps" id="steps"></ol>
+  </section>
+
+  <section class="card" aria-labelledby="route-h">
+    <div class="card-head">
+      <h2 class="card-title" id="route-h">Time to finish</h2>
+      <span class="card-meta">1.2 km away</span>
+    </div>
+    <div class="route">
+      <div class="donut">
+        <svg viewBox="0 0 120 120" aria-hidden="true">
+          <circle cx="60" cy="60" r="46" fill="none" stroke="var(--card-2)" stroke-width="14"/>
+          <circle id="arc-walk" cx="60" cy="60" r="46" fill="none" stroke="#0ea5e9" stroke-width="14" stroke-dasharray="0 289"/>
+          <circle id="arc-counter" cx="60" cy="60" r="46" fill="none" stroke="#fb923c" stroke-width="14" stroke-dasharray="0 289"/>
+        </svg>
+        <div class="donut-mid"><b id="total-min">21</b><small>min total</small></div>
+      </div>
+      <ul class="legend">
+        <li><i style="background:#0ea5e9"></i>Walk<b>12 min</b></li>
+        <li><i style="background:#fb923c"></i>At counter<b id="task-min">9 min</b></li>
+      </ul>
+    </div>
+    <div class="dest">
+      <span class="dest-pin" aria-hidden="true">〒</span>
+      <div><b>Nagoya Central Post Office</b><small class="jp">名古屋中央郵便局</small></div>
+    </div>
+    <a class="maps-btn" href="https://www.google.com/maps/dir/?api=1&amp;destination=Nagoya+Central+Post+Office&amp;travelmode=walking" target="_blank" rel="noopener">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 11 18-8-8 18-2-8z"/></svg>
+      Open in Google Maps
+    </a>
+  </section>
+
+  <section class="card" aria-labelledby="docs-h">
+    <div class="card-head">
+      <h2 class="card-title" id="docs-h">Documents</h2>
+      <span class="card-meta" id="doc-count">1 file</span>
+    </div>
+    <ul class="docs" id="docs"></ul>
+    <label class="upload" for="upload-input-2">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+      Upload PDF or photo
+      <input class="sr" type="file" id="upload-input-2" accept="image/*,application/pdf">
+    </label>
+  </section>
+
+  <section class="card" id="qa" aria-labelledby="qa-h">
+    <div class="card-head">
+      <h2 class="card-title" id="qa-h">Ask</h2>
+      <span class="card-meta">About this plan</span>
+    </div>
+    <div class="chips" id="chips"></div>
+    <div class="thread" id="thread" aria-live="polite"></div>
+    <form class="ask" id="ask">
+      <label class="sr" for="q">Ask about a step or change the plan</label>
+      <input id="q" type="text" autocomplete="off" placeholder="Ask about a step or change the plan">
+      <button class="send" type="submit" aria-label="Send">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </button>
+    </form>
+  </section>
+</main>
+
+<nav class="dock" aria-label="Input">
+  <div class="dock-in">
+    <button class="dock-btn lang" type="button" id="btn-lang">
+      <span class="di"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h10M4 18h7"/></svg></span>
+      Type
+    </button>
+    <button class="dock-btn mic" type="button" id="btn-mic">
+      <span class="fab"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></span>
+      Listen
+    </button>
+    <button class="dock-btn cam" type="button" id="btn-cam">
+      <span class="di"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></span>
+      Scan
+    </button>
+  </div>
+</nav>
+
+<div class="scrim" id="scrim" hidden></div>
+
+<section class="sheet" id="sheet-mic" role="dialog" aria-modal="true" aria-labelledby="mic-h" hidden>
+  <div class="sheet-in">
+    <div class="sheet-head">
+      <h2 id="mic-h">Listen to the clerk</h2>
+      <button class="close" type="button" data-close aria-label="Close">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+      </button>
+    </div>
+    <div class="listen" id="listening">
+      <div class="wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+      Listening…
+    </div>
+    <div class="stack" id="heard" hidden>
+      <div class="transcript">
+        <p class="label">Clerk said</p>
+        <p class="jp">すみません、在留カードかパスポートを見せてください。</p>
+        <p>Please show your Residence Card or passport.</p>
+      </div>
+      <p class="added" id="mic-result"></p>
+      <p class="label">Reply</p>
+      <div class="phrases">
+        <div class="phrase">
+          <span class="jp">はい、どうぞ</span>
+          <span class="ro">Hai, douzo · Here you go</span>
+          <button class="ghost" type="button" data-copy="はい、どうぞ">Copy</button>
+        </div>
+        <div class="phrase">
+          <span class="jp">パスポートでいいですか？</span>
+          <span class="ro">Pasupōto de ii desu ka? · Is my passport okay?</span>
+          <button class="ghost" type="button" data-copy="パスポートでいいですか？">Copy</button>
+        </div>
+      </div>
+    </div>
+    <p class="note">Prototype: plays a sample conversation.</p>
+  </div>
+</section>
+
+<section class="sheet" id="sheet-cam" role="dialog" aria-modal="true" aria-labelledby="cam-h" hidden>
+  <div class="sheet-in">
+    <div class="sheet-head">
+      <h2 id="cam-h">Scan a form</h2>
+      <button class="close" type="button" data-close aria-label="Close">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+      </button>
+    </div>
+    <div class="row">
+      <label class="primary" for="cam-input">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
+        Take photo
+        <input class="sr" type="file" id="cam-input" accept="image/*,application/pdf" capture="environment">
+      </label>
+      <button class="primary alt" type="button" id="cam-sample">Use sample slip</button>
+    </div>
+    <div class="stack" id="scan-out" hidden>
+      <div class="preview" id="scan-preview"></div>
+      <p class="label">Fields found</p>
+      <ul class="fields">
+        <li class="field"><span class="jp">差出人</span><span class="fe">Sender</span><span class="fi">Write your hotel address in Kanji or Romaji.</span></li>
+        <li class="field"><span class="jp">郵便番号</span><span class="fe">Postal code</span><span class="fi">Write it as 〒450-0002.</span></li>
+        <li class="field"><span class="jp">お届け先</span><span class="fe">Recipient</span><span class="fi">Write the receiver's name, address and phone.</span></li>
+        <li class="field"><span class="jp">品名</span><span class="fe">Contents</span><span class="fi">Write the items, e.g. 衣類 (clothes).</span></li>
+      </ul>
+    </div>
+    <p class="note">Prototype: shows sample fields.</p>
+  </div>
+</section>
+
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var esc = function (s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  };
+
+  // Japanese date and greeting in Tokyo time
+  var month = new Date().getMonth() + 1;
+  try {
+    var parts = new Intl.DateTimeFormat("ja-JP", { timeZone: "Asia/Tokyo", year: "numeric", month: "numeric", day: "numeric", weekday: "short", hour: "numeric", hourCycle: "h23" }).formatToParts(new Date());
+    var p = {}; parts.forEach(function (x) { p[x.type] = x.value; });
+    $("today").textContent = p.month + "月" + p.day + "日 (" + p.weekday + ")";
+    $("today-y").textContent = p.year + "年";
+    month = +p.month;
+    var h = +p.hour;
+    $("hello").textContent = h < 5 ? "Good evening" : h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
+  } catch (e) {}
+
+  // pinned bar gets a shadow once the page scrolls
+  var status = $("status");
+  function onScroll() { status.classList.toggle("is-stuck", window.scrollY > 4); }
+  window.addEventListener("scroll", onScroll, { passive: true }); onScroll();
+  $("bar-prog").addEventListener("click", function () { $("checklist").scrollIntoView({ behavior: "smooth", block: "start" }); });
+
+  // ---------- toast ----------
+  var toastTimer;
+  function toast(msg) {
+    var t = $("toast"); t.textContent = msg; t.hidden = false;
+    clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.hidden = true; }, 2200);
+  }
+  function copy(text) {
+    var fail = function () { toast("Copy failed. Select the text instead."); };
+    try {
+      navigator.clipboard.writeText(text).then(function () { toast("Copied " + text); }, fail);
+    } catch (e) { fail(); }
+  }
+
+  // ---------- documents ----------
+  var docs = [{ name: "YuPack_Slip.pdf", pdf: true, type: "Shipping slip", when: "Today" }];
+  function renderDocs() {
+    $("docs").innerHTML = docs.map(function (d) {
+      return '<li class="doc"><span class="doc-ico ' + (d.pdf ? "pdf" : "img") + '" aria-hidden="true">' + (d.pdf ? "PDF" : "IMG") + "</span>" +
+        "<div style=\"min-width:0\"><b>" + esc(d.name) + "</b><small>" + esc(d.type) + "</small></div>" +
+        '<span class="doc-when">' + esc(d.when) + "</span></li>";
+    }).join("");
+    $("doc-count").textContent = docs.length + (docs.length === 1 ? " file" : " files");
+  }
+  function addDoc(name, pdf, type) {
+    if (!docs.some(function (d) { return d.name === name; })) docs.unshift({ name: name, pdf: pdf, type: type, when: "Just now" });
+    renderDocs();
+  }
+  ["upload-input", "upload-input-2"].forEach(function (id) {
+    $(id).addEventListener("change", function (e) {
+      var f = e.target.files && e.target.files[0]; if (!f) return;
+      addDoc(f.name, f.type === "application/pdf", f.type === "application/pdf" ? "PDF" : "Photo");
+      toast("Added " + f.name);
+      e.target.value = "";
+    });
+  });
+
+  // ---------- checklist ----------
+  var steps = [
+    { task: "Scan the Yu-Pack slip", done: true },
+    { task: "Write the sender address in Kanji", done: false,
+      guide: "Find box 差出人 (Sender). Copy your hotel address:",
+      kanji: "愛知県名古屋市中村区名駅4-1-1" },
+    { task: "Take a ticket for Counter 3", done: false,
+      guide: "On the ticket machine, press ゆうパック (Domestic parcel)." }
+  ];
+  var micAdded = false, justAdded = -1;
+  var C_RING = 100.53, C_DONUT = 289.03;
+
+  function renderSteps() {
+    var nextIdx = steps.findIndex(function (s) { return !s.done; });
+    var doneCount = steps.filter(function (s) { return s.done; }).length;
+    var frac = doneCount / steps.length;
+
+    $("count").textContent = doneCount + " of " + steps.length + " done";
+    $("ring-num").textContent = doneCount + "/" + steps.length;
+    $("bar-count").textContent = nextIdx === -1 ? "All done" : "Step " + (nextIdx + 1);
+    $("ring-fill").setAttribute("stroke-dashoffset", (C_RING * (1 - frac)).toFixed(2));
+    $("hero-fill").style.width = (frac * 100) + "%";
+    if (nextIdx === -1) {
+      $("hero-step").innerHTML = "All done";
+      $("hero-next").textContent = "Your parcel is ready to send.";
+    } else {
+      $("hero-step").innerHTML = "Step " + (nextIdx + 1) + " <small>of " + steps.length + "</small>";
+      $("hero-next").textContent = steps[nextIdx].task;
+    }
+
+    var check = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg>';
+    var html = steps.map(function (s, i) {
+      var isNext = i === nextIdx;
+      var cls = "step" + (s.done ? " is-done" : "") + (isNext ? " is-next" : "") + (i === justAdded ? " is-new" : "");
+      var badges = (isNext ? '<span class="badge next">Next</span>' : "") +
+                   (s.source ? '<span class="badge mic">From mic</span>' : "");
+      var detail = "";
+      if (isNext && s.guide) detail += '<p class="step-guide">' + esc(s.guide) + "</p>";
+      if (isNext && s.kanji) detail += '<div class="kanji"><span>' + esc(s.kanji) + '</span><button class="ghost" type="button" data-copy="' + esc(s.kanji) + '">Copy</button></div>';
+      return '<li class="' + cls + '">' +
+        '<button class="tick" type="button" data-step="' + i + '" aria-pressed="' + s.done + '" aria-label="' + (s.done ? "Undo: " : "Mark done: ") + esc(s.task) + '">' +
+          '<span class="dot">' + (s.done ? check : "") + "</span></button>" +
+        '<div class="step-body"><div class="step-top"><span class="step-n">Step ' + (i + 1) + "</span>" + badges + "</div>" +
+        '<p class="step-task">' + esc(s.task) + "</p>" + detail + "</div></li>";
+    }).join("");
+    if (nextIdx === -1) html += '<li><p class="all-done">All steps done.</p></li>';
+    $("steps").innerHTML = html;
+    justAdded = -1;
+
+    // time split: 12 min walk + 4 min per open step + 1 min handover
+    var left = steps.length - doneCount;
+    var counter = left ? left * 4 + 1 : 0;
+    var total = 12 + counter;
+    $("task-min").textContent = counter + " min";
+    $("total-min").textContent = total;
+    $("hero-total").textContent = total + " min total";
+    var walkLen = C_DONUT * 12 / total, cLen = C_DONUT * counter / total, gap = counter ? 3 : 0;
+    $("arc-walk").setAttribute("stroke-dasharray", Math.max(walkLen - gap, 0).toFixed(2) + " " + C_DONUT);
+    $("arc-counter").setAttribute("stroke-dasharray", Math.max(cLen - gap, 0).toFixed(2) + " " + C_DONUT);
+    $("arc-counter").setAttribute("stroke-dashoffset", (-walkLen).toFixed(2));
+  }
+
+  $("steps").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-step]");
+    if (b) { var s = steps[+b.dataset.step]; s.done = !s.done; renderSteps(); }
+  });
+  document.addEventListener("click", function (e) {
+    var c = e.target.closest("[data-copy]");
+    if (c) copy(c.dataset.copy);
+  });
+
+  // ---------- ask ----------
+  var suggestions = [
+    { q: "How do I write my phone number without a Japanese SIM?",
+      a: "Write your hotel's number from your booking, or your own number with the country code, like +44 7700 900123. The post office calls it only if delivery fails." },
+    { q: "Where can I copy my passport nearby?",
+      a: 'Use the copy machine at any convenience store. A black-and-white A4 copy costs about ¥10. <a href="https://www.google.com/maps/search/convenience+store+near+Nagoya+Central+Post+Office" target="_blank" rel="noopener">Find one near the post office</a>.' },
+    { q: "What does 品名 mean?",
+      a: "品名 (hinmei) means item name. Write what is in the parcel, e.g. 衣類 (clothes) or 本 (books)." }
+  ];
+  function renderChips() {
+    $("chips").innerHTML = suggestions.map(function (s, i) {
+      return '<button class="chip" type="button" data-q="' + i + '">' + esc(s.q) + "</button>";
+    }).join("");
+  }
+  function addMsg(who, html) {
+    var m = document.createElement("div");
+    m.className = "msg " + who; m.innerHTML = html;
+    $("thread").appendChild(m); return m;
+  }
+  function ask(text, answerHtml) {
+    addMsg("me", esc(text));
+    var t = addMsg("ai typing", "Thinking…");
+    setTimeout(function () {
+      t.className = "msg ai";
+      t.innerHTML = answerHtml || "The prototype answers only the suggested questions. Tap one above.";
+    }, 650);
+  }
+  $("chips").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-q]"); if (!b) return;
+    var s = suggestions[+b.dataset.q]; ask(s.q, s.a); b.remove();
+  });
+  $("ask").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var v = $("q").value.trim(); if (!v) return;
+    var hit = suggestions.find(function (s) { return s.q.toLowerCase() === v.toLowerCase(); });
+    ask(v, hit && hit.a); $("q").value = "";
+  });
+  function goAsk() {
+    $("qa").scrollIntoView({ behavior: "smooth", block: "center" });
+    setTimeout(function () { $("q").focus({ preventScroll: true }); }, 350);
+  }
+  $("btn-lang").addEventListener("click", goAsk);
+  $("tile-ask").addEventListener("click", goAsk);
+
+  // ---------- sheets ----------
+  var openSheet = null, lastFocus = null, micTimer;
+  function show(id) {
+    lastFocus = document.activeElement;
+    openSheet = $(id); openSheet.hidden = false; $("scrim").hidden = false;
+    openSheet.querySelector("[data-close]").focus();
+  }
+  function hide() {
+    if (!openSheet) return;
+    openSheet.hidden = true; $("scrim").hidden = true; openSheet = null;
+    clearTimeout(micTimer);
+    if (lastFocus) lastFocus.focus();
+  }
+  $("scrim").addEventListener("click", hide);
+  document.querySelectorAll("[data-close]").forEach(function (b) { b.addEventListener("click", hide); });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && openSheet) hide(); });
+
+  $("btn-mic").addEventListener("click", function () {
+    $("listening").hidden = false; $("heard").hidden = true;
+    show("sheet-mic");
+    micTimer = setTimeout(function () {
+      $("listening").hidden = true; $("heard").hidden = false;
+      if (!micAdded) {
+        var at = steps.findIndex(function (s) { return !s.done; });
+        if (at === -1) at = steps.length;
+        steps.splice(at, 0, {
+          task: "Show your Residence Card (在留カード) or passport",
+          guide: "The clerk asked for ID at Counter 3.",
+          source: "mic", done: false
+        });
+        micAdded = true; justAdded = at; renderSteps();
+        $("mic-result").textContent = "Added as step " + (at + 1) + ": show your ID.";
+      } else {
+        $("mic-result").textContent = "Already in your checklist.";
+      }
+    }, 1800);
+  });
+
+  var previewUrl;
+  function showScan(name, file) {
+    var box = $("scan-preview");
+    if (previewUrl) { URL.revokeObjectURL(previewUrl); previewUrl = null; }
+    if (file && file.type.indexOf("image/") === 0) {
+      previewUrl = URL.createObjectURL(file);
+      box.innerHTML = '<img alt="Your scanned form" src="' + previewUrl + '">';
+    } else {
+      box.innerHTML = '<div class="fname">' + esc(name) + "</div>";
+    }
+    $("scan-out").hidden = false;
+    var pdf = !file || file.type === "application/pdf";
+    addDoc(name, pdf, "Scan");
+  }
+  $("btn-cam").addEventListener("click", function () { show("sheet-cam"); });
+  $("cam-input").addEventListener("change", function (e) {
+    var f = e.target.files && e.target.files[0]; if (!f) return;
+    showScan(f.name, f); e.target.value = "";
+  });
+  $("cam-sample").addEventListener("click", function () { showScan("YuPack_Slip.pdf"); });
+
+  // ---------- season: accent colours + falling leaves on the task card ----------
+  var SEASONS = {
+    spring: { name: "Spring", kanji: "春", colors: ["#ffffff", "#fde2ef", "#fbcfe8"], kinds: ["petal"] },
+    summer: { name: "Summer", kanji: "夏", colors: ["#ecfeff", "#fef9c3", "#a5f3fc"], kinds: ["glow"] },
+    autumn: { name: "Autumn", kanji: "秋", colors: ["#fbbf24", "#fde68a", "#fdba74", "#fff1e0", "#f59e0b"], kinds: ["maple", "maple", "ginkgo"] },
+    winter: { name: "Winter", kanji: "冬", colors: ["#ffffff", "#e0e7ff"], kinds: ["snow"] }
+  };
+  function seasonFor(m) { return m >= 3 && m <= 5 ? "spring" : m >= 6 && m <= 8 ? "summer" : m >= 9 && m <= 11 ? "autumn" : "winter"; }
+
+  var cv = $("season-fx"), ctx = cv.getContext("2d"), W = 0, H = 0, parts = [], season;
+  var still = !!(window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches);
+  function rnd(a, b) { return a + Math.random() * (b - a); }
+  function size() {
+    var r = cv.getBoundingClientRect(), d = window.devicePixelRatio || 1;
+    W = r.width; H = r.height; cv.width = Math.round(W * d); cv.height = Math.round(H * d);
+    ctx.setTransform(d, 0, 0, d, 0, 0);
+    if (still) draw(0);
+  }
+  function seed() {
+    var s = SEASONS[season]; parts = [];
+    for (var i = 0; i < 11; i++) parts.push({
+      x: rnd(0, W || 360), y: rnd(-10, H || 200), s: rnd(9, 18), r: rnd(0, 6.28), vr: rnd(-.02, .02),
+      vy: rnd(.25, .65), ph: rnd(0, 6.28), a: rnd(.4, .75),
+      c: s.colors[i % s.colors.length], k: s.kinds[i % s.kinds.length]
+    });
+    if (still) draw(0);
+  }
+  function polar(deg, r) { var a = deg * Math.PI / 180; ctx.lineTo(Math.sin(a) * r, -Math.cos(a) * r); }
+  function shape(p) {
+    ctx.beginPath();
+    if (p.k === "maple") {
+      var lobes = [[-100, .62], [-50, .88], [0, 1], [50, .88], [100, .62]];
+      ctx.moveTo(Math.sin(-150 * Math.PI / 180) * .22, -Math.cos(-150 * Math.PI / 180) * .22);
+      for (var i = 0; i < lobes.length; i++) {
+        polar(lobes[i][0] - 12, .42); polar(lobes[i][0], lobes[i][1]); polar(lobes[i][0] + 12, .42);
+        if (i < lobes.length - 1) polar(lobes[i][0] + 25, .3);
+      }
+      polar(150, .22); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(0, .1); ctx.lineTo(0, .7); ctx.lineWidth = .08; ctx.strokeStyle = p.c; ctx.stroke();
+    } else if (p.k === "ginkgo") {
+      ctx.moveTo(0, .25); ctx.arc(0, .25, .85, -Math.PI / 2 - .95, -Math.PI / 2 + .95); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(0, .25); ctx.lineTo(0, .75); ctx.lineWidth = .08; ctx.strokeStyle = p.c; ctx.stroke();
+    } else if (p.k === "petal") {
+      ctx.ellipse(0, 0, .32, .55, 0, 0, 6.283); ctx.fill();
+    } else {
+      ctx.arc(0, 0, p.k === "glow" ? .2 : .28, 0, 6.283); ctx.fill();
+    }
+  }
+  function draw(t) {
+    ctx.clearRect(0, 0, W, H);
+    parts.forEach(function (p) {
+      if (!still) {
+        p.y += p.k === "glow" ? -p.vy * .5 : p.vy;
+        p.x += Math.sin(t / 900 + p.ph) * .35; p.r += p.vr;
+        if (p.y > H + 20) { p.y = -20; p.x = rnd(0, W); }
+        if (p.y < -20) { p.y = H + 20; p.x = rnd(0, W); }
+      }
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.r); ctx.scale(p.s, p.s);
+      ctx.globalAlpha = p.k === "glow" ? p.a * (.5 + .5 * Math.sin(t / 500 + p.ph)) : p.a;
+      ctx.fillStyle = p.c; shape(p); ctx.restore();
+    });
+  }
+  function loop(t) { draw(t); requestAnimationFrame(loop); }
+
+  // the season follows the month; add #spring, #summer, #autumn or #winter to the link to preview one
+  function applySeason() {
+    var h = (location.hash || "").slice(1);
+    season = SEASONS[h] ? h : seasonFor(month);
+    document.body.dataset.season = season;
+    $("season-name").textContent = SEASONS[season].name;
+    $("season-tag").textContent = SEASONS[season].kanji + " · ゆうパック";
+    seed();
+  }
+  window.addEventListener("hashchange", applySeason);
+  size();
+  if (window.ResizeObserver) new ResizeObserver(size).observe(cv);
+  applySeason();
+  if (!still) requestAnimationFrame(loop);
+
+  renderDocs(); renderSteps(); renderChips();
+})();
+</script>
+
+</body>
+</html>
