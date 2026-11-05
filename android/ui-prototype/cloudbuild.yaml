@@ -1,4 +1,4 @@
-# Cloud Build: build the Contour WebView shell (ui-prototype/android) and send the
+# Cloud Build: build the Contour WebView shell (android/ui-prototype) and send the
 # APK to Firebase App Distribution.
 #
 # The shell loads the UI from the backend at ${_API_BASE_URL}app/, so UI-only
@@ -23,7 +23,7 @@ substitutions:
 steps:
   - id: build-apk
     name: eclipse-temurin:17-jdk
-    dir: ui-prototype/android
+    dir: android/ui-prototype
     entrypoint: bash
     secretEnv: ['DEBUG_KEYSTORE_B64']
     env:
@@ -63,7 +63,7 @@ steps:
       - |
         set -euo pipefail
         npx --yes firebase-tools@15.33.0 appdistribution:distribute \
-          ui-prototype/android/app/build/outputs/apk/debug/app-debug.apk \
+          android/ui-prototype/app/build/outputs/apk/debug/app-debug.apk \
           --app "${_FIREBASE_APP_ID}" \
           --groups "${_TESTER_GROUPS}" \
           --release-notes "main @ ${SHORT_SHA} (debug build; demo data, not real evacuation guidance)"

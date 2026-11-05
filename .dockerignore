@@ -2,7 +2,19 @@
 node_modules
 **/node_modules
 backend/dist
-android
+# The image needs only the UI page from android/ui-prototype; ignore the rest of android/.
+android/*
+!android/ui-prototype
+android/ui-prototype/*
+!android/ui-prototype/app
+android/ui-prototype/app/*
+!android/ui-prototype/app/src
+android/ui-prototype/app/src/*
+!android/ui-prototype/app/src/main
+android/ui-prototype/app/src/main/*
+!android/ui-prototype/app/src/main/assets
+android/ui-prototype/app/src/main/assets/*
+!android/ui-prototype/app/src/main/assets/contour.html
 docs
 **/.env
 **/.env.*

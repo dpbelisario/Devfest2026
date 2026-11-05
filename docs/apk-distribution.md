@@ -1,13 +1,13 @@
 # App updates: hosted UI + automatic APK builds
 
-The distributed app is the Contour WebView shell in `ui-prototype/android`
+The distributed app is the Contour WebView shell in `android/ui-prototype`
 (package `com.contour.app`). How a change reaches phones depends on what changed:
 
 | What changed                                                   | How it reaches phones                                                                            | New APK? |
 | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | -------- |
-| UI: `ui-prototype/android/app/src/main/assets/contour.html`    | Backend redeploys and serves it at `/app/`; the app loads it on next launch                      | No       |
+| UI: `android/ui-prototype/app/src/main/assets/contour.html`    | Backend redeploys and serves it at `/app/`; the app loads it on next launch                      | No       |
 | Backend: `backend/**`                                          | Backend redeploys                                                                                | No       |
-| Shell: Kotlin, manifest, permissions in `ui-prototype/android` | Cloud Build builds an APK and sends it to App Distribution; testers tap **Update** in App Tester | Yes      |
+| Shell: Kotlin, manifest, permissions in `android/ui-prototype` | Cloud Build builds an APK and sends it to App Distribution; testers tap **Update** in App Tester | Yes      |
 
 The shell loads `<API base URL>/app/`. If that page fails or takes more than 8
 seconds, it shows the copy of `contour.html` bundled in the APK, so the app still
@@ -16,10 +16,10 @@ local storage (language, attendance sheet).
 
 For UI changes to go live without a new APK, the backend's auto-deploy trigger must
 also run when `contour.html` changes. If that trigger has an included-files filter
-such as `backend/**`, add `ui-prototype/android/app/src/main/assets/contour.html`.
+such as `backend/**`, add `android/ui-prototype/app/src/main/assets/contour.html`.
 
-Every push to `main` that changes `ui-prototype/android/**` builds a debug APK with
-[`ui-prototype/android/cloudbuild.yaml`](../ui-prototype/android/cloudbuild.yaml) and
+Every push to `main` that changes `android/ui-prototype/**` builds a debug APK with
+[`android/ui-prototype/cloudbuild.yaml`](../android/ui-prototype/cloudbuild.yaml) and
 uploads it to Firebase App Distribution. Testers get an email and update through the
 Firebase App Tester app.
 
@@ -91,8 +91,8 @@ Cloud Build → Triggers → **Create trigger**:
 | Event                 | Push to a branch                                                       |
 | Repository            | `dpbelisario/Devfest2026` (the same connection the API trigger uses)   |
 | Branch                | `^main$`                                                               |
-| Included files filter | `ui-prototype/android/**`                                              |
-| Configuration         | Cloud Build configuration file, `ui-prototype/android/cloudbuild.yaml` |
+| Included files filter | `android/ui-prototype/**`                                              |
+| Configuration         | Cloud Build configuration file, `android/ui-prototype/cloudbuild.yaml` |
 | Service account       | the `$SA` from step 3                                                  |
 
 Add these substitution variables:
