@@ -1308,7 +1308,14 @@ html.native .ar-x svg { stroke: var(--ink); }
     pick.classList.remove("on"); pickDim.classList.remove("on");
     setTimeout(() => { if (!pick.classList.contains("on")) pick.hidden = true; }, 380);
   }
-  $("arFab").addEventListener("click", openPick);
+  function openNativeAr() {
+    if (window.contourNative && typeof window.contourNative.postMessage === "function") {
+      window.contourNative.postMessage("openGeospatialAr");
+    } else {
+      say("Native AR unavailable. Update the Android app and Android System WebView.");
+    }
+  }
+  $("arFab").addEventListener("click", () => { if (NATIVE) openNativeAr(); else openPick(); });
   pickDim.addEventListener("click", closePick);
   $("pickList").addEventListener("click", e => {
     const b = e.target.closest("[data-i]"); if (!b) return;
@@ -1347,6 +1354,7 @@ html.native .ar-x svg { stroke: var(--ink); }
     else arSetHeading(h);
   }
   async function openAR(p) {
+    if (NATIVE) { openNativeAr(); return; }
     if (!p || !ar.hidden) return;
     arPoint = p; arSeen = false; arHasSensor = false;
     $("arName").textContent = p.name; $("arJp").textContent = p.jp;

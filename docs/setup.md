@@ -28,14 +28,12 @@ cd android
 ./gradlew :app:assembleDebug :app:testDebugUnitTest :app:lintDebug
 ```
 
-## Next AR milestone
+## Geospatial AR
 
-Start with Google's Android Geospatial sample:
-https://developers.google.com/ar/develop/java/geospatial/quickstart
+The native AR screen implements ARCore session lifecycle, camera rendering, terrain anchors,
+consent, runtime camera/precise-location permission requests, device support checks, and
+accuracy-gated waypoint rendering. Configure a restricted Android ARCore API key and backend URL
+using [Geospatial AR setup](geospatial-ar.md), then install a new APK.
 
-Enable the ARCore API in a Google Cloud project, configure restricted Android
-credentials, add the required user notice and runtime permission flow, check device
-support/VPS coverage, and integrate session lifecycle and rendering. The current
-manifest declares AR optional and permissions, but does not request them at runtime
-because camera/location features are not implemented yet. Do not mistake SDK
-installation or the placeholder status class for an operational AR scene.
+Actual localization and arrow alignment require a supported physical device and outdoor field
+testing. The existing route data is fictional and must not be used as evacuation guidance.

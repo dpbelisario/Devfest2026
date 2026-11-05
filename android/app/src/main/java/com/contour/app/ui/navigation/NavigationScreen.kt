@@ -20,7 +20,7 @@ fun NavigationScreen(destination: Destination, onBack: () -> Unit, model: Naviga
     LazyColumn(Modifier.fillMaxSize().safeDrawingPadding().padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         item { TextButton(onClick = onBack) { Text("Back") } }
         item { Text(destination.name, style = MaterialTheme.typography.headlineSmall) }
-        item { Text("Route preview only. Camera, GPS, and geospatial rendering are not implemented yet.") }
+        item { Text("Fixed-origin demo route preview. Open 3D AR from the map for native Geospatial AR using your actual position.") }
         when (val current = state) {
             NavigationState.Loading -> item { CircularProgressIndicator() }
             NavigationState.Failed -> item {

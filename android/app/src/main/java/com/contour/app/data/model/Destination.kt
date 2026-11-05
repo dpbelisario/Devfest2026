@@ -7,4 +7,5 @@ data class Destination(
     val longitude: Double,
     val isDemo: Boolean,
     val openingStatus: String,
+    val kind: String = "unknown",
 )

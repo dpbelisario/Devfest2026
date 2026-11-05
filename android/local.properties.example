@@ -3,6 +3,8 @@
 # sdk.dir=/absolute/path/to/Android/sdk
 EVACUATION_AR_API_BASE_URL=http://10.0.2.2:8080/
 # Use your HTTPS Cloud Run URL on a physical phone.
-# Configure restricted Android ARCore credentials when implementing AR.
+# Enable ARCore API and restrict this Android key to com.contour.app + signing SHA-1.
+# Also restrict its API access to ARCore API. This value is public in the APK.
+ARCORE_API_KEY=
 # Optional: load the Contour UI from the backend (https only) instead of the bundled copy.
 # CONTOUR_UI_URL=https://<your-backend>/app/

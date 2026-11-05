@@ -13,14 +13,15 @@ preview) is still in the app but is no longer the launcher; start it with
 ## Open and run
 
 1. Android Studio: **File > Open** and pick `android/`. Let Gradle sync (JDK 17).
-2. Pick a phone or emulator, press **Run**. Allow the camera for 3D AR directions.
+2. Pick a phone or emulator, press **Run**. For native Geospatial AR setup, see [geospatial-ar.md](geospatial-ar.md).
 3. Optional: set `CONTOUR_UI_URL=https://<backend>/app/` in `android/local.properties` to load the hosted page.
 
 ## What it contains
 
 Top page, Area list, Surrounding (map with shelter cards and a detail sheet), Attendance sheet
 (register / confirm survivor information, saved on the device only), Disaster info placeholder,
-3D AR directions (camera + compass arrows), and English / 日本語 / 中文 / 한국어.
+3D AR entry point, and English / 日本語 / 中文 / 한국어. Android opens native ARCore Geospatial;
+the browser-only page retains its camera/compass demo.
 
 ## Design rules
 
@@ -42,6 +43,9 @@ Top page, Area list, Surrounding (map with shelter cards and a detail sheet), At
 - Back button closes AR / sheet / menu / page first, then returns to the Top tab, then exits.
 - Links outside the app (Google Maps directions) open in the matching app.
 - Map tiles, Leaflet and fonts load from the internet.
+- On Android, 3D AR opens a native destination picker backed by the API and actual device position.
+  An origin-restricted WebView message supports both bundled HTML and older hosted HTML without
+  passing the fictional map coordinates into native navigation.
 
 ## Check header compatibility
 
@@ -55,4 +59,7 @@ again. Updating WebView alone should not be required to make the header usable.
 ## Limits (this is a prototype)
 
 - All shelters, capacities and the user's position (Nagoya University) are fictional demo data.
-- 3D AR here is a compass arrow on the camera view, not ARCore geospatial tracking.
+- Browser 3D AR is a compass arrow on the camera view. Android Geospatial AR requires credentials,
+  a supported physical phone, accurate tracking, and a saved route from the actual position.
+- Native Geospatial AR and terrain alignment still require outdoor field testing; see
+  [geospatial-ar.md](geospatial-ar.md). Existing synthetic routes are not usable evacuation guidance.

@@ -5,22 +5,22 @@ Google Cloud Run. This replaces the previous React/FastAPI project.
 
 ## Current state
 
-This commit scaffolds the project, not a functioning evacuation system.
+This is a prototype, not a verified evacuation system.
 
 - Backend: health, nearby destination filtering, and saved demo-route lookup.
-- Android: Compose destination list and route preview, loading/empty/error states,
-  and a configurable HTTP client.
-- Integration boundaries: ARCore session, renderer, speech, compass sensors, and
-  cache. These are not yet wired into navigation. ARCore is a declared dependency;
-  no actual geospatial tracking, camera rendering, map, or voice playback is implemented.
+- Android: Contour WebView map UI, an original Compose route preview, and a native
+  ARCore Geospatial screen with camera rendering, terrain anchors, tracking checks,
+  and backend destination/route loading from actual device position.
+- Geospatial AR requires configuration and physical-device field testing. Voice
+  playback and offline navigation are not wired into the native AR screen.
 - Data: one **fictional** destination and one **synthetic, unverified** route.
-  Coordinates are fixed for preview; the app does not read the user's location.
-- No cloud resources, credentials, database, or CI/CD pipelines are created.
+  Coordinates remain fixed for previews; native AR uses the actual device pose.
+- This AR implementation creates no cloud resources or deployment pipelines.
 
 ## Layout
 
 ```text
-android/   Kotlin/Compose application, AR boundaries, Android tests
+android/   Kotlin/Compose application, WebView UI, native Geospatial AR, Android tests
 backend/   Express API, schemas, services, fixture data, Dockerfile
 docs/     Setup, deployment, sources, demo walkthrough
 ```
@@ -68,7 +68,8 @@ cd android
 ```
 
 The app opens the Contour UI (a WebView page, `WebUiActivity`); the Compose scaffold above is still
-in the app as `MainActivity`. See [UI](docs/ui.md).
+in the app as `MainActivity`. See [UI](docs/ui.md). For the native 3D AR feature,
+configure a restricted ARCore key and follow [Geospatial AR setup](docs/geospatial-ar.md).
 
 Install the debug APK using Android Studio or `adb install -r
 app/build/outputs/apk/debug/app-debug.apk`. Android builds are distributed to

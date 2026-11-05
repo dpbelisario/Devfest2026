@@ -14,6 +14,9 @@ require(!apiBaseUrl.contains('"') && !apiBaseUrl.contains('\\')) { "Invalid API 
 // Hosted UI page (backend /app/). Set CONTOUR_UI_URL in local.properties, or -PcontourUiUrl in CI.
 // Empty means: always use the copy of contour.html bundled in assets.
 val uiUrl = providers.gradleProperty("contourUiUrl").orNull ?: local.getProperty("CONTOUR_UI_URL", "")
+val arCoreApiKey = (providers.gradleProperty("arCoreApiKey").orNull ?: local.getProperty("ARCORE_API_KEY", "")).trim()
+// Check safe manifest characters only; credential authorization is verified by ARCore.
+require(arCoreApiKey.matches(Regex("[A-Za-z0-9_.-]*"))) { "ARCORE_API_KEY contains unsupported characters" }
 require(uiUrl.isEmpty() || uiUrl.startsWith("https://")) { "CONTOUR_UI_URL must use https." }
 require(!uiUrl.contains('"') && !uiUrl.contains('\\')) { "Invalid CONTOUR_UI_URL" }
 android {
@@ -28,6 +31,8 @@ android {
   versionName = "0.1.0"
   buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
   buildConfigField("String", "UI_URL", "\"$uiUrl\"")
+  buildConfigField("boolean", "ARCORE_CONFIGURED", arCoreApiKey.isNotBlank().toString())
+  manifestPlaceholders["arCoreApiKey"] = arCoreApiKey
   testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
  }
  buildFeatures { compose = true; buildConfig = true }
@@ -44,6 +49,9 @@ dependencies {
  implementation("androidx.lifecycle:lifecycle-runtime-compose:2.9.0")
  implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
  implementation("com.google.ar:core:1.48.0")
+ implementation("com.google.android.gms:play-services-location:21.3.0")
+ // Play Services pulls an old Fragment transitively; Activity Result permissions need >= 1.3.
+ implementation("androidx.fragment:fragment:1.8.6")
  implementation("androidx.webkit:webkit:1.12.1")
  testImplementation("junit:junit:4.13.2")
  androidTestImplementation("androidx.test.ext:junit:1.2.1")

@@ -25,6 +25,8 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.webkit.WebViewAssetLoader
+import androidx.webkit.WebViewCompat
+import androidx.webkit.WebViewFeature
 
 /**
  * Shows the Contour UI full screen.
@@ -43,6 +45,23 @@ class WebUiActivity : ComponentActivity() {
     private val hostedUrl: String? = BuildConfig.UI_URL.takeIf { it.isNotBlank() }
     private val hostedHost: String? = hostedUrl?.let { Uri.parse(it).host }
     private var usingFallback = false
+    private var arLaunching = false
+    private val trustedOrigins: Set<String> = buildSet {
+        add("https://${WebViewAssetLoader.DEFAULT_DOMAIN}")
+        hostedUrl?.let { Uri.parse(it) }?.let { add("${it.scheme}://${it.encodedAuthority}") }
+    }
+    private val nativeArHook = """
+        (() => {
+          if (window.__contourNativeArHook || !window.contourNative) return;
+          window.__contourNativeArHook = true;
+          document.addEventListener('click', event => {
+            const target = event.target instanceof Element && event.target.closest('#arFab, #arBtn, #pickList button[data-i]');
+            if (!target) return;
+            event.preventDefault(); event.stopImmediatePropagation();
+            window.contourNative.postMessage('openGeospatialAr');
+          }, true);
+        })();
+    """.trimIndent()
     private val hostedTimeout = Runnable { fallBackToBundled() }
 
     /** Our own page origins: the bundled asset host and the hosted UI host. */
@@ -108,6 +127,21 @@ class WebUiActivity : ComponentActivity() {
             userAgentString = "$userAgentString ContourApp/1.0"   // the page switches to full-screen app mode on this tag
         }
 
+        // An origin-restricted, main-frame-only message opens the native destination picker.
+        // No JavascriptInterface or arbitrary URL/coordinate execution is exposed to the page.
+        if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
+            WebViewCompat.addWebMessageListener(web, "contourNative", trustedOrigins) { _, message, origin, mainFrame, _ ->
+                if (mainFrame && origin.toString().trimEnd('/') in trustedOrigins &&
+                    message.data == "openGeospatialAr" && !arLaunching) {
+                    arLaunching = true
+                    startActivity(Intent(this, GeospatialArActivity::class.java))
+                }
+            }
+            if (WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
+                WebViewCompat.addDocumentStartJavaScript(web, nativeArHook, trustedOrigins)
+            }
+        }
+
         val assets = WebViewAssetLoader.Builder()
             .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(this))
             .build()
@@ -128,6 +162,12 @@ class WebUiActivity : ComponentActivity() {
 
             override fun onPageFinished(view: WebView, url: String) {
                 if (Uri.parse(url).host == hostedHost) web.removeCallbacks(hostedTimeout)
+                val page = Uri.parse(url)
+                if ("${page.scheme}://${page.encodedAuthority}" in trustedOrigins) {
+                    // Also supports older hosted HTML: intercept its AR controls before the
+                    // prototype camera code can start, without requiring a backend redeploy.
+                    view.evaluateJavascript(nativeArHook, null)
+                }
             }
 
             override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
@@ -184,6 +224,7 @@ class WebUiActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        arLaunching = false
         web.onResume()
     }
 
