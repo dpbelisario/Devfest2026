@@ -71,7 +71,7 @@ class WebUiActivity : ComponentActivity() {
             isAppearanceLightNavigationBars = true
         }
 
-        web = WebView(this).apply { setBackgroundColor(Color.parseColor("#F7F6F2")) }
+        web = WebView(this).apply { setBackgroundColor(Color.parseColor("#F3F5F3")) }
         setContentView(web)
         ViewCompat.setOnApplyWindowInsetsListener(web) { v, insets ->
             val bars = insets.getInsets(
