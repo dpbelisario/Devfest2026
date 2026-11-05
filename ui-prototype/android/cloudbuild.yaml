@@ -1,12 +1,15 @@
-# Cloud Build: build the debug APK and send it to Firebase App Distribution.
+# Cloud Build: build the Contour WebView shell (ui-prototype/android) and send the
+# APK to Firebase App Distribution.
 #
-# Run by a Cloud Build trigger on pushes to main that touch android/**.
+# The shell loads the UI from the backend at ${_API_BASE_URL}app/, so UI-only
+# changes (contour.html) reach phones when the backend redeploys, with no new APK.
+# This build is for shell changes and to refresh the bundled offline copy.
 # Setup (trigger, secret, IAM roles): docs/apk-distribution.md.
 #
 # Substitutions (set on the trigger, never commit real values here):
 #   _FIREBASE_APP_ID  Firebase Android app ID, e.g. 1:1234567890:android:abc123
 #   _TESTER_GROUPS    Comma-separated App Distribution group aliases
-#   _API_BASE_URL     HTTPS base URL of the deployed API, ending in "/"
+#   _API_BASE_URL     HTTPS base URL of the deployed backend, ending in "/"
 # Secret Manager:
 #   android-debug-keystore  base64 of a shared debug.keystore, so every build
 #                           is signed with the same key and installs as an update.
@@ -20,7 +23,7 @@ substitutions:
 steps:
   - id: build-apk
     name: eclipse-temurin:17-jdk
-    dir: android
+    dir: ui-prototype/android
     entrypoint: bash
     secretEnv: ['DEBUG_KEYSTORE_B64']
     env:
@@ -47,10 +50,9 @@ steps:
         mkdir -p "$$ANDROID_USER_HOME"
         printf '%s' "$$DEBUG_KEYSTORE_B64" | base64 -d > "$$ANDROID_USER_HOME/debug.keystore"
 
-        printf 'EVACUATION_AR_API_BASE_URL=%s\n' "${_API_BASE_URL}" > local.properties
-
         # Increasing versionCode (minutes since epoch) so each release is newer.
-        ./gradlew --no-daemon :app:assembleDebug :app:testDebugUnitTest \
+        ./gradlew --no-daemon :app:assembleDebug \
+          -PcontourUiUrl="${_API_BASE_URL}app/" \
           -PversionCode=$$(( $$(date +%s) / 60 ))
 
   - id: distribute
@@ -61,10 +63,10 @@ steps:
       - |
         set -euo pipefail
         npx --yes firebase-tools@15.33.0 appdistribution:distribute \
-          android/app/build/outputs/apk/debug/app-debug.apk \
+          ui-prototype/android/app/build/outputs/apk/debug/app-debug.apk \
           --app "${_FIREBASE_APP_ID}" \
           --groups "${_TESTER_GROUPS}" \
-          --release-notes "main @ ${SHORT_SHA} (debug build; sample data, not real evacuation guidance)"
+          --release-notes "main @ ${SHORT_SHA} (debug build; demo data, not real evacuation guidance)"
 
 availableSecrets:
   secretManager:

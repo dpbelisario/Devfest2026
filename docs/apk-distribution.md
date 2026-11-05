@@ -1,12 +1,29 @@
-# Automatic APK builds (Cloud Build → Firebase App Distribution)
+# App updates: hosted UI + automatic APK builds
 
-Every push to `main` that changes `android/**` builds a debug APK with
-[`android/cloudbuild.yaml`](../android/cloudbuild.yaml) and uploads it to Firebase App
-Distribution. Testers get an email and update through the Firebase App Tester app.
-Backend-only pushes do not rebuild the APK.
+The distributed app is the Contour WebView shell in `ui-prototype/android`
+(package `com.contour.app`). How a change reaches phones depends on what changed:
 
-The APK is a debug build of the scaffold. It uses sample data and is not real
-evacuation guidance.
+| What changed                                                   | How it reaches phones                                                                            | New APK? |
+| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | -------- |
+| UI: `ui-prototype/android/app/src/main/assets/contour.html`    | Backend redeploys and serves it at `/app/`; the app loads it on next launch                      | No       |
+| Backend: `backend/**`                                          | Backend redeploys                                                                                | No       |
+| Shell: Kotlin, manifest, permissions in `ui-prototype/android` | Cloud Build builds an APK and sends it to App Distribution; testers tap **Update** in App Tester | Yes      |
+
+The shell loads `<API base URL>/app/`. If that page fails or takes more than 8
+seconds, it shows the copy of `contour.html` bundled in the APK, so the app still
+opens offline. That copy is only as new as the last APK. The two copies keep separate
+local storage (language, attendance sheet).
+
+For UI changes to go live without a new APK, the backend's auto-deploy trigger must
+also run when `contour.html` changes. If that trigger has an included-files filter
+such as `backend/**`, add `ui-prototype/android/app/src/main/assets/contour.html`.
+
+Every push to `main` that changes `ui-prototype/android/**` builds a debug APK with
+[`ui-prototype/android/cloudbuild.yaml`](../ui-prototype/android/cloudbuild.yaml) and
+uploads it to Firebase App Distribution. Testers get an email and update through the
+Firebase App Tester app.
+
+The app shows fictional demo data and is not real evacuation guidance.
 
 ## One-time setup (about 15 minutes)
 
@@ -68,23 +85,23 @@ gcloud secrets add-iam-policy-binding android-debug-keystore --member="serviceAc
 
 Cloud Build → Triggers → **Create trigger**:
 
-| Field                 | Value                                                                |
-| --------------------- | -------------------------------------------------------------------- |
-| Name                  | `android-apk-distribution`                                           |
-| Event                 | Push to a branch                                                     |
-| Repository            | `dpbelisario/Devfest2026` (the same connection the API trigger uses) |
-| Branch                | `^main$`                                                             |
-| Included files filter | `android/**`                                                         |
-| Configuration         | Cloud Build configuration file, `android/cloudbuild.yaml`            |
-| Service account       | the `$SA` from step 3                                                |
+| Field                 | Value                                                                  |
+| --------------------- | ---------------------------------------------------------------------- |
+| Name                  | `android-apk-distribution`                                             |
+| Event                 | Push to a branch                                                       |
+| Repository            | `dpbelisario/Devfest2026` (the same connection the API trigger uses)   |
+| Branch                | `^main$`                                                               |
+| Included files filter | `ui-prototype/android/**`                                              |
+| Configuration         | Cloud Build configuration file, `ui-prototype/android/cloudbuild.yaml` |
+| Service account       | the `$SA` from step 3                                                  |
 
 Add these substitution variables:
 
-| Variable           | Value                                              |
-| ------------------ | -------------------------------------------------- |
-| `_FIREBASE_APP_ID` | the App ID from step 1                             |
-| `_API_BASE_URL`    | the deployed API URL, ending in `/`                |
-| `_TESTER_GROUPS`   | `team`, or a comma-separated list of group aliases |
+| Variable           | Value                                                               |
+| ------------------ | ------------------------------------------------------------------- |
+| `_FIREBASE_APP_ID` | the App ID from step 1                                              |
+| `_API_BASE_URL`    | the deployed backend URL, ending in `/`; the app loads `<that>app/` |
+| `_TESTER_GROUPS`   | `team`, or a comma-separated list of group aliases                  |
 
 ### 5. Test it
 
@@ -110,3 +127,5 @@ build. Uninstall it once, then install from App Tester.
   lacks `roles/firebaseappdistro.admin`, or the App ID belongs to another project.
 - "App not installed" on the phone: the APK was signed with a different key.
   Uninstall the old app once.
+- A UI change does not show up: check that the backend redeployed and that
+  `<API base URL>/app/` shows the new page in a browser, then close and reopen the app.

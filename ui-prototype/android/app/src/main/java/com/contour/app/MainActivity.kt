@@ -7,9 +7,11 @@ import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.graphics.Color
+import android.net.Uri
 import android.os.Bundle
 import android.webkit.PermissionRequest
 import android.webkit.WebChromeClient
+import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
@@ -23,13 +25,34 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.webkit.WebViewAssetLoader
 
 /**
- * Shows contour.html (in assets) full screen. The page is served from a https origin by
- * WebViewAssetLoader, which makes it a secure context so the camera (3D AR) and the compass work.
+ * Shows the Contour UI full screen.
+ *
+ * Online: loads the hosted page (BuildConfig.UI_URL, served by the backend at /app/), so UI
+ * changes reach phones on the next launch without reinstalling the APK.
+ * Offline or if the host fails: falls back to the copy of contour.html bundled in assets, served
+ * from a https origin by WebViewAssetLoader. Both are secure contexts, which the camera (3D AR)
+ * and the compass need.
  */
 class MainActivity : ComponentActivity() {
 
     private lateinit var web: WebView
     private var pendingCamera: PermissionRequest? = null
+    private val bundledUrl = "https://${WebViewAssetLoader.DEFAULT_DOMAIN}/assets/contour.html"
+    private val hostedUrl: String? = BuildConfig.UI_URL.takeIf { it.isNotBlank() }
+    private val hostedHost: String? = hostedUrl?.let { Uri.parse(it).host }
+    private var usingFallback = false
+    private val hostedTimeout = Runnable { fallBackToBundled() }
+
+    /** Our own page origins: the bundled asset host and the hosted UI host. */
+    private fun isOurs(host: String?) =
+        host != null && (host == WebViewAssetLoader.DEFAULT_DOMAIN || host == hostedHost)
+
+    /** Switch to the bundled page once if the hosted page cannot be shown. */
+    private fun fallBackToBundled() {
+        if (usingFallback || hostedUrl == null) return
+        usingFallback = true
+        web.loadUrl(bundledUrl)
+    }
 
     private val askCamera =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -81,19 +104,31 @@ class MainActivity : ComponentActivity() {
 
             // Anything that is not our own page (Google Maps directions, etc.) opens outside the app.
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
-                if (request.url.host == WebViewAssetLoader.DEFAULT_DOMAIN) return false
+                if (isOurs(request.url.host)) return false
                 try {
                     startActivity(Intent(Intent.ACTION_VIEW, request.url))
                 } catch (_: ActivityNotFoundException) {
                 }
                 return true
             }
+
+            override fun onPageFinished(view: WebView, url: String) {
+                if (Uri.parse(url).host == hostedHost) web.removeCallbacks(hostedTimeout)
+            }
+
+            override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
+                if (request.isForMainFrame) fallBackToBundled()
+            }
+
+            override fun onReceivedHttpError(view: WebView, request: WebResourceRequest, response: WebResourceResponse) {
+                if (request.isForMainFrame && response.statusCode >= 400) fallBackToBundled()
+            }
         }
 
         web.webChromeClient = object : WebChromeClient() {
             override fun onPermissionRequest(request: PermissionRequest) {
                 runOnUiThread {
-                    val ours = request.origin.host == WebViewAssetLoader.DEFAULT_DOMAIN
+                    val ours = isOurs(request.origin.host)
                     val wantsCamera = request.resources.contains(PermissionRequest.RESOURCE_VIDEO_CAPTURE)
                     if (!ours || !wantsCamera) {
                         request.deny()
@@ -120,7 +155,9 @@ class MainActivity : ComponentActivity() {
         })
 
         if (savedInstanceState == null) {
-            web.loadUrl("https://${WebViewAssetLoader.DEFAULT_DOMAIN}/assets/contour.html")
+            web.loadUrl(hostedUrl ?: bundledUrl)
+            // A slow network must not leave a blank screen: use the bundled page after 8 s.
+            if (hostedUrl != null) web.postDelayed(hostedTimeout, 8_000)
         } else {
             web.restoreState(savedInstanceState)
         }
@@ -142,6 +179,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        web.removeCallbacks(hostedTimeout)
         web.destroy()
         super.onDestroy()
     }

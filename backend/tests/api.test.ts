@@ -6,6 +6,13 @@ test("health is available", async () => {
   const r = await request(app).get("/health");
   assert.equal(r.status, 200);
 });
+test("UI page is served without stale caching", async () => {
+  const r = await request(app).get("/app/");
+  assert.equal(r.status, 200);
+  assert.match(r.headers["content-type"] ?? "", /text\/html/);
+  assert.equal(r.headers["cache-control"], "no-cache");
+  assert.match(r.text, /ContourApp/);
+});
 test("invalid and missing coordinates are rejected", async () => {
   for (const query of [
     "",
