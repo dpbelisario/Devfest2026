@@ -99,6 +99,17 @@ export class MemoryJobsRepository implements JobsRepository {
     this.eqvol.set(record.recordKey, clone(record));
   }
 
+  async listRecentEqvolBulletins(limit: number) {
+    return [...this.eqvol.values()]
+      .sort(
+        (a, b) =>
+          Date.parse(b.publishedAt) - Date.parse(a.publishedAt) ||
+          b.recordKey.localeCompare(a.recordKey),
+      )
+      .slice(0, limit)
+      .map((record) => clone(record));
+  }
+
   async enqueueOutbox(entry: OutboxEntry) {
     if (this.outbox.has(entry.deliveryKey)) return false;
     this.operations.push(`outbox:${entry.deliveryKey}`);

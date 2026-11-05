@@ -1,0 +1,48 @@
+# Cloud Build: deploy a private preview of the backend + hosted UI from a
+# david/* branch, before the change is merged to main.
+# Trigger contour-preview (docs/cloud-jobs.md, "Preview builds") runs it on
+# pushes to ^david/ branches that touch backend/** or the hosted contour.html.
+#
+# The preview service `contour-preview` is private (no unauthenticated
+# access), scales to zero, runs as the same service account as the public
+# `api` service (Firestore read, Vertex AI Gemini) and has no /jobs routes.
+substitutions:
+  _REGION: asia-northeast1
+  _IMAGE_REPO: asia-northeast1-docker.pkg.dev/${PROJECT_ID}/cloud-run-source-deploy
+  _SERVICE: contour-preview
+
+steps:
+  - id: build-image
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -f
+      - backend/Dockerfile
+      - -t
+      - ${_IMAGE_REPO}/${_SERVICE}:$COMMIT_SHA
+      - .
+
+  - id: push-image
+    name: gcr.io/cloud-builders/docker
+    args: [push, "${_IMAGE_REPO}/${_SERVICE}:$COMMIT_SHA"]
+
+  - id: deploy-preview
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_SERVICE}
+      - --image=${_IMAGE_REPO}/${_SERVICE}:$COMMIT_SHA
+      - --region=${_REGION}
+      - --project=$PROJECT_ID
+      - --no-allow-unauthenticated
+      - --min-instances=0
+      - --max-instances=1
+      - --update-env-vars=GOOGLE_CLOUD_PROJECT=$PROJECT_ID,GOOGLE_GENAI_USE_VERTEXAI=true,GOOGLE_CLOUD_LOCATION=global
+      - --update-labels=preview-commit=$SHORT_SHA
+      - --quiet
+
+timeout: 1200s
+options:
+  logging: CLOUD_LOGGING_ONLY

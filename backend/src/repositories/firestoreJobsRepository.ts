@@ -64,6 +64,20 @@ const weatherSchema = z.object({
   payloadGzip: bytes,
 });
 
+const eqvolSchema = z.object({
+  recordKey: z.string(),
+  sourceUrl: z.string(),
+  bulletinType: z.string(),
+  publishedAt: z.string(),
+  reportDateTime: z.string(),
+  infoType: z.string(),
+  invalidated: z.boolean(),
+  ignored: z.boolean(),
+  aichiMentioned: z.boolean().nullable(),
+  storedAt: z.string(),
+  payloadGzip: bytes,
+});
+
 /** Firestore document IDs may not contain "/"; outbox keys contain URLs. */
 function outboxDocumentId(deliveryKey: string): string {
   return sha256Hex(deliveryKey);
@@ -210,6 +224,15 @@ export class FirestoreJobsRepository implements JobsRepository {
 
   async storeEqvolBulletin(record: EqvolBulletinRecord) {
     await this.doc(collections.jmaEqvolBulletins, record.recordKey).set(record);
+  }
+
+  async listRecentEqvolBulletins(limit: number) {
+    const result = await this.db
+      .collection(collections.jmaEqvolBulletins)
+      .orderBy("publishedAt", "desc")
+      .limit(limit)
+      .get();
+    return result.docs.map((doc) => eqvolSchema.parse(doc.data()));
   }
 
   async enqueueOutbox(entry: OutboxEntry) {
