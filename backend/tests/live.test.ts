@@ -171,6 +171,23 @@ test("GET /api/sites returns nearest designated sites with unknown status", asyn
   assert.equal(invalid.status, 400);
 });
 
+test("/api allows cross-origin use from the bundled UI", async () => {
+  const live = new LiveDataService({ repository: await seededRepository() });
+  const app = createApp({ live: liveContext(live) });
+  const preflight = await request(app)
+    .options("/api/assistant")
+    .set("Origin", "https://appassets.androidplatform.net")
+    .set("Access-Control-Request-Method", "POST");
+  assert.equal(preflight.status, 204);
+  assert.equal(preflight.headers["access-control-allow-origin"], "*");
+  assert.match(
+    String(preflight.headers["access-control-allow-headers"]),
+    /Content-Type/,
+  );
+  const alerts = await request(app).get("/api/alerts");
+  assert.equal(alerts.headers["access-control-allow-origin"], "*");
+});
+
 test("GET /api/sites answers 503 before the first import", async () => {
   const live = new LiveDataService({ repository: new MemoryJobsRepository() });
   const response = await request(createApp({ live: liveContext(live) }))

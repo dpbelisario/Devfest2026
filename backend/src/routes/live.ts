@@ -58,6 +58,22 @@ function clientKey(req: Request): string {
 export function createLiveRouter(context: LiveContext): Router {
   const router = Router();
 
+  // Public, credential-free endpoints. The app's bundled offline copy of the UI
+  // runs on https://appassets.androidplatform.net, so allow any origin.
+  router.use((req, res, next) => {
+    res.set("Access-Control-Allow-Origin", "*");
+    if (req.method === "OPTIONS") {
+      res
+        .set("Access-Control-Allow-Methods", "GET, POST")
+        .set("Access-Control-Allow-Headers", "Content-Type")
+        .set("Access-Control-Max-Age", "3600")
+        .status(204)
+        .end();
+      return;
+    }
+    next();
+  });
+
   router.get("/sites", async (req, res, next) => {
     const parsed = sitesQuerySchema.safeParse(req.query);
     if (!parsed.success) {

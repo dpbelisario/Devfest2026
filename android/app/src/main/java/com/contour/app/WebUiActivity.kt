@@ -9,6 +9,7 @@ import android.content.pm.PackageManager
 import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
+import android.webkit.GeolocationPermissions
 import android.webkit.PermissionRequest
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
@@ -39,6 +40,7 @@ class WebUiActivity : ComponentActivity() {
 
     private lateinit var web: WebView
     private var pendingCamera: PermissionRequest? = null
+    private var pendingLocation: Pair<String, GeolocationPermissions.Callback>? = null
     private val bundledUrl = "https://${WebViewAssetLoader.DEFAULT_DOMAIN}/assets/contour.html"
     private val hostedUrl: String? = BuildConfig.UI_URL.takeIf { it.isNotBlank() }
     private val hostedHost: String? = hostedUrl?.let { Uri.parse(it).host }
@@ -61,6 +63,18 @@ class WebUiActivity : ComponentActivity() {
             pendingCamera?.let { if (granted) it.grant(arrayOf(PermissionRequest.RESOURCE_VIDEO_CAPTURE)) else it.deny() }
             pendingCamera = null
         }
+
+    // The page asks for location only when the user taps "my location" or opens 3D AR.
+    private val askLocation =
+        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
+            val granted = result.values.any { it }
+            pendingLocation?.let { (origin, callback) -> callback.invoke(origin, granted, false) }
+            pendingLocation = null
+        }
+
+    private fun hasLocationPermission() =
+        checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+            checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -104,6 +118,7 @@ class WebUiActivity : ComponentActivity() {
             domStorageEnabled = true                  // language + attendance sheet use localStorage
             mediaPlaybackRequiresUserGesture = false  // camera preview for 3D AR
             allowFileAccess = false
+            setGeolocationEnabled(true)               // nearest real sites + AR distance from GPS
             setSupportZoom(false)
             userAgentString = "$userAgentString ContourApp/1.0"   // the page switches to full-screen app mode on this tag
         }
@@ -153,6 +168,28 @@ class WebUiActivity : ComponentActivity() {
                         askCamera.launch(Manifest.permission.CAMERA)
                     }
                 }
+            }
+
+            override fun onGeolocationPermissionsShowPrompt(
+                origin: String,
+                callback: GeolocationPermissions.Callback,
+            ) {
+                when {
+                    !isOurs(Uri.parse(origin).host) -> callback.invoke(origin, false, false)
+                    hasLocationPermission() -> callback.invoke(origin, true, false)
+                    else -> {
+                        pendingLocation?.let { (o, c) -> c.invoke(o, false, false) }
+                        pendingLocation = origin to callback
+                        askLocation.launch(arrayOf(
+                            Manifest.permission.ACCESS_FINE_LOCATION,
+                            Manifest.permission.ACCESS_COARSE_LOCATION,
+                        ))
+                    }
+                }
+            }
+
+            override fun onGeolocationPermissionsHidePrompt() {
+                pendingLocation = null
             }
         }
 
