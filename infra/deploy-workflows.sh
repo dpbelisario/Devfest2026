@@ -23,6 +23,10 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PROJECT="${PROJECT:-$(gcloud config get-value project 2>/dev/null)}"
 [ -n "$PROJECT" ] || { echo "Set PROJECT or run: gcloud config set project PROJECT_ID" >&2; exit 1; }
 REGION="${REGION:-asia-northeast1}"
+# python3 for small JSON/hash helpers. The cloud-sdk:slim image used by Cloud
+# Build has no python3 on PATH, so fall back to the Python that gcloud bundles.
+PYTHON="${PYTHON:-$(command -v python3 || gcloud info --format='value(basic.python_location)' 2>/dev/null || true)}"
+[ -n "$PYTHON" ] && [ -x "$PYTHON" ] || { echo "python3 not found (set PYTHON)." >&2; exit 1; }
 JOBS_SERVICE="${JOBS_SERVICE:-contour-jobs}"
 WORKFLOWS_SA="${WORKFLOWS_SA:-contour-workflows@${PROJECT}.iam.gserviceaccount.com}"
 FAIL_ON_DRIFT="${FAIL_ON_DRIFT:-false}"
@@ -38,7 +42,7 @@ JOBS_BASE_URL="${JOBS_BASE_URL%/}"
 
 # SHA-1 of a file, ignoring trailing newlines (the API may add or drop one).
 source_hash() {
-  python3 -c 'import hashlib,sys
+  "$PYTHON" -c 'import hashlib,sys
 t = open(sys.argv[1], encoding="utf-8").read().rstrip("\n") + "\n"
 print(hashlib.sha1(t.encode("utf-8")).hexdigest())' "$1"
 }
@@ -54,7 +58,7 @@ for file in "$ROOT"/infra/workflows/*.yaml; do
 
   if gcloud workflows describe "$name" --project "$PROJECT" --location "$REGION" \
     --format=json >"$TMP/$name.json" 2>/dev/null; then
-    python3 -c 'import json,sys
+    "$PYTHON" -c 'import json,sys
 d = json.load(open(sys.argv[1], encoding="utf-8"))
 open(sys.argv[2], "w", encoding="utf-8").write(d.get("sourceContents", ""))
 labels = d.get("labels") or {}
