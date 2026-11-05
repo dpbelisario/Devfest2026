@@ -18,7 +18,8 @@ android {
   applicationId = "com.contour.app"
   minSdk = 26
   targetSdk = 35
-  versionCode = 1
+  // CI passes -PversionCode so each distributed build installs as an update.
+  versionCode = providers.gradleProperty("versionCode").orNull?.toInt() ?: 1
   versionName = "0.1.0"
   buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
   testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"

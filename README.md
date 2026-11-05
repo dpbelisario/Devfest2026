@@ -72,4 +72,5 @@ app/build/outputs/apk/debug/app-debug.apk`. Android builds are distributed to
 phones; only the backend deploys to Cloud Run.
 
 See [setup](docs/setup.md), [deployment](docs/deployment.md),
-[data sources](docs/data-sources.md), and [walkthrough](docs/demo-walkthrough.md).
+[APK distribution](docs/apk-distribution.md), [data sources](docs/data-sources.md),
+and [walkthrough](docs/demo-walkthrough.md).
