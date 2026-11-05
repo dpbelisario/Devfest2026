@@ -1,13 +1,13 @@
 # App updates: hosted UI + automatic APK builds
 
-The distributed app is the Contour WebView shell in `ui-prototype/android`
+The distributed app is the Contour WebView shell in `android/app`
 (package `com.contour.app`). How a change reaches phones depends on what changed:
 
-| What changed                                                   | How it reaches phones                                                                            | New APK? |
-| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | -------- |
-| UI: `ui-prototype/android/app/src/main/assets/contour.html`    | Backend redeploys and serves it at `/app/`; the app loads it on next launch                      | No       |
-| Backend: `backend/**`                                          | Backend redeploys                                                                                | No       |
-| Shell: Kotlin, manifest, permissions in `ui-prototype/android` | Cloud Build builds an APK and sends it to App Distribution; testers tap **Update** in App Tester | Yes      |
+| What changed                                          | How it reaches phones                                                                            | New APK? |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------ | -------- |
+| UI: `android/app/src/main/assets/contour.html`        | Backend redeploys and serves it at `/app/`; the app loads it on next launch                      | No       |
+| Backend: `backend/**`                                 | Backend redeploys                                                                                | No       |
+| Shell: Kotlin, manifest, permissions in `android/app` | Cloud Build builds an APK and sends it to App Distribution; testers tap **Update** in App Tester | Yes      |
 
 The shell loads `<API base URL>/app/`. If that page fails or takes more than 8
 seconds, it shows the copy of `contour.html` bundled in the APK, so the app still
@@ -16,10 +16,10 @@ local storage (language, attendance sheet).
 
 For UI changes to go live without a new APK, the backend's auto-deploy trigger must
 also run when `contour.html` changes. If that trigger has an included-files filter
-such as `backend/**`, add `ui-prototype/android/app/src/main/assets/contour.html`.
+such as `backend/**`, add `android/app/src/main/assets/contour.html`.
 
-Every push to `main` that changes `ui-prototype/android/**` builds a debug APK with
-[`ui-prototype/android/cloudbuild.yaml`](../ui-prototype/android/cloudbuild.yaml) and
+Every push to `main` that changes `android/**` builds a debug APK with
+[`android/cloudbuild.yaml`](../android/cloudbuild.yaml) and
 uploads it to Firebase App Distribution. Testers get an email and update through the
 Firebase App Tester app.
 
@@ -28,7 +28,7 @@ The app shows fictional demo data and is not real evacuation guidance.
 ## One-time setup (about 15 minutes)
 
 **Quick path:** in Cloud Shell, with the project selected, run
-[`ui-prototype/android/setup-apk-pipeline.sh`](../ui-prototype/android/setup-apk-pipeline.sh)
+[`android/setup-apk-pipeline.sh`](../android/setup-apk-pipeline.sh)
 with the Firebase App ID from step 1 below. It does steps 2–5 for you (new signing key,
 APIs, service account roles, trigger, first build) and is safe to rerun. The
 manual steps below do the same thing.
@@ -91,15 +91,15 @@ gcloud secrets add-iam-policy-binding android-debug-keystore --member="serviceAc
 
 Cloud Build → Triggers → **Create trigger**:
 
-| Field                 | Value                                                                  |
-| --------------------- | ---------------------------------------------------------------------- |
-| Name                  | `android-apk-distribution`                                             |
-| Event                 | Push to a branch                                                       |
-| Repository            | `dpbelisario/Devfest2026` (the same connection the API trigger uses)   |
-| Branch                | `^main$`                                                               |
-| Included files filter | `ui-prototype/android/**`                                              |
-| Configuration         | Cloud Build configuration file, `ui-prototype/android/cloudbuild.yaml` |
-| Service account       | the `$SA` from step 3                                                  |
+| Field                 | Value                                                                |
+| --------------------- | -------------------------------------------------------------------- |
+| Name                  | `android-apk-distribution`                                           |
+| Event                 | Push to a branch                                                     |
+| Repository            | `dpbelisario/Devfest2026` (the same connection the API trigger uses) |
+| Branch                | `^main$`                                                             |
+| Included files filter | `android/**`                                                         |
+| Configuration         | Cloud Build configuration file, `android/cloudbuild.yaml`            |
+| Service account       | the `$SA` from step 3                                                |
 
 Add these substitution variables:
 

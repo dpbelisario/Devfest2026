@@ -1,4 +1,4 @@
-# Cloud Build: build the Contour WebView shell (ui-prototype/android) and send the
+# Cloud Build: build the Contour WebView shell (android/app) and send the
 # APK to Firebase App Distribution.
 #
 # The shell loads the UI from the backend at ${_API_BASE_URL}app/, so UI-only
@@ -23,7 +23,7 @@ substitutions:
 steps:
   - id: build-apk
     name: eclipse-temurin:17-jdk
-    dir: ui-prototype/android
+    dir: android
     entrypoint: bash
     secretEnv: ['DEBUG_KEYSTORE_B64']
     env:
@@ -50,6 +50,9 @@ steps:
         mkdir -p "$$ANDROID_USER_HOME"
         printf '%s' "$$DEBUG_KEYSTORE_B64" | base64 -d > "$$ANDROID_USER_HOME/debug.keystore"
 
+        # API base URL for the native screens (the WebView UI gets -PcontourUiUrl below).
+        printf 'EVACUATION_AR_API_BASE_URL=%s\n' "${_API_BASE_URL}" > local.properties
+
         # Increasing versionCode (minutes since epoch) so each release is newer.
         ./gradlew --no-daemon :app:assembleDebug \
           -PcontourUiUrl="${_API_BASE_URL}app/" \
@@ -63,7 +66,7 @@ steps:
       - |
         set -euo pipefail
         npx --yes firebase-tools@15.33.0 appdistribution:distribute \
-          ui-prototype/android/app/build/outputs/apk/debug/app-debug.apk \
+          android/app/build/outputs/apk/debug/app-debug.apk \
           --app "${_FIREBASE_APP_ID}" \
           --groups "${_TESTER_GROUPS}" \
           --release-notes "main @ ${SHORT_SHA} (debug build; demo data, not real evacuation guidance)"

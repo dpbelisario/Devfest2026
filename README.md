@@ -67,6 +67,9 @@ cd android
 ./gradlew :app:assembleDebug :app:testDebugUnitTest :app:lintDebug
 ```
 
+The app opens the Contour UI (a WebView page, `WebUiActivity`); the Compose scaffold above is still
+in the app as `MainActivity`. See [UI](docs/ui.md).
+
 Install the debug APK using Android Studio or `adb install -r
 app/build/outputs/apk/debug/app-debug.apk`. Android builds are distributed to
 phones; only the backend deploys to Cloud Run.

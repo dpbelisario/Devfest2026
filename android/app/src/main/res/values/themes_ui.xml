@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.Contour" parent="android:Theme.Material.Light.NoActionBar">
-        <item name="android:windowBackground">@color/wash</item>
+    <!-- Contour UI screen: off-white window behind the WebView, transparent system bars. -->
+    <style name="Theme.Contour.Ui" parent="Theme.Contour">
+        <item name="android:windowBackground">@color/contour_wash</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
     </style>

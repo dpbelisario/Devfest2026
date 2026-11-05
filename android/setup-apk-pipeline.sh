@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# One-time setup for the automatic APK pipeline (ui-prototype/android/cloudbuild.yaml).
+# One-time setup for the automatic APK pipeline (android/cloudbuild.yaml).
 # Run it in Cloud Shell with the project selected:
 #
 #   bash setup-apk-pipeline.sh FIREBASE_APP_ID
@@ -61,8 +61,8 @@ if gcloud builds triggers describe "$TRIGGER" --project "$PROJECT" >/dev/null 2>
 else
   gcloud builds triggers create github --project "$PROJECT" --name="$TRIGGER" \
     --repo-owner=dpbelisario --repo-name=Devfest2026 --branch-pattern='^main$' \
-    --build-config=ui-prototype/android/cloudbuild.yaml \
-    --included-files='ui-prototype/android/**' \
+    --build-config=android/cloudbuild.yaml \
+    --included-files='android/**' \
     --substitutions="_FIREBASE_APP_ID=${APP_ID},_API_BASE_URL=${API_BASE_URL},_TESTER_GROUPS=${TESTER_GROUPS}" \
     --service-account="projects/${PROJECT}/serviceAccounts/${SA}"
 fi
