@@ -1,0 +1,183 @@
+# Cloud Workflows: Nagoya evacuation destination import.
+# Replaces n8n workflow 1 ("Location based evacuation destination data updates").
+# Step names mirror the n8n nodes so the console graph reads the same way.
+#
+# Every step calls the private Cloud Run service contour-jobs with an OIDC token;
+# download, validation, comparison and storage logic live in the backend.
+# Base URL: runtime argument {"baseUrl": "https://..."} or the deploy-time
+# environment variable JOBS_BASE_URL (set by infra/deploy-workflows.sh).
+# Trigger: Cloud Scheduler job nagoya-import-hourly (created paused).
+# Docs: docs/cloud-jobs.md. Imported data is unverified until checked in the field.
+
+main:
+  params: [args]
+  steps:
+    - import_configuration:
+        assign:
+          - noArgs: {}
+          - input: ${default(args, noArgs)}
+          - baseUrl: ${default(map.get(input, "baseUrl"), sys.get_env("JOBS_BASE_URL", ""))}
+          - startedAt: ${time.format(sys.now(), "Asia/Tokyo")}
+    - check_configuration:
+        switch:
+          - condition: ${baseUrl == ""}
+            raise:
+              error: MISSING_CONFIGURATION
+              message: Set JOBS_BASE_URL on the workflow or pass {"baseUrl"} as the argument.
+
+    # n8n: Download official Nagoya CSV -> Extract CSV records -> Validate complete dataset
+    - download_and_validate_dataset:
+        try:
+          call: http.post
+          args:
+            url: ${baseUrl + "/jobs/nagoya/fetch"}
+            auth:
+              type: OIDC
+              audience: ${baseUrl}
+            body: {}
+            timeout: 300
+          result: fetchResponse
+        retry:
+          predicate: ${retry_server_error_or_timeout}
+          max_retries: 3
+          backoff:
+            initial_delay: 5
+            max_delay: 60
+            multiplier: 2
+    - dataset_valid:
+        switch:
+          - condition: ${fetchResponse.body.valid == true}
+            next: compare_published_content
+        next: reject_invalid_dataset
+    - reject_invalid_dataset:
+        raise:
+          error: INVALID_DATASET
+          message: Nagoya dataset failed validation; nothing was published.
+          runId: ${fetchResponse.body.runId}
+          recordCount: ${fetchResponse.body.recordCount}
+          errorCount: ${fetchResponse.body.errorCount}
+          errors: ${fetchResponse.body.errors}
+
+    # n8n: Read current dataset state -> Compare published content
+    # HTTP 409 DATASET_SHRANK is a safety guard: never retried, the run fails.
+    - compare_published_content:
+        try:
+          call: http.post
+          args:
+            url: ${baseUrl + "/jobs/nagoya/compare"}
+            auth:
+              type: OIDC
+              audience: ${baseUrl}
+            body:
+              runId: ${fetchResponse.body.runId}
+            timeout: 120
+          result: compareResponse
+        retry:
+          predicate: ${retry_server_error_or_timeout}
+          max_retries: 3
+          backoff:
+            initial_delay: 5
+            max_delay: 60
+            multiplier: 2
+        except:
+          as: e
+          steps:
+            - dataset_shrank:
+                switch:
+                  - condition: ${default(map.get(e, "code"), 0) == 409}
+                    raise:
+                      error: DATASET_SHRANK
+                      message: New dataset is less than half the published size; publishing was blocked. Check the source before publishing manually.
+                      runId: ${fetchResponse.body.runId}
+                      recordCount: ${fetchResponse.body.recordCount}
+                      response: ${map.get(e, "body")}
+            - rethrow_compare_error:
+                raise: ${e}
+    - content_changed:
+        switch:
+          - condition: ${compareResponse.body.changed == true}
+            next: publish_current_snapshot
+        next: record_successful_unchanged_check
+
+    # n8n: Save versioned snapshot -> Publish current snapshot
+    - publish_current_snapshot:
+        try:
+          call: http.post
+          args:
+            url: ${baseUrl + "/jobs/nagoya/publish"}
+            auth:
+              type: OIDC
+              audience: ${baseUrl}
+            body:
+              runId: ${fetchResponse.body.runId}
+            timeout: 120
+          result: publishResponse
+        retry:
+          predicate: ${http.default_retry_predicate_non_idempotent}
+          max_retries: 3
+          backoff:
+            initial_delay: 5
+            max_delay: 60
+            multiplier: 2
+    - save_publish_outcome:
+        assign:
+          - outcome: published
+          - details: ${publishResponse.body}
+        next: import_summary
+
+    # n8n: Record successful unchanged check
+    - record_successful_unchanged_check:
+        try:
+          call: http.post
+          args:
+            url: ${baseUrl + "/jobs/nagoya/record-unchanged"}
+            auth:
+              type: OIDC
+              audience: ${baseUrl}
+            body:
+              runId: ${fetchResponse.body.runId}
+            timeout: 60
+          result: unchangedResponse
+        retry:
+          predicate: ${http.default_retry_predicate_non_idempotent}
+          max_retries: 3
+          backoff:
+            initial_delay: 5
+            max_delay: 60
+            multiplier: 2
+    - save_unchanged_outcome:
+        assign:
+          - outcome: unchanged
+          - details: ${unchangedResponse.body}
+
+    # n8n: Import summary
+    - import_summary:
+        return:
+          outcome: ${outcome}
+          runId: ${fetchResponse.body.runId}
+          recordCount: ${fetchResponse.body.recordCount}
+          compareStatus: ${compareResponse.body.status}
+          details: ${details}
+          startedAt: ${startedAt}
+          finishedAt: ${time.format(sys.now(), "Asia/Tokyo")}
+
+# Retry on HTTP 5xx, timeouts and connection failures. Never retries 4xx,
+# including the 409 dataset shrink guard.
+retry_server_error_or_timeout:
+  params: [e]
+  steps:
+    - read_error:
+        assign:
+          - noTags: []
+          - code: ${default(map.get(e, "code"), 0)}
+          - tags: ${default(map.get(e, "tags"), noTags)}
+    - classify_error:
+        switch:
+          - condition: ${code == 409}
+            return: false
+          - condition: ${code >= 500 and code <= 599}
+            return: true
+          - condition: ${"TimeoutError" in tags or "ConnectionError" in tags or "ConnectionFailedError" in tags}
+            return: true
+    - do_not_retry:
+        return: false
