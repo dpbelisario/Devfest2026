@@ -13,6 +13,11 @@ test("UI page is served without stale caching", async () => {
   assert.equal(r.headers["cache-control"], "no-cache");
   assert.match(r.text, /ContourApp/);
 });
+test("error responses are never cached", async () => {
+  const r = await request(app).get("/does-not-exist");
+  assert.equal(r.status, 404);
+  assert.equal(r.headers["cache-control"], "no-store");
+});
 test("invalid and missing coordinates are rejected", async () => {
   for (const query of [
     "",

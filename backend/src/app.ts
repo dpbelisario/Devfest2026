@@ -10,9 +10,15 @@ app.use("/health", healthRouter);
 app.use("/destinations", destinationsRouter);
 app.use("/directions", directionsRouter);
 app.use("/app", webAppRouter);
-app.use((_req, res) => res.status(404).json({ error: "NOT_FOUND" }));
+// Errors must not be cached: Firebase Hosting's CDN otherwise keeps a 404 for
+// up to 10 minutes, hiding routes added by a later deploy.
+const noStore = "no-store";
+app.use((_req, res) =>
+  res.status(404).set("Cache-Control", noStore).json({ error: "NOT_FOUND" }),
+);
 const handleError: ErrorRequestHandler = (error: unknown, _req, res, _next) => {
   void _next;
+  res.set("Cache-Control", noStore);
   if (error instanceof SyntaxError) {
     res.status(400).json({ error: "INVALID_JSON" });
     return;
