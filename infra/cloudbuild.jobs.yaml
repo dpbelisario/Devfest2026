@@ -1,0 +1,79 @@
+# Cloud Build: keep the scheduled jobs in sync with main.
+# Trigger contour-jobs-deploy (created by infra/setup-cloud-jobs.sh) runs this on
+# pushes to main that touch backend/** or infra/workflows/** (or these scripts):
+#   1. build the backend image (same Dockerfile as the public api service),
+#   2. redeploy the private contour-jobs Cloud Run service with it,
+#   3. redeploy both Cloud Workflows, warning with a diff if one was edited in
+#      the console since the last repo deploy (infra/deploy-workflows.sh).
+# Docs: docs/cloud-jobs.md.
+#
+# Substitutions (set on the trigger by the setup script; no secrets):
+#   _REGION        Cloud Run / Workflows region
+#   _IMAGE_REPO    Artifact Registry path that holds the api image,
+#                  e.g. asia-northeast1-docker.pkg.dev/PROJECT/REPOSITORY
+#   _JOBS_SERVICE  private Cloud Run service name
+#   _WORKFLOWS_SA  service account email the workflows run as
+#   _FAIL_ON_DRIFT "true" to stop instead of overwriting console edits
+
+substitutions:
+  _REGION: asia-northeast1
+  _IMAGE_REPO: ""
+  _JOBS_SERVICE: contour-jobs
+  _WORKFLOWS_SA: ""
+  _FAIL_ON_DRIFT: "false"
+
+steps:
+  - id: check-substitutions
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        if [ -z "${_IMAGE_REPO}" ] || [ -z "${_WORKFLOWS_SA}" ]; then
+          echo "Set _IMAGE_REPO and _WORKFLOWS_SA on the trigger (infra/setup-cloud-jobs.sh does this)." >&2
+          exit 1
+        fi
+
+  - id: build-image
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -f
+      - backend/Dockerfile
+      - -t
+      - ${_IMAGE_REPO}/${_JOBS_SERVICE}:$COMMIT_SHA
+      - .
+
+  - id: push-image
+    name: gcr.io/cloud-builders/docker
+    args: [push, "${_IMAGE_REPO}/${_JOBS_SERVICE}:$COMMIT_SHA"]
+
+  # Only the image changes; service account, env vars and private access stay
+  # as set by infra/setup-cloud-jobs.sh.
+  - id: deploy-contour-jobs
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_JOBS_SERVICE}
+      - --image=${_IMAGE_REPO}/${_JOBS_SERVICE}:$COMMIT_SHA
+      - --region=${_REGION}
+      - --project=$PROJECT_ID
+      - --quiet
+
+  - id: deploy-workflows
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: bash
+    args: [infra/deploy-workflows.sh]
+    env:
+      - PROJECT=$PROJECT_ID
+      - REGION=${_REGION}
+      - JOBS_SERVICE=${_JOBS_SERVICE}
+      - WORKFLOWS_SA=${_WORKFLOWS_SA}
+      - COMMIT=$COMMIT_SHA
+      - FAIL_ON_DRIFT=${_FAIL_ON_DRIFT}
+
+timeout: 1200s
+options:
+  logging: CLOUD_LOGGING_ONLY
