@@ -16,9 +16,11 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.FrameLayout
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.graphics.Insets
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -64,7 +66,7 @@ class WebUiActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Draw behind the system bars, then pad the page by their size so it sits inside the safe area.
+        // Keep the WebView itself inside the safe area, including on older WebView versions.
         WindowCompat.setDecorFitsSystemWindows(window, false)
         WindowCompat.getInsetsController(window, window.decorView).apply {
             isAppearanceLightStatusBars = true
@@ -72,14 +74,26 @@ class WebUiActivity : ComponentActivity() {
         }
 
         web = WebView(this).apply { setBackgroundColor(Color.parseColor("#F3F5F3")) }
-        setContentView(web)
-        ViewCompat.setOnApplyWindowInsetsListener(web) { v, insets ->
-            val bars = insets.getInsets(
-                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
-            )
-            v.setPadding(bars.left, bars.top, bars.right, bars.bottom)
-            WindowInsetsCompat.CONSUMED
+        val container = FrameLayout(this).apply {
+            setBackgroundColor(Color.parseColor("#F3F5F3"))
+            addView(web, FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+            ))
         }
+        val handledInsets = WindowInsetsCompat.Type.systemBars() or
+            WindowInsetsCompat.Type.displayCutout() or WindowInsetsCompat.Type.ime()
+        ViewCompat.setOnApplyWindowInsetsListener(container) { v, insets ->
+            val safeArea = insets.getInsets(handledInsets)
+            v.setPadding(safeArea.left, safeArea.top, safeArea.right, safeArea.bottom)
+            // The parent already handles these insets. Forward zero values instead of consuming
+            // the notification, so newer WebViews can still update their viewport correctly.
+            WindowInsetsCompat.Builder(insets)
+                .setInsets(handledInsets, Insets.NONE)
+                .build()
+        }
+        setContentView(container)
+        ViewCompat.requestApplyInsets(container)
 
         if ((applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0) {
             WebView.setWebContentsDebuggingEnabled(true)   // chrome://inspect for debugging
