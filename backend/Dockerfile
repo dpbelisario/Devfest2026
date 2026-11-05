@@ -4,7 +4,7 @@ COPY package.json package-lock.json ./
 COPY backend/package.json backend/package.json
 RUN npm ci
 COPY backend/ backend/
-COPY android/ui-prototype/app/src/main/assets/contour.html android/ui-prototype/app/src/main/assets/contour.html
+COPY android/app/src/main/assets/contour.html android/app/src/main/assets/contour.html
 RUN npm run build --workspace backend
 
 FROM node:24-bookworm-slim AS runtime

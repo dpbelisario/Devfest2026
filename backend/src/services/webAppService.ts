@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 const candidates = [
   new URL("../../web/contour.html", import.meta.url),
   new URL(
-    "../../../android/ui-prototype/app/src/main/assets/contour.html",
+    "../../../android/app/src/main/assets/contour.html",
     import.meta.url,
   ),
 ].map((url) => fileURLToPath(url));

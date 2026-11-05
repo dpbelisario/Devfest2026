@@ -1,22 +1,20 @@
-# Contour UI prototype
+# Contour UI
 
-The visual design for Contour, as one HTML page shown in an Android WebView. It is a design
-reference and a runnable demo, separate from the Compose app in `android/app`. It is its own
-Gradle project (own `settings.gradle.kts` and wrapper) and is not part of the Compose build.
+The app opens the Contour UI: one HTML page (`android/app/src/main/assets/contour.html`) shown in a
+WebView by `WebUiActivity`. The original Compose scaffold (`MainActivity`: destination list and route
+preview) is still in the app but is no longer the launcher; start it with
+`adb shell am start -n com.contour.app/.MainActivity`.
 
-- Source of the design: `app/src/main/assets/contour.html` (single file: HTML, CSS, JS).
-- Android shell: this folder (Android Studio project, own Gradle build, app id `com.contour.app`).
-  This is the app distributed to testers; see `../../docs/apk-distribution.md`.
-- Hosting: the backend serves this same file at `/app/`. The shell loads it from there, so a
-  change to `contour.html` reaches phones when the backend redeploys, without a new APK.
-
-Built with Android Studio 2026.2, AGP 9.5.0, Gradle 9.8.2, compile SDK 37 (JDK 17 or newer).
+- Design source: `android/app/src/main/assets/contour.html` (single file: HTML, CSS, JS).
+- Hosting: the backend serves this same file at `/app/`. The app loads it from there, so a change to
+  `contour.html` reaches phones when the backend redeploys, without a new APK. The APK build is in
+  `android/cloudbuild.yaml`; see [apk-distribution.md](apk-distribution.md).
 
 ## Open and run
 
-1. Android Studio: **File > Open** and pick `android/ui-prototype` (this folder, not `android/`).
-   Let Gradle sync.
+1. Android Studio: **File > Open** and pick `android/`. Let Gradle sync (JDK 17).
 2. Pick a phone or emulator, press **Run**. Allow the camera for 3D AR directions.
+3. Optional: set `CONTOUR_UI_URL=https://<backend>/app/` in `android/local.properties` to load the hosted page.
 
 ## What it contains
 
@@ -34,8 +32,7 @@ Top page, Area list, Surrounding (map with shelter cards and a detail sheet), At
 ## How it works
 
 - With `CONTOUR_UI_URL` set (in `local.properties`, or `-PcontourUiUrl` in CI), the app loads the hosted
-  page, e.g. `https://<backend>/app/`. UI changes then reach phones when the backend redeploys.
-- Without it, or if the hosted page fails or takes over 8 s, the app shows the bundled copy from
+  page. Without it, or if the hosted page fails or takes over 8 s, it shows the bundled copy from
   `https://appassets.androidplatform.net/assets/contour.html`. Both origins are secure contexts, which
   the camera and compass need.
 - The WebView user agent carries `ContourApp`; the page then fills the real screen instead of drawing its own phone frame.

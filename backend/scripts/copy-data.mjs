@@ -7,7 +7,7 @@ cpSync(
 );
 cpSync(
   new URL(
-    "../../android/ui-prototype/app/src/main/assets/contour.html",
+    "../../android/app/src/main/assets/contour.html",
     import.meta.url,
   ),
   new URL("../dist/web/contour.html", import.meta.url),

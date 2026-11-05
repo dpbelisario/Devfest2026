@@ -33,7 +33,7 @@ import androidx.webkit.WebViewAssetLoader
  * from a https origin by WebViewAssetLoader. Both are secure contexts, which the camera (3D AR)
  * and the compass need.
  */
-class MainActivity : ComponentActivity() {
+class WebUiActivity : ComponentActivity() {
 
     private lateinit var web: WebView
     private var pendingCamera: PermissionRequest? = null
