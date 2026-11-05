@@ -24,8 +24,8 @@ Top page, Area list, Surrounding (map with shelter cards and a detail sheet), At
 
 ## Design rules
 
-- Palette: warm off-white `#F7F6F2`, charcoal `#202321`, safety red `#C74636`, muted green `#D9E4D6`,
-  plus light blue, sand and clay tints for the Top page cards.
+- Palette: cool white `#F3F5F3`, near-black `#141714`, green `#178049`, soft green `#DFF0E5`,
+  red only for "Need help".
 - Headings and numbers: Barlow Condensed. Everything else: Noto Sans JP. Sentence case, no all-caps.
 - Corners 8–12 px, thin borders instead of shadows.
 

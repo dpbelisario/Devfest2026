@@ -12,15 +12,15 @@
 /* Layout: one full-bleed grayscale map; white floating chrome on top; card rail at the bottom that springs into a sheet.
    Deliberately a single light look (map apps in daylight), every color set explicitly. */
 :root {
-  --ink: #202321;
+  --ink: #141714;
   --ink-2: #55575d;
   --ink-3: #96989e;
   --paper: #ffffff;
   --mapbg: #eeeeef;
   --line: #ececee;
-  --red: #C74636;
-  --red-deep: #a82626;
-  --red-wash: rgba(200, 50, 50, .10);
+  --accent: #178049;
+  --accent-deep: #0f5e36;
+  --accent-wash: rgba(23, 128, 73, .10);
   --blue: #2b88ff;
   --stage: #e4e5e8;
   --shadow: 0 10px 30px rgba(20, 22, 28, .10), 0 2px 6px rgba(20, 22, 28, .06);
@@ -62,10 +62,10 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .leaflet-control-attribution a { color: var(--ink-2); }
 
 /* Pins */
-.pin { position: relative; width: 34px; height: 34px; border-radius: 10px; background: var(--red); color: #fff; display: grid; place-items: center; font: 700 18px/1 var(--f-display); box-shadow: 0 6px 14px rgba(150, 30, 30, .28); transform-origin: 50% calc(100% + 7px); transform: scale(.86); opacity: .82; transition: transform .38s cubic-bezier(.3,1.6,.5,1), opacity .25s, background-color .25s, box-shadow .3s; }
+.pin { position: relative; width: 34px; height: 34px; border-radius: 10px; background: var(--accent); color: #fff; display: grid; place-items: center; font: 700 18px/1 var(--f-display); box-shadow: 0 6px 14px rgba(15, 94, 54, .28); transform-origin: 50% calc(100% + 7px); transform: scale(.86); opacity: .82; transition: transform .38s cubic-bezier(.3,1.6,.5,1), opacity .25s, background-color .25s, box-shadow .3s; }
 .pin::after { content: ""; position: absolute; left: 50%; bottom: -6px; width: 12px; height: 12px; background: inherit; transform: translateX(-50%) rotate(45deg); border-radius: 0 0 3px 0; z-index: -1; }
-.pin.selected { transform: scale(1.18); opacity: 1; box-shadow: 0 10px 22px rgba(160, 30, 30, .38); }
-.pin.selected::before { content: ""; position: absolute; left: 50%; bottom: -16px; width: 22px; height: 8px; margin-left: -11px; border-radius: 50%; background: rgba(200,50,50,.35); animation: halo 1.8s ease-out infinite; }
+.pin.selected { transform: scale(1.18); opacity: 1; box-shadow: 0 10px 22px rgba(15, 94, 54, .38); }
+.pin.selected::before { content: ""; position: absolute; left: 50%; bottom: -16px; width: 22px; height: 8px; margin-left: -11px; border-radius: 50%; background: rgba(23,128,73,.35); animation: halo 1.8s ease-out infinite; }
 @keyframes halo { 0% { transform: scale(.6); opacity: .9; } 100% { transform: scale(2.4); opacity: 0; } }
 .pin.gray { width: 28px; height: 28px; border-radius: 8px; background: #8d9097; transform: scale(1); opacity: 1; box-shadow: 0 4px 10px rgba(30, 32, 40, .18); }
 .pin.gray svg { width: 15px; height: 15px; }
@@ -101,7 +101,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .search:focus-within { box-shadow: var(--shadow), 0 0 0 2px var(--ink); }
 
 .status { margin-top: 10px; display: inline-flex; align-items: center; gap: 7px; height: 26px; padding: 0 11px 0 9px; border-radius: 13px; background: rgba(255,255,255,.94); box-shadow: 0 2px 10px rgba(20,22,28,.08); font: 600 10.5px/1 var(--f-display); letter-spacing: .14em; color: var(--ink-2); }
-.status i { width: 7px; height: 7px; border-radius: 50%; background: var(--red); box-shadow: 0 0 0 3px var(--red-wash); animation: blink 2.4s ease-in-out infinite; }
+.status i { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 3px var(--accent-wash); animation: blink 2.4s ease-in-out infinite; }
 @keyframes blink { 50% { opacity: .35; } }
 
 /* Locate */
@@ -120,12 +120,12 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .card-body { display: grid; gap: 0; }
 .eyebrow { display: flex; justify-content: space-between; align-items: center; font: 600 12px/1 var(--f-display); letter-spacing: .16em; color: var(--ink-3); text-transform: uppercase; }
 .eyebrow .num { font-variant-numeric: tabular-nums; color: var(--ink-3); }
-.card.selected .eyebrow .num { color: var(--red); }
+.card.selected .eyebrow .num { color: var(--accent); }
 .name { margin: 9px 0 0; font: 700 23px/1.05 var(--f-display); letter-spacing: .01em; text-transform: uppercase; text-wrap: balance; color: var(--ink); }
 .jp { margin-top: 4px; font: 500 12px/1.3 var(--f-jp); color: var(--ink-3); letter-spacing: .04em; }
 .meta { margin-top: 14px; display: flex; align-items: center; gap: 10px; font: 500 15px/1 var(--f-body); color: var(--ink-2); font-variant-numeric: tabular-nums; }
-.dist { display: inline-flex; align-items: center; gap: 7px; font: 700 19px/1 var(--f-display); color: var(--red); letter-spacing: .02em; }
-.arrow { width: 22px; height: 22px; border-radius: 50%; background: var(--red-wash); display: grid; place-items: center; }
+.dist { display: inline-flex; align-items: center; gap: 7px; font: 700 19px/1 var(--f-display); color: var(--accent); letter-spacing: .02em; }
+.arrow { width: 22px; height: 22px; border-radius: 50%; background: var(--accent-wash); display: grid; place-items: center; }
 .arrow svg { width: 12px; height: 12px; transition: transform .5s; }
 .sep { width: 3px; height: 3px; border-radius: 50%; background: var(--ink-3); }
 .facts { margin-top: 8px; font: 400 13.5px/1.35 var(--f-body); color: var(--ink-3); }
@@ -163,8 +163,8 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .sheet.open .sheet-close { opacity: 1; transition-delay: .18s; }
 .grab { touch-action: none; }
 .d-eyebrow { display: flex; align-items: center; gap: 10px; font: 600 12.5px/1 var(--f-display); letter-spacing: .18em; color: var(--ink-3); margin-top: 4px; }
-.d-eyebrow b { color: var(--red); font-weight: 700; }
-.tag { font: 600 10px/1 var(--f-display); letter-spacing: .14em; color: var(--red); border: 1px solid currentColor; border-radius: 4px; padding: 3px 5px 2px; }
+.d-eyebrow b { color: var(--accent); font-weight: 700; }
+.tag { font: 600 10px/1 var(--f-display); letter-spacing: .14em; color: var(--accent); border: 1px solid currentColor; border-radius: 4px; padding: 3px 5px 2px; }
 .d-name { margin: 10px 46px 0 0; font: 700 32px/1 var(--f-display); text-transform: uppercase; letter-spacing: .005em; text-wrap: balance; }
 .d-jp { margin-top: 6px; font: 500 13px/1.3 var(--f-jp); color: var(--ink-3); letter-spacing: .05em; }
 .stats { margin-top: 20px; display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
@@ -173,7 +173,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .stats dt { font: 600 10.5px/1 var(--f-display); letter-spacing: .16em; color: var(--ink-3); text-transform: uppercase; }
 .stats dd { margin: 0; font: 700 25px/1 var(--f-display); font-variant-numeric: tabular-nums; }
 .stats dd small { font-size: 14px; font-weight: 600; margin-left: 2px; color: var(--ink-2); }
-.stats .hot dd { color: var(--red); }
+.stats .hot dd { color: var(--accent); }
 .rows { margin: 4px 0 0; }
 .rows > div { display: grid; grid-template-columns: 96px 1fr; gap: 12px; padding: 13px 0; border-bottom: 1px solid var(--line); }
 .rows dt { font: 600 11px/1.5 var(--f-display); letter-spacing: .15em; color: var(--ink-3); text-transform: uppercase; }
@@ -183,7 +183,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .chip svg { width: 11px; height: 11px; }
 .chip.no { color: var(--ink-3); background: transparent; border: 1px dashed #d6d7da; }
 .note { margin: 14px 0 0; display: flex; gap: 10px; font: 400 12.5px/1.45 var(--f-body); color: var(--ink-2); background: #f6f6f7; border-radius: 12px; padding: 11px 13px; }
-.note svg { flex: none; width: 16px; height: 16px; margin-top: 1px; color: var(--red); }
+.note svg { flex: none; width: 16px; height: 16px; margin-top: 1px; color: var(--accent); }
 .actions { margin-top: 16px; display: grid; gap: 10px; }
 .btn { height: 54px; display: flex; align-items: center; justify-content: center; gap: 10px; border-radius: 4px; font: 600 16px/1 var(--f-display); letter-spacing: .16em; text-decoration: none; transition: transform .15s; }
 .btn:active { transform: scale(.985); }
@@ -215,7 +215,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .page ol { padding-left: 20px; margin: 0; }
 .dial { display: grid; gap: 0; margin-top: 4px; }
 .dial > div { display: grid; grid-template-columns: 70px 1fr; align-items: center; gap: 14px; padding: 12px 0; border-bottom: 1px solid var(--line); }
-.dial b { font: 700 32px/1 var(--f-display); color: var(--red); font-variant-numeric: tabular-nums; user-select: all; }
+.dial b { font: 700 32px/1 var(--f-display); color: var(--accent); font-variant-numeric: tabular-nums; user-select: all; }
 .dial span { font: 500 14.5px/1.35 var(--f-body); }
 .dial span small { display: block; color: var(--ink-3); font: 400 12.5px/1.3 var(--f-jp); margin-top: 2px; }
 
@@ -227,7 +227,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 }
 
 /* ===== App shell: tab bar + pages, drawn in the same look as the Surrounding map: white, ink, one red accent, Barlow ===== */
-:root { --tabh: 0px; --wash: #f1f4f3; --wash-line: #e1e6e4; }
+:root { --tabh: 0px; --wash: #f3f5f3; --wash-line: #dfe4e0; }
 html[lang="zh"] { --f-body: "PingFang SC", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif; --f-display: "Barlow Condensed", "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif; --f-jp: "Hiragino Sans", "Yu Gothic UI", "Noto Sans JP", sans-serif; }
 html[lang="ko"] { --f-body: "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", system-ui, sans-serif; --f-display: "Barlow Condensed", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif; --f-jp: "Hiragino Sans", "Yu Gothic UI", "Noto Sans JP", sans-serif; }
 .phone:has(#ar:not([hidden])) .statusbar { color: #fff; }
@@ -303,7 +303,7 @@ html[lang="ko"] { --f-body: "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans K
 .stat span { display: grid; place-items: center; height: 48px; border-radius: 12px; background: var(--paper); box-shadow: inset 0 0 0 1px var(--wash-line); color: var(--ink-2); font: 600 13px/1 var(--f-display); letter-spacing: .12em; text-transform: uppercase; transition: background-color .15s, color .15s; }
 .stat .s-safe input:checked + span { background: var(--ink); color: #fff; }
 .stat .s-injured input:checked + span { background: #55575d; color: #fff; }
-.stat .s-help input:checked + span { background: var(--red); color: #fff; }
+.stat .s-help input:checked + span { background: #f8dcd6; border-color: #c74636; color: #8c2e22; box-shadow: none; }
 .stat input:focus-visible + span { outline: 2px solid var(--blue); outline-offset: 2px; }
 .submit { margin-top: 26px; width: 100%; height: 54px; border-radius: 4px; background: var(--ink); color: #fff; font: 600 16px/1 var(--f-display); letter-spacing: .16em; text-transform: uppercase; transition: transform .15s, background-color .2s; }
 .submit:active { transform: scale(.985); background: #222; }
@@ -317,19 +317,19 @@ html[lang="ko"] { --f-body: "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans K
 .e-name { font: 600 16px/1.25 var(--f-body); color: var(--ink); }
 .e-meta { grid-column: 1; font: 400 13px/1.35 var(--f-body); color: var(--ink-3); }
 .e-chip { grid-row: 1; grid-column: 2; align-self: start; height: 22px; padding: 0 9px; border-radius: 4px; color: #fff; font: 600 11px/22px var(--f-display); letter-spacing: .12em; text-transform: uppercase; }
-.e-chip.safe { background: var(--ink); } .e-chip.injured { background: #55575d; } .e-chip.help { background: var(--red); }
+.e-chip.safe { background: var(--ink); } .e-chip.injured { background: #55575d; } .e-chip.help { background: var(--accent); }
 .e-rm { grid-row: 2; grid-column: 2; justify-self: end; font: 600 10.5px/1 var(--f-display); letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3); padding: 3px 0; }
 .e-rm:hover { color: var(--ink); }
 .e-list li.e-empty { display: block; border: 0; padding: 30px 22px; text-align: center; font: 400 14px/1.4 var(--f-body); color: var(--ink-3); }
 .att-local { margin: 22px 0 0; font: 400 12px/1.5 var(--f-body); color: var(--ink-3); text-align: center; }
 
 /* 3D AR directions */
-.ar { position: absolute; inset: 0; z-index: 55; background: #202321; overflow: hidden; color: #fff; }
+.ar { position: absolute; inset: 0; z-index: 55; background: #141714; overflow: hidden; color: #fff; }
 .ar[hidden] { display: none; }
 .ar video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .ar.nocam video { display: none; }
-.ar.nocam { background: linear-gradient(#2a2c31, #202321 72%); }
-.ar-bar { position: absolute; z-index: 3; left: 0; right: 0; top: 0; height: 105px; padding: 50px 14px 0; background: #202321; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; }
+.ar.nocam { background: linear-gradient(#2a2c31, #141714 72%); }
+.ar-bar { position: absolute; z-index: 3; left: 0; right: 0; top: 0; height: 105px; padding: 50px 14px 0; background: #141714; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; }
 .ar-bar h2 { margin: 0; font: 700 18px/1 var(--f-display); letter-spacing: .2em; margin-right: -.2em; text-transform: uppercase; }
 .ar-x { justify-self: start; width: 36px; height: 36px; display: grid; place-items: center; margin-left: -6px; }
 .ar-x svg { width: 15px; height: 15px; }
@@ -343,11 +343,11 @@ html[lang="ko"] { --f-body: "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans K
 .ar-name { font: 700 23px/1.05 var(--f-display); text-transform: uppercase; }
 .ar-jp { margin-top: 4px; font: 500 12px/1.3 var(--f-jp); color: var(--ink-3); letter-spacing: .04em; }
 .ar-meta { margin-top: 12px; display: flex; align-items: baseline; gap: 12px; }
-.ar-meta b { font: 700 24px/1 var(--f-display); color: var(--red); font-variant-numeric: tabular-nums; letter-spacing: .02em; }
+.ar-meta b { font: 700 24px/1 var(--f-display); color: var(--accent); font-variant-numeric: tabular-nums; letter-spacing: .02em; }
 .ar-meta span { font: 500 15px/1 var(--f-body); color: var(--ink-2); }
 .ar-turn { width: 100%; margin: 14px 0 0; accent-color: var(--ink); }
 .ar-note { margin: 10px 0 0; font: 400 12.5px/1.45 var(--f-body); color: var(--ink-3); }
-.ar-warn { color: var(--red-deep); margin-top: 6px; }
+.ar-warn { color: #a8392b; margin-top: 6px; }
 
 /* Motion: pages settle in, content follows in a short stagger; every element ends fully visible */
 @keyframes rise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
@@ -389,17 +389,17 @@ html[lang="ko"] { --f-body: "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans K
    warm off-white, charcoal, safety red, muted green. Small radii, thin rules, almost no shadow.
    Barlow Condensed only for headings and numbers; Noto Sans JP for everything else, sentence case. */
 :root {
-  --ink: #202321; --ink-2: #565a57; --ink-3: #8a8e89;
-  --paper: #fdfcf9; --mapbg: #ecebe5; --stage: #e2e1dc; --line: #e3e1da;
-  --wash: #f7f6f2; --wash-line: #dcdad2;
-  --red: #c74636; --red-deep: #a8392b; --red-wash: rgba(199,70,54,.10);
-  --green: #d9e4d6; --green-deep: #b9cdb5; --green-ink: #25402b;
+  --ink: #141714; --ink-2: #565a57; --ink-3: #8a8e89;
+  --paper: #ffffff; --mapbg: #eceeec; --stage: #e3e5e3; --line: #e5e8e5;
+  --wash: #f3f5f3; --wash-line: #dfe4e0;
+  --accent: #178049; --accent-deep: #0f5e36; --accent-wash: rgba(23,128,73,.10);
+  --green: #dff0e5; --green-deep: #b5d8c3; --green-ink: #12452a;
   --shadow: 0 1px 2px rgba(32,35,33,.07); --shadow-lg: 0 -6px 30px rgba(32,35,33,.14);
   --f-body: "Noto Sans JP", "Hiragino Sans", "Yu Gothic UI", system-ui, sans-serif;
   --f-jp: "Noto Sans JP", "Hiragino Sans", "Yu Gothic UI", sans-serif;
 }
 body { font-family: var(--f-body); }
-.leaflet-tile-pane { filter: grayscale(.9) sepia(.16); }
+.leaflet-tile-pane { filter: grayscale(1); }
 
 /* header + tabs */
 .bar-date { font: 400 13px/1.2 var(--f-body); }
@@ -433,7 +433,7 @@ body { font-family: var(--f-body); }
 .stat span { font: 500 14px/1 var(--f-body); letter-spacing: 0; text-transform: none; height: 46px; color: var(--ink); }
 .stat .s-safe input:checked + span { background: var(--green); color: var(--green-ink); box-shadow: inset 0 0 0 1px var(--green-deep); }
 .stat .s-injured input:checked + span { background: var(--ink); color: #fff; }
-.stat .s-help input:checked + span { background: var(--red); color: #fff; }
+.stat .s-help input:checked + span { background: #f8dcd6; border-color: #c74636; color: #8c2e22; box-shadow: none; }
 .e-chip { border-radius: 6px; font: 500 12px/22px var(--f-body); letter-spacing: 0; text-transform: none; }
 .e-chip.safe { background: var(--green); color: var(--green-ink); } .e-chip.injured { background: var(--ink); }
 .e-rm { font: 400 12.5px/1 var(--f-body); letter-spacing: 0; text-transform: none; text-decoration: underline; }
@@ -490,16 +490,16 @@ body { font-family: var(--f-body); }
 
 /* Attendance status: a coloured border on each option, tinted fill when chosen */
 .stat span { border: 1.5px solid; box-shadow: none; background: var(--paper); }
-.stat .s-safe span { border-color: #8fb08a; color: #25402b; }
+.stat .s-safe span { border-color: #5aa87c; color: #12452a; }
 .stat .s-injured span { border-color: #cfa23c; color: #6b4f0e; }
 .stat .s-help span { border-color: #c74636; color: #a8392b; }
-.stat .s-safe input:checked + span { background: #d9e4d6; border-color: #6f9a69; color: #25402b; box-shadow: none; }
+.stat .s-safe input:checked + span { background: #dff0e5; border-color: #3f8f63; color: #12452a; box-shadow: none; }
 .stat .s-injured input:checked + span { background: #f3e6bf; border-color: #b88a1f; color: #5a420a; box-shadow: none; }
-.stat .s-help input:checked + span { background: #f5d9d2; border-color: #c74636; color: #8c2e22; box-shadow: none; }
+.stat .s-help input:checked + span { background: #f8dcd6; border-color: #c74636; color: #8c2e22; box-shadow: none; }
 .e-chip { border: 1px solid; line-height: 20px; }
-.e-chip.safe { background: #d9e4d6; color: #25402b; border-color: #8fb08a; }
+.e-chip.safe { background: #dff0e5; color: #12452a; border-color: #5aa87c; }
 .e-chip.injured { background: #f3e6bf; color: #5a420a; border-color: #cfa23c; }
-.e-chip.help { background: #f5d9d2; color: #8c2e22; border-color: #c74636; }
+.e-chip.help { background: #f8dcd6; color: #8c2e22; border-color: #c74636; }
 
 /* Native (Android app): fill the real screen; the app's own system bars replace the drawn phone frame */
 html.native { --tabh: 0px; }
@@ -555,7 +555,7 @@ html.native .ar-x svg { stroke: var(--ink); }
 .pk-t { flex: 1; min-width: 0; }
 .pk-t b { display: block; font: 500 16px/1.25 var(--f-body); color: var(--ink); }
 .pk-t small { display: block; margin-top: 2px; font: 400 12.5px/1.3 var(--f-jp); color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pk-d { flex: none; text-align: right; font: 600 19px/1 var(--f-display); color: var(--red); }
+.pk-d { flex: none; text-align: right; font: 600 19px/1 var(--f-display); color: var(--accent); }
 .pk-d small { display: block; margin-top: 3px; font: 400 12px/1 var(--f-body); color: var(--ink-3); }
 </style>
 
@@ -580,14 +580,14 @@ html.native .ar-x svg { stroke: var(--ink); }
         <span class="s-ico" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg></span>
       </form>
       <button class="avatar" id="settingsBtn" type="button" aria-label="Map settings" aria-expanded="false">
-        <svg viewBox="0 0 24 24" fill="none" stroke="#202321" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="#141714" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>
       </button>
       </div>
       <div class="status" role="note"><i></i><span data-i18n="status">Demo data</span></div>
     </header>
 
     <button class="locate" id="locateBtn" aria-label="Center on my location">
-      <svg viewBox="0 0 24 24" fill="none" stroke="#202321" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="6.5"/><circle cx="12" cy="12" r="2" fill="#202321" stroke="none"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="#141714" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="6.5"/><circle cx="12" cy="12" r="2" fill="#141714" stroke="none"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3"/></svg>
     </button>
 
     <button class="ar-fab" id="arFab" type="button" aria-label="3D AR directions">
@@ -625,7 +625,7 @@ html.native .ar-x svg { stroke: var(--ink); }
           <button class="btn outline" id="backBtn" data-i18n="d.back">Back</button>
         </div>
       </div>
-      <button class="sheet-close" id="closeBtn" aria-label="Close"><svg viewBox="0 0 14 14" stroke="#202321" stroke-width="1.8" stroke-linecap="round"><path d="M2 2l10 10M12 2 2 12"/></svg></button>
+      <button class="sheet-close" id="closeBtn" aria-label="Close"><svg viewBox="0 0 14 14" stroke="#141714" stroke-width="1.8" stroke-linecap="round"><path d="M2 2l10 10M12 2 2 12"/></svg></button>
     </section>
 
 
@@ -637,7 +637,7 @@ html.native .ar-x svg { stroke: var(--ink); }
     </div>
 
     <section class="page" id="page-info" aria-label="Emergency information">
-      <div class="page-head"><span>EMERGENCY INFORMATION</span><button class="sheet-close" style="position:static" data-close aria-label="Close"><svg viewBox="0 0 14 14" stroke="#202321" stroke-width="1.8" stroke-linecap="round"><path d="M2 2l10 10M12 2 2 12"/></svg></button></div>
+      <div class="page-head"><span>EMERGENCY INFORMATION</span><button class="sheet-close" style="position:static" data-close aria-label="Close"><svg viewBox="0 0 14 14" stroke="#141714" stroke-width="1.8" stroke-linecap="round"><path d="M2 2l10 10M12 2 2 12"/></svg></button></div>
       <div class="page-body">
         <h2>If a disaster strikes</h2>
         <h3>Emergency numbers in Japan</h3>
@@ -661,7 +661,7 @@ html.native .ar-x svg { stroke: var(--ink); }
     </section>
 
     <section class="page" id="page-about" aria-label="About Contour">
-      <div class="page-head"><span>ABOUT CONTOUR</span><button class="sheet-close" style="position:static" data-close aria-label="Close"><svg viewBox="0 0 14 14" stroke="#202321" stroke-width="1.8" stroke-linecap="round"><path d="M2 2l10 10M12 2 2 12"/></svg></button></div>
+      <div class="page-head"><span>ABOUT CONTOUR</span><button class="sheet-close" style="position:static" data-close aria-label="Close"><svg viewBox="0 0 14 14" stroke="#141714" stroke-width="1.8" stroke-linecap="round"><path d="M2 2l10 10M12 2 2 12"/></svg></button></div>
       <div class="page-body">
         <h2>The nearest safe ground, in two taps</h2>
         <p>Contour shows the evacuation points closest to you, how far they are on foot, and a one-tap route in Google Maps. It is built for the first minutes after an earthquake, tsunami warning or typhoon, when people need one clear answer.</p>
@@ -915,7 +915,7 @@ html.native .ar-x svg { stroke: var(--ink); }
   L.marker(USER, { icon: L.divIcon({ className: "", html: '<div class="me"><b></b><i></i></div>', iconSize: [22, 22], iconAnchor: [11, 11] }), keyboard: false, interactive: false, zIndexOffset: 500 }).addTo(map);
 
   const routeCasing = L.polyline([], { color: "#ffffff", weight: 8, opacity: 0.9, lineCap: "round", lineJoin: "round", interactive: false }).addTo(map);
-  const route = L.polyline([], { color: "#C74636", weight: 4.5, lineCap: "round", lineJoin: "round", interactive: false }).addTo(map);
+  const route = L.polyline([], { color: "#178049", weight: 4.5, lineCap: "round", lineJoin: "round", interactive: false }).addTo(map);
 
   const markers = POINTS.map((p, i) => {
     const m = L.marker(p.ll, { icon: L.divIcon({ className: "", html: `<div class="pin">${p.n}</div>`, iconSize: [34, 41], iconAnchor: [17, 41] }), title: p.name, riseOnHover: true });
@@ -930,7 +930,7 @@ html.native .ar-x svg { stroke: var(--ink); }
   })).addTo(map);
 
   // ----- cards
-  const arrowSvg = deg => `<span class="arrow"><svg viewBox="0 0 12 12" style="transform:rotate(${deg.toFixed(0)}deg)"><path d="M6 1 10 10.5 6 8.4 2 10.5Z" fill="#C74636"/></svg></span>`;
+  const arrowSvg = deg => `<span class="arrow"><svg viewBox="0 0 12 12" style="transform:rotate(${deg.toFixed(0)}deg)"><path d="M6 1 10 10.5 6 8.4 2 10.5Z" fill="#178049"/></svg></span>`;
   const cardHTML = (p, i) => `
     <div class="card-body">
       <div class="eyebrow"><span>${t(i === 0 ? "card.nearest" : "card.point")}</span><span class="num">${String(p.n).padStart(2, "0")}</span></div>
@@ -1077,7 +1077,7 @@ html.native .ar-x svg { stroke: var(--ink); }
     $("dType").textContent = p.type;
     $("dLoc").textContent = p.loc;
     $("dHaz").innerHTML = Object.keys(HAZ).map(k => [k, t("haz." + k)]).map(([k, label]) => p.haz.includes(k)
-      ? `<span class="chip"><svg viewBox="0 0 12 12" fill="none" stroke="#202321" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m2.5 6.2 2.3 2.3 4.7-5"/></svg>${label}</span>`
+      ? `<span class="chip"><svg viewBox="0 0 12 12" fill="none" stroke="#141714" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m2.5 6.2 2.3 2.3 4.7-5"/></svg>${label}</span>`
       : `<span class="chip no">${label}</span>`).join("");
     $("dirBtn").href = `https://www.google.com/maps/dir/?api=1&origin=${USER[0]},${USER[1]}&destination=${p.ll[0].toFixed(6)},${p.ll[1].toFixed(6)}&travelmode=walking`;
   }
@@ -1239,7 +1239,7 @@ html.native .ar-x svg { stroke: var(--ink); }
   // ----- page headers (date · CONTOUR · language), plus each page's big title
   const globeSvg = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="8" cy="8" r="6.6"/><ellipse cx="8" cy="8" rx="2.9" ry="6.6"/><path d="M1.6 8h12.8"/></svg>';
   const caretSvg = '<svg width="8" height="5" viewBox="0 0 8 5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="m1 1 3 3 3-3"/></svg>';
-  const logoSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="#202321" stroke-width="1.6"><path d="M12 2.6c5 0 9.6 3.6 9.4 9.2-.2 5.4-4.6 9.6-9.8 9.6-5.4 0-9-4.4-8.9-9.6C2.8 6.4 7 2.6 12 2.6Z"/><path d="M12.2 6.6c3 0 5.6 2.2 5.4 5.4-.2 3.2-2.7 5.4-5.7 5.4-3 0-5.2-2.4-5.1-5.4.1-3.2 2.4-5.4 5.4-5.4Z"/><circle cx="12.1" cy="12" r="1.9" fill="#C74636" stroke="none"/></svg>';
+  const logoSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="#141714" stroke-width="1.6"><path d="M12 2.6c5 0 9.6 3.6 9.4 9.2-.2 5.4-4.6 9.6-9.8 9.6-5.4 0-9-4.4-8.9-9.6C2.8 6.4 7 2.6 12 2.6Z"/><path d="M12.2 6.6c3 0 5.6 2.2 5.4 5.4-.2 3.2-2.7 5.4-5.7 5.4-3 0-5.2-2.4-5.1-5.4.1-3.2 2.4-5.4 5.4-5.4Z"/><circle cx="12.1" cy="12" r="1.9" fill="#178049" stroke="none"/></svg>';
   const burgerSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 7h18M3 12h12M3 17h18"/></svg>';
   const backSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>';
   // kind: "menu" (hamburger, on the map) or "back" (on the pages that open over it)
