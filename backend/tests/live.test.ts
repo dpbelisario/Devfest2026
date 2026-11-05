@@ -158,7 +158,7 @@ test("GET /api/sites returns nearest designated sites with unknown status", asyn
   assert.equal(response.body.sites[0].bearingDegrees, 0);
   assert.ok(response.body.sites[0].distanceMeters > 100);
   assert.equal(response.body.dataset.datasetVersion, "v1");
-  assert.match(response.headers["cache-control"], /max-age=300/);
+  assert.match(String(response.headers["cache-control"]), /max-age=300/);
 
   const flood = await request(app)
     .get("/api/sites")
