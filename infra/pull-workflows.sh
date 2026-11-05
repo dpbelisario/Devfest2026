@@ -14,6 +14,10 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PROJECT="${PROJECT:-$(gcloud config get-value project 2>/dev/null)}"
 [ -n "$PROJECT" ] || { echo "Set PROJECT or run: gcloud config set project PROJECT_ID" >&2; exit 1; }
 REGION="${REGION:-asia-northeast1}"
+# python3 for small JSON/hash helpers. The cloud-sdk:slim image used by Cloud
+# Build has no python3 on PATH, so fall back to the Python that gcloud bundles.
+PYTHON="${PYTHON:-$(command -v python3 || gcloud info --format='value(basic.python_location)' 2>/dev/null || true)}"
+[ -n "$PYTHON" ] && [ -x "$PYTHON" ] || { echo "python3 not found (set PYTHON)." >&2; exit 1; }
 
 if [ "$#" -gt 0 ]; then
   names=("$@")
@@ -25,7 +29,7 @@ fi
 for name in "${names[@]}"; do
   out="$ROOT/infra/workflows/$name.yaml"
   gcloud workflows describe "$name" --project "$PROJECT" --location "$REGION" --format=json |
-    python3 -c 'import json,sys
+    "$PYTHON" -c 'import json,sys
 src = json.load(sys.stdin).get("sourceContents", "")
 if not src.strip():
     sys.exit("Workflow has no source contents")
