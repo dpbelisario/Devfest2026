@@ -683,6 +683,63 @@ html.native .ar-x svg { stroke: var(--ink); }
       <div class="view-body ph"><p class="ph-t" data-i18n="ph.t">Coming soon</p><p data-i18n="ph.b">This section isn't built yet.</p></div>
     </main>
 
+    <main class="view" id="v-speech" data-view="speech" data-title="title.speech">
+      <div class="view-body" style="padding: 20px;">
+        <h3 style="margin-top:0;">Speech Recognition (SpeechInput.kt)</h3>
+        <p style="color: #666; font-size: 14px;">Tap the mic button and speak to test offline speech recognition.</p>
+
+        <div style="margin-top: 16px; background: #fff; padding: 16px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+          <label style="display: block; margin-bottom: 12px; font-weight: 500;">Language:
+            <select id="speechLang" style="margin-left: 8px; padding: 6px; border-radius: 6px; border: 1px solid #ccc;">
+              <option value="ja-JP" selected>Japanese (ja-JP)</option>
+              <option value="en-US">English (en-US)</option>
+              <option value="zh-CN">Chinese (zh-CN)</option>
+              <option value="ko-KR">Korean (ko-KR)</option>
+            </select>
+          </label>
+          <div style="display: flex; gap: 12px; align-items: center; margin: 16px 0;">
+            <button type="button" id="micBtn" style="background: #1b5e20; color: white; border: none; padding: 12px 24px; border-radius: 28px; font-weight: 600; display: flex; align-items: center; gap: 8px; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+              <span id="micBtnText">Start Listening</span>
+            </button>
+            <button type="button" id="demoSpeechBtn" style="background: #e8f5e9; color: #1b5e20; border: 1px solid #a5d6a7; padding: 10px 16px; border-radius: 20px; font-weight: 600; cursor: pointer; font-size: 13px;">Simulate Speech</button>
+            <span id="micStatus" style="color: #555; font-size: 14px; font-weight: 500;">Ready</span>
+          </div>
+          <div>
+            <label style="font-weight: 600; display: block; margin-bottom: 6px; color: #333;">Transcript:</label>
+            <div id="transcriptBox" style="background: #f8f9fa; padding: 14px; border-radius: 8px; border: 1px solid #e0e0e0; min-height: 70px; font-family: monospace; white-space: pre-wrap; color: #222;">(Tap mic and speak...)</div>
+          </div>
+        </div>
+
+        <h3 style="margin-top: 24px;">Live Offline Translation (OfflineTranslator.kt)</h3>
+        <p style="color: #666; font-size: 14px;">Auto-translates spoken transcript or typed text in real time using pre-downloaded ML Kit models.</p>
+
+        <div style="margin-top: 16px; background: #fff; padding: 16px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+          <div style="display: grid; gap: 12px;">
+            <label style="font-weight: 500;">Text to translate:
+              <textarea id="transInput" rows="2" style="width: 100%; padding: 8px; margin-top: 4px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box;" placeholder="Enter or speak text...">こんにちは、避難場所はどこですか？</textarea>
+            </label>
+            <div style="display: flex; gap: 12px; align-items: center;">
+              <label style="flex: 1; font-weight: 500;">Translate To:
+                <select id="transTarget" style="width: 100%; padding: 6px; margin-top: 4px; border-radius: 6px; border: 1px solid #ccc;">
+                  <option value="en" selected>English (en)</option>
+                  <option value="ja">Japanese (ja)</option>
+                  <option value="zh">Chinese (zh)</option>
+                  <option value="ko">Korean (ko)</option>
+                </select>
+              </label>
+              <span style="font-size: 12px; color: #1b5e20; background: #e8f5e9; padding: 6px 10px; border-radius: 12px; font-weight: 600; margin-top: 18px;">Auto-detecting source</span>
+            </div>
+            <div>
+              <label style="font-weight: 600; display: block; margin-top: 4px; margin-bottom: 6px; color: #333;">Live Translation Result:</label>
+              <div id="transOutput" style="background: #f8f9fa; padding: 14px; border-radius: 8px; border: 1px solid #e0e0e0; min-height: 50px; font-family: monospace; white-space: pre-wrap; color: #222;">(Live translation will appear here)</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+
     <main class="view" id="v-att" data-view="att" data-title="att.title">
       <div class="view-body att">
         <div class="seg" role="tablist">
@@ -752,6 +809,7 @@ html.native .ar-x svg { stroke: var(--ink); }
         <li><button type="button" data-go="disaster"><svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M2.500 10.500a16 16 0 0 1 23 0M6.600 15a10.200 10.200 0 0 1 14.800 0M10.700 19.500a4.400 4.400 0 0 1 6.600 0"/><circle cx="14" cy="24" r="1.800" fill="currentColor" stroke="none"/></svg><span data-i18n="menu.disaster">Disaster info</span></button></li>
         <li><button type="button" data-go="info"><svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2.400" stroke-linecap="round" stroke-linejoin="round"><path d="M14 5c-4.400 0-7.500 3.100-7.500 7 0 2.500 1.300 4 2.500 5.500.8 1 1.300 1.800 1.300 3.100h7.400c0-1.300.5-2.100 1.300-3.100 1.200-1.500 2.500-3 2.500-5.500 0-3.900-3.100-7-7.500-7Z"/><path d="M11 23h6"/></svg><span data-i18n="menu.know">Know-how on disasters</span></button></li>
         <li><button type="button" data-go="about"><svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2.400" stroke-linecap="round"><circle cx="14" cy="14" r="10"/><path d="M14 13v6"/><circle cx="14" cy="9" r=".8" fill="currentColor"/></svg><span data-i18n="menu.about">About Contour</span></button></li>
+        <li><button type="button" data-go="speech"><svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2.400" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg><span data-i18n="menu.speech">Speech &amp; Translation</span></button></li>
       </ul>
       <p class="drawer-note" data-i18n="top.notice">Demo data. Follow instructions from local authorities.</p>
     </nav>
@@ -854,6 +912,10 @@ html.native .ar-x svg { stroke: var(--ink); }
     "menu.disaster": ["Disaster info", "災害情報", "灾害信息", "재해 정보"],
     "menu.know": ["Know-how on disasters", "防災のヒント", "防灾知识", "재해 대처 요령"],
     "menu.about": ["About Contour", "Contourについて", "关于 Contour", "Contour 소개"],
+    "menu.speech": ["Speech & Translation", "音声・翻訳テスト", "语音与翻译", "음성 및 번역"],
+    "title.speech": ["Speech & Translation", "音声・翻訳テスト", "语音与翻译", "음성 및 번역"],
+    "menu.speech": ["Speech & Translation", "音声・翻訳テスト", "语音与翻译", "음성 및 번역"],
+    "title.speech": ["Speech & Translation", "音声・翻訳テスト", "语音与翻译", "음성 및 번역"],
     "ar.left": ["Turn left", "左へ", "向左转", "왼쪽으로"],
     "ar.right": ["Turn right", "右へ", "向右转", "오른쪽으로"],
     "ar.around": ["Turn around", "後ろへ", "向后转", "뒤로 돌기"],
@@ -1480,6 +1542,147 @@ html.native .ar-x svg { stroke: var(--ink); }
     if (phone.dataset.tab !== "surround") { setTab("surround"); return true; }
     return false;
   };
+
+  // ----- speech & translation bridge handlers
+     let isListening = false;
+     const micBtn = document.getElementById("micBtn");
+     const micBtnText = document.getElementById("micBtnText");
+     const micStatus = document.getElementById("micStatus");
+     const transcriptBox = document.getElementById("transcriptBox");
+
+     if (micBtn) {
+       micBtn.addEventListener("click", () => {
+         if (!window.ContourBridge) {
+           transcriptBox.textContent = "[Demo/Browser] Speech bridge not available. Run in Android app.";
+           return;
+         }
+         if (!isListening) {
+           isListening = true;
+           micBtnText.textContent = "Stop Listening";
+           micBtn.style.background = "#c62828";
+           micStatus.textContent = "Listening...";
+           const lang = document.getElementById("speechLang").value;
+           window.ContourBridge.startListening(lang);
+         } else {
+           isListening = false;
+           micBtnText.textContent = "Start Listening";
+           micBtn.style.background = "#1b5e20";
+           micStatus.textContent = "Stopped";
+           window.ContourBridge.stopListening();
+         }
+       });
+     }
+
+     const transInput = document.getElementById("transInput");
+     const transTarget = document.getElementById("transTarget");
+     const transOutput = document.getElementById("transOutput");
+     const demoSpeechBtn = document.getElementById("demoSpeechBtn");
+
+     if (demoSpeechBtn) {
+       demoSpeechBtn.addEventListener("click", () => {
+         const speechLang = document.getElementById("speechLang") ? document.getElementById("speechLang").value : "ja-JP";
+         const samples = {
+           "ja-JP": "こんにちは、避難場所はどこですか？",
+           "en-US": "Hello, where is the nearest evacuation shelter?",
+           "zh-CN": "你好，请问避难所怎么走？",
+           "ko-KR": "안녕하세요, 대피소가 어디에 있습니까?"
+         };
+         const sample = samples[speechLang] || samples["ja-JP"];
+         if (window.onSpeechFinal) window.onSpeechFinal(sample);
+       });
+     }
+
+     let liveTranslateTimer = null;
+     function triggerLiveTranslate() {
+       clearTimeout(liveTranslateTimer);
+       liveTranslateTimer = setTimeout(() => {
+         const text = transInput ? transInput.value.trim() : "";
+         if (!text) {
+           if (transOutput) transOutput.textContent = "(Live translation will appear here)";
+           return;
+         }
+         const target = transTarget ? transTarget.value : "en";
+         if (!window.ContourBridge) {
+           if (transOutput) transOutput.textContent = "[Demo/Browser] Live translation requires Android app.";
+           return;
+         }
+         const cbName = "transCb_" + Math.random().toString(36).substring(7);
+         window[cbName] = function(err, res) {
+           delete window[cbName];
+           if (err) {
+             if (transOutput) transOutput.textContent = "Translating... (" + err + ")";
+           } else {
+             if (transOutput) transOutput.textContent = res;
+           }
+         };
+         window.ContourBridge.translateText(text, "auto", target, cbName);
+       }, 200);
+     }
+
+     window.onSpeechPartial = function(text) {
+       transcriptBox.textContent = "[Partial] " + text;
+       if (transInput) {
+         transInput.value = text;
+         triggerLiveTranslate();
+       }
+     };
+     window.onSpeechFinal = function(text) {
+       transcriptBox.textContent = "[Final] " + text;
+       if (transInput) {
+         transInput.value = text;
+         triggerLiveTranslate();
+       }
+       isListening = false;
+       if (micBtnText) micBtnText.textContent = "Start Listening";
+       if (micBtn) micBtn.style.background = "#1b5e20";
+       if (micStatus) micStatus.textContent = "Ready";
+     };
+     window.onSpeechError = function(code) {
+       isListening = false;
+       if (micBtnText) micBtnText.textContent = "Start Listening";
+       if (micBtn) micBtn.style.background = "#1b5e20";
+
+       if (code === 7) { // ERROR_NO_MATCH (no speech detected / silence)
+         if (transcriptBox) {
+           transcriptBox.textContent = "No speech recognized. Tap 'Start Listening' and speak clearly.";
+         }
+         if (micStatus) micStatus.textContent = "Ready";
+         return;
+       }
+       if (code === 6) { // ERROR_SPEECH_TIMEOUT
+         if (transcriptBox) {
+           transcriptBox.textContent = "Listening timed out (no speech heard). Tap 'Start Listening' and speak.";
+         }
+         if (micStatus) micStatus.textContent = "Ready";
+         return;
+       }
+       if (code === 9) { // ERROR_INSUFFICIENT_PERMISSIONS
+         if (transcriptBox) {
+           transcriptBox.textContent = "Microphone permission required. Please allow microphone access.";
+         }
+         if (micStatus) micStatus.textContent = "Permission needed";
+         return;
+       }
+       if (code === 13 || code === 4) { // ERROR_SERVER
+         if (transcriptBox) {
+           transcriptBox.textContent = "Speech recognition service unavailable on this emulator/device (Code " + code + ").";
+         }
+         if (micStatus) micStatus.textContent = "Service unavailable";
+         return;
+       }
+
+       if (transcriptBox) {
+         transcriptBox.textContent = "Speech listening stopped (Code " + code + "). Tap 'Start Listening' to try again.";
+       }
+       if (micStatus) micStatus.textContent = "Ready";
+     };
+     window.onAudioPermissionGranted = function() {
+       if (micBtn) micBtn.click();
+     };
+
+     if (transInput) transInput.addEventListener("input", triggerLiveTranslate);
+     if (transTarget) transTarget.addEventListener("change", triggerLiveTranslate);
+     triggerLiveTranslate();
 
   // ----- start
   applyLang(); setTab("surround");
