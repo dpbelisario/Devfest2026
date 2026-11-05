@@ -27,6 +27,12 @@ The app shows fictional demo data and is not real evacuation guidance.
 
 ## One-time setup (about 15 minutes)
 
+**Quick path:** in Cloud Shell, with the project selected, run
+[`ui-prototype/android/setup-apk-pipeline.sh`](../ui-prototype/android/setup-apk-pipeline.sh)
+with the Firebase App ID from step 1 below. It does steps 2–5 for you (new signing key,
+APIs, service account roles, trigger, first build) and is safe to rerun. The
+manual steps below do the same thing.
+
 Use the Google Cloud project that already hosts the API. Run the commands in Cloud
 Shell, or in any terminal where `gcloud` is logged in, after
 `gcloud config set project YOUR_PROJECT_ID`.
