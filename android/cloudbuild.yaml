@@ -50,6 +50,9 @@ steps:
         mkdir -p "$$ANDROID_USER_HOME"
         printf '%s' "$$DEBUG_KEYSTORE_B64" | base64 -d > "$$ANDROID_USER_HOME/debug.keystore"
 
+        # API base URL for the native screens (the WebView UI gets -PcontourUiUrl below).
+        printf 'EVACUATION_AR_API_BASE_URL=%s\n' "${_API_BASE_URL}" > local.properties
+
         # Increasing versionCode (minutes since epoch) so each release is newer.
         ./gradlew --no-daemon :app:assembleDebug \
           -PcontourUiUrl="${_API_BASE_URL}app/" \

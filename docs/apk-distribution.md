@@ -3,10 +3,10 @@
 The distributed app is the Contour WebView shell in `android/app`
 (package `com.contour.app`). How a change reaches phones depends on what changed:
 
-| What changed                                                   | How it reaches phones                                                                            | New APK? |
-| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | -------- |
-| UI: `android/app/src/main/assets/contour.html`    | Backend redeploys and serves it at `/app/`; the app loads it on next launch                      | No       |
-| Backend: `backend/**`                                          | Backend redeploys                                                                                | No       |
+| What changed                                          | How it reaches phones                                                                            | New APK? |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------ | -------- |
+| UI: `android/app/src/main/assets/contour.html`        | Backend redeploys and serves it at `/app/`; the app loads it on next launch                      | No       |
+| Backend: `backend/**`                                 | Backend redeploys                                                                                | No       |
 | Shell: Kotlin, manifest, permissions in `android/app` | Cloud Build builds an APK and sends it to App Distribution; testers tap **Update** in App Tester | Yes      |
 
 The shell loads `<API base URL>/app/`. If that page fails or takes more than 8
@@ -26,6 +26,12 @@ Firebase App Tester app.
 The app shows fictional demo data and is not real evacuation guidance.
 
 ## One-time setup (about 15 minutes)
+
+**Quick path:** in Cloud Shell, with the project selected, run
+[`android/setup-apk-pipeline.sh`](../android/setup-apk-pipeline.sh)
+with the Firebase App ID from step 1 below. It does steps 2–5 for you (new signing key,
+APIs, service account roles, trigger, first build) and is safe to rerun. The
+manual steps below do the same thing.
 
 Use the Google Cloud project that already hosts the API. Run the commands in Cloud
 Shell, or in any terminal where `gcloud` is logged in, after
@@ -85,15 +91,15 @@ gcloud secrets add-iam-policy-binding android-debug-keystore --member="serviceAc
 
 Cloud Build → Triggers → **Create trigger**:
 
-| Field                 | Value                                                                  |
-| --------------------- | ---------------------------------------------------------------------- |
-| Name                  | `android-apk-distribution`                                             |
-| Event                 | Push to a branch                                                       |
-| Repository            | `dpbelisario/Devfest2026` (the same connection the API trigger uses)   |
-| Branch                | `^main$`                                                               |
-| Included files filter | `android/**`                                              |
-| Configuration         | Cloud Build configuration file, `android/cloudbuild.yaml` |
-| Service account       | the `$SA` from step 3                                                  |
+| Field                 | Value                                                                |
+| --------------------- | -------------------------------------------------------------------- |
+| Name                  | `android-apk-distribution`                                           |
+| Event                 | Push to a branch                                                     |
+| Repository            | `dpbelisario/Devfest2026` (the same connection the API trigger uses) |
+| Branch                | `^main$`                                                             |
+| Included files filter | `android/**`                                                         |
+| Configuration         | Cloud Build configuration file, `android/cloudbuild.yaml`            |
+| Service account       | the `$SA` from step 3                                                |
 
 Add these substitution variables:
 
