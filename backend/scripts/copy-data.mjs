@@ -5,3 +5,10 @@ cpSync(
   new URL("../dist/data/", import.meta.url),
   { recursive: true },
 );
+cpSync(
+  new URL(
+    "../../ui-prototype/android/app/src/main/assets/contour.html",
+    import.meta.url,
+  ),
+  new URL("../dist/web/contour.html", import.meta.url),
+);

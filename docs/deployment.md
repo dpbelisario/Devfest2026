@@ -36,4 +36,6 @@ service. An image contains data snapshots; redeploy to update bundled JSON.
 Cloud Run writable disk is temporary and is not a database.
 
 For sharing the Android build, use direct APK installation or Firebase App
-Distribution. Firebase Hosting is not required. No CI/CD is configured.
+Distribution. Firebase Hosting is not required. An optional Cloud Build trigger can
+build the APK on each push to main and upload it to App Distribution; see
+[apk-distribution.md](apk-distribution.md).

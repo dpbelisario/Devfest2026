@@ -1,0 +1,78 @@
+# Cloud Build: build the Contour WebView shell (ui-prototype/android) and send the
+# APK to Firebase App Distribution.
+#
+# The shell loads the UI from the backend at ${_API_BASE_URL}app/, so UI-only
+# changes (contour.html) reach phones when the backend redeploys, with no new APK.
+# This build is for shell changes and to refresh the bundled offline copy.
+# Setup (trigger, secret, IAM roles): docs/apk-distribution.md.
+#
+# Substitutions (set on the trigger, never commit real values here):
+#   _FIREBASE_APP_ID  Firebase Android app ID, e.g. 1:1234567890:android:abc123
+#   _TESTER_GROUPS    Comma-separated App Distribution group aliases
+#   _API_BASE_URL     HTTPS base URL of the deployed backend, ending in "/"
+# Secret Manager:
+#   android-debug-keystore  base64 of a shared debug.keystore, so every build
+#                           is signed with the same key and installs as an update.
+
+substitutions:
+  _FIREBASE_APP_ID: ''
+  _TESTER_GROUPS: 'team'
+  _API_BASE_URL: ''
+  _CMDLINE_TOOLS: '13114758'
+
+steps:
+  - id: build-apk
+    name: eclipse-temurin:17-jdk
+    dir: ui-prototype/android
+    entrypoint: bash
+    secretEnv: ['DEBUG_KEYSTORE_B64']
+    env:
+      - 'ANDROID_HOME=/builder/home/android-sdk'
+      - 'ANDROID_USER_HOME=/builder/home/.android'
+      - 'GRADLE_USER_HOME=/builder/home/.gradle'
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        if [ -z "${_API_BASE_URL}" ] || [ -z "${_FIREBASE_APP_ID}" ]; then
+          echo "Set _API_BASE_URL and _FIREBASE_APP_ID on the trigger." >&2; exit 1
+        fi
+        apt-get update -qq && apt-get install -y -qq unzip >/dev/null
+
+        # Android command-line tools from Google; Gradle fetches the SDK packages it needs.
+        mkdir -p "$$ANDROID_HOME/cmdline-tools"
+        curl -fsSL -o /tmp/clt.zip "https://dl.google.com/android/repository/commandlinetools-linux-${_CMDLINE_TOOLS}_latest.zip"
+        unzip -q /tmp/clt.zip -d /tmp/clt
+        mv /tmp/clt/cmdline-tools "$$ANDROID_HOME/cmdline-tools/latest"
+        (yes || true) | "$$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null
+
+        # Shared debug signing key, so testers can update without uninstalling.
+        mkdir -p "$$ANDROID_USER_HOME"
+        printf '%s' "$$DEBUG_KEYSTORE_B64" | base64 -d > "$$ANDROID_USER_HOME/debug.keystore"
+
+        # Increasing versionCode (minutes since epoch) so each release is newer.
+        ./gradlew --no-daemon :app:assembleDebug \
+          -PcontourUiUrl="${_API_BASE_URL}app/" \
+          -PversionCode=$$(( $$(date +%s) / 60 ))
+
+  - id: distribute
+    name: node:24
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        npx --yes firebase-tools@15.33.0 appdistribution:distribute \
+          ui-prototype/android/app/build/outputs/apk/debug/app-debug.apk \
+          --app "${_FIREBASE_APP_ID}" \
+          --groups "${_TESTER_GROUPS}" \
+          --release-notes "main @ ${SHORT_SHA} (debug build; demo data, not real evacuation guidance)"
+
+availableSecrets:
+  secretManager:
+    - versionName: projects/$PROJECT_ID/secrets/android-debug-keystore/versions/latest
+      env: DEBUG_KEYSTORE_B64
+
+timeout: 1800s
+options:
+  logging: CLOUD_LOGGING_ONLY
