@@ -1,0 +1,784 @@
+{
+  "name": "Location based evacuation destination data updates",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "b9b19055-6483-49eb-b493-6424c23cb1f8",
+      "name": "Manual import",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [0, 96]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "city",
+              "name": "municipalityCode",
+              "type": "string",
+              "value": "23100"
+            },
+            {
+              "id": "name",
+              "name": "municipalityName",
+              "type": "string",
+              "value": "Nagoya City, Aichi"
+            },
+            {
+              "id": "source",
+              "name": "sourceUrl",
+              "type": "string",
+              "value": "https://hinanmap.gsi.go.jp/hinanjocp/defaultFtpData/csv/23100_2.csv"
+            },
+            {
+              "id": "attr",
+              "name": "sourceAttribution",
+              "type": "string",
+              "value": "国土地理院 指定緊急避難場所データ（名古屋市登録情報）"
+            },
+            {
+              "id": "started",
+              "name": "startedAt",
+              "type": "string",
+              "value": "={{ $now.toISO() }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "e5eac596-571c-49eb-9411-de9943a0b548",
+      "name": "Import configuration",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [304, 224]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.sourceUrl }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          },
+          "timeout": 30000
+        }
+      },
+      "id": "2784d643-bd5f-4f93-b3a1-c51df22bd4d0",
+      "name": "Download official Nagoya CSV",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [576, 224],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "options": {
+          "encoding": "utf-8",
+          "enableBOM": true,
+          "headerRow": true,
+          "includeEmptyCells": true,
+          "maxRowCount": -1,
+          "skipRecordsWithErrors": {
+            "value": {}
+          }
+        }
+      },
+      "id": "bcec9617-efa3-4c7f-848b-17d6abe1e91c",
+      "name": "Extract CSV records",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.2,
+      "position": [864, 224],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $('Import configuration').first().json;\nconst rows = $input.all().map(item => item.json).filter(row => Object.keys(row).length > 0);\nconst errors = [];\nconst sites = [];\nconst ids = new Set();\nconst hazards = {\n '洪水':'flood','崖崩れ、土石流及び地滑り':'landslide','高潮':'stormSurge',\n '地震':'earthquake','津波':'tsunami','大規模な火事':'fire','内水氾濫':'inlandFlood','火山現象':'volcano'\n};\nconst required = ['共通ID','施設・場所名','住所','緯度','経度',...Object.keys(hazards)];\nif (rows.length === 0 || rows.length > 10000) errors.push('Unexpected record count; expected 1–10000.');\nfor (let index=0;index<rows.length;index++) {\n const row = rows[index];\n for(const key of required) if (!(key in row)) errors.push('Row '+(index+1)+': missing column '+key);\n const id = String(row['共通ID'] ?? '').trim();\n const name = String(row['施設・場所名'] ?? '').trim();\n const latitudeText = String(row['緯度'] ?? '').trim();\n const longitudeText = String(row['経度'] ?? '').trim();\n const latitude = Number(latitudeText), longitude = Number(longitudeText);\n if (!id || ids.has(id)) errors.push('Row '+(index+1)+': missing or duplicate common ID.');\n ids.add(id);\n if (!name) errors.push('Row '+(index+1)+': missing name.');\n if (!latitudeText || !longitudeText || !Number.isFinite(latitude) || !Number.isFinite(longitude) || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180)\n  errors.push('Row '+(index+1)+': invalid coordinates.');\n const disasters = [];\n for(const [column,code] of Object.entries(hazards)){\n  const flag=String(row[column] ?? '').trim();\n  if(flag==='1') disasters.push(code);\n  else if(flag!=='') errors.push('Row '+(index+1)+': unknown hazard flag in '+column);\n }\n if(!disasters.length) errors.push('Row '+(index+1)+': no designated hazard.');\n sites.push({\n  id,name,address:String(row['住所']??'').trim(),latitude,longitude,disasters,\n  kind:'emergencySite',source:'GSI / Nagoya City designated emergency evacuation sites',\n  verifiedAt:null,isDemo:false,openingStatus:'unknown',remarks:String(row['備考']??'').trim()\n });\n}\nsites.sort((a,b)=>a.id.localeCompare(b.id));\nconst valid=errors.length===0;\nreturn [{json:{\n valid,errors:errors.slice(0,20),errorCount:errors.length,\n municipalityCode:cfg.municipalityCode,municipalityName:cfg.municipalityName,\n sourceUrl:cfg.sourceUrl,sourceAttribution:cfg.sourceAttribution,\n lastCheckedAt:cfg.startedAt,recordCount:rows.length,\n payloadJson:valid?JSON.stringify(sites):'',datasetVersion:'nagoya-'+$execution.id,\n currentKey:'current:'+cfg.municipalityCode,snapshotKey:'snapshot:'+cfg.municipalityCode+':'+$execution.id,\n entryType:'designation_only',backendConnected:false\n}}];"
+      },
+      "id": "8d0d503d-0f7b-46ff-85a1-3e522720d4be",
+      "name": "Validate complete dataset",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1136, 224]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "313245bc-2d28-46ff-9abb-6fd813366c2a",
+      "name": "Dataset valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [1424, 224]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "uxv6RyWqdB4Xmw1Y",
+          "cachedResultName": "Evacuation-AR Nagoya datasets"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "recordKey",
+              "keyValue": "current:23100"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "id": "727d9aa2-e4a1-47f4-abe3-0af425ef85c9",
+      "name": "Read current dataset state",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [1696, 128]
+    },
+    {
+      "parameters": {
+        "jsCode": "const candidate = $('Validate complete dataset').first().json;\nconst currentRows = $input.all();\nif(currentRows.length!==1 || currentRows[0].json.recordKey!==candidate.currentKey)\n throw new Error('Expected exactly one current dataset state row; preserve previous data.');\nconst current = currentRows[0].json;\nif(Number(current.recordCount)>0 && candidate.recordCount < Number(current.recordCount)*0.5)\n throw new Error('Dataset shrank by more than 50%; review source before publishing.');\nconst changed = candidate.payloadJson !== String(current.payloadJson ?? '');\nreturn [{json:{...candidate,changed,\n datasetVersion:changed?candidate.datasetVersion:current.datasetVersion,\n lastChangedAt:changed?candidate.lastCheckedAt:current.lastChangedAt,\n status:changed?'published_to_n8n':'unchanged'\n}}];"
+      },
+      "id": "9f541787-174c-46e2-898b-8a9c422464cf",
+      "name": "Compare published content",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1968, 128]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.changed }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "c6944a0d-5a51-4358-b01b-447ea0ad1264",
+      "name": "Content changed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [2256, 128]
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "uxv6RyWqdB4Xmw1Y",
+          "cachedResultName": "Evacuation-AR Nagoya datasets"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "recordKey",
+              "keyValue": "={{ $json.snapshotKey }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "recordKey": "={{ $('Compare published content').first().json.snapshotKey }}",
+            "municipalityCode": "={{ $('Compare published content').first().json.municipalityCode }}",
+            "datasetVersion": "={{ $('Compare published content').first().json.datasetVersion }}",
+            "recordCount": "={{ $('Compare published content').first().json.recordCount }}",
+            "payloadJson": "={{ $('Compare published content').first().json.payloadJson }}",
+            "sourceUrl": "={{ $('Compare published content').first().json.sourceUrl }}",
+            "lastCheckedAt": "={{ $('Compare published content').first().json.lastCheckedAt }}",
+            "lastChangedAt": "={{ $('Compare published content').first().json.lastChangedAt }}",
+            "lastStatus": "snapshot_saved"
+          },
+          "schema": [
+            {
+              "id": "recordKey",
+              "displayName": "recordKey",
+              "type": "string"
+            },
+            {
+              "id": "municipalityCode",
+              "displayName": "municipalityCode",
+              "type": "string"
+            },
+            {
+              "id": "datasetVersion",
+              "displayName": "datasetVersion",
+              "type": "string"
+            },
+            {
+              "id": "recordCount",
+              "displayName": "recordCount",
+              "type": "number"
+            },
+            {
+              "id": "payloadJson",
+              "displayName": "payloadJson",
+              "type": "string"
+            },
+            {
+              "id": "sourceUrl",
+              "displayName": "sourceUrl",
+              "type": "string"
+            },
+            {
+              "id": "lastCheckedAt",
+              "displayName": "lastCheckedAt",
+              "type": "string"
+            },
+            {
+              "id": "lastChangedAt",
+              "displayName": "lastChangedAt",
+              "type": "string"
+            },
+            {
+              "id": "lastStatus",
+              "displayName": "lastStatus",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "42c6863b-1c44-4501-8690-fa15c4de2fcc",
+      "name": "Save versioned snapshot",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [2544, 0]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "uxv6RyWqdB4Xmw1Y",
+          "cachedResultName": "Evacuation-AR Nagoya datasets"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "recordKey",
+              "keyValue": "current:23100"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "recordKey": "={{ $('Compare published content').first().json.currentKey }}",
+            "municipalityCode": "={{ $('Compare published content').first().json.municipalityCode }}",
+            "datasetVersion": "={{ $('Compare published content').first().json.datasetVersion }}",
+            "recordCount": "={{ $('Compare published content').first().json.recordCount }}",
+            "payloadJson": "={{ $('Compare published content').first().json.payloadJson }}",
+            "sourceUrl": "={{ $('Compare published content').first().json.sourceUrl }}",
+            "lastCheckedAt": "={{ $('Compare published content').first().json.lastCheckedAt }}",
+            "lastChangedAt": "={{ $('Compare published content').first().json.lastChangedAt }}",
+            "lastStatus": "published_to_n8n"
+          },
+          "schema": [
+            {
+              "id": "recordKey",
+              "displayName": "recordKey",
+              "type": "string"
+            },
+            {
+              "id": "municipalityCode",
+              "displayName": "municipalityCode",
+              "type": "string"
+            },
+            {
+              "id": "datasetVersion",
+              "displayName": "datasetVersion",
+              "type": "string"
+            },
+            {
+              "id": "recordCount",
+              "displayName": "recordCount",
+              "type": "number"
+            },
+            {
+              "id": "payloadJson",
+              "displayName": "payloadJson",
+              "type": "string"
+            },
+            {
+              "id": "sourceUrl",
+              "displayName": "sourceUrl",
+              "type": "string"
+            },
+            {
+              "id": "lastCheckedAt",
+              "displayName": "lastCheckedAt",
+              "type": "string"
+            },
+            {
+              "id": "lastChangedAt",
+              "displayName": "lastChangedAt",
+              "type": "string"
+            },
+            {
+              "id": "lastStatus",
+              "displayName": "lastStatus",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "9c1f6084-9797-451d-b4b9-af7b5b2de3d2",
+      "name": "Publish current snapshot",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [2816, 0]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "status",
+              "name": "status",
+              "type": "string",
+              "value": "={{ $('Compare published content').first().json.status }}"
+            },
+            {
+              "id": "count",
+              "name": "recordCount",
+              "type": "number",
+              "value": "={{ $('Compare published content').first().json.recordCount }}"
+            },
+            {
+              "id": "version",
+              "name": "datasetVersion",
+              "type": "string",
+              "value": "={{ $('Compare published content').first().json.datasetVersion }}"
+            },
+            {
+              "id": "check",
+              "name": "lastCheckedAt",
+              "type": "string",
+              "value": "={{ $('Compare published content').first().json.lastCheckedAt }}"
+            },
+            {
+              "id": "change",
+              "name": "lastChangedAt",
+              "type": "string",
+              "value": "={{ $('Compare published content').first().json.lastChangedAt }}"
+            },
+            {
+              "id": "city",
+              "name": "municipality",
+              "type": "string",
+              "value": "Nagoya City, Aichi"
+            },
+            {
+              "id": "opening",
+              "name": "openingStatus",
+              "type": "string",
+              "value": "unknown"
+            },
+            {
+              "id": "backend",
+              "name": "backendConnected",
+              "type": "boolean",
+              "value": false
+            },
+            {
+              "id": "store",
+              "name": "storage",
+              "type": "string",
+              "value": "n8n Data Table only; Cloud Run integration pending"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "9d7804ec-555e-4433-895c-c3731f265948",
+      "name": "Import summary",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [3104, 128]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "uxv6RyWqdB4Xmw1Y",
+          "cachedResultName": "Evacuation-AR Nagoya datasets"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "recordKey",
+              "keyValue": "current:23100"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "lastCheckedAt": "={{ $('Compare published content').first().json.lastCheckedAt }}",
+            "lastStatus": "unchanged"
+          },
+          "schema": [
+            {
+              "id": "recordKey",
+              "displayName": "recordKey",
+              "type": "string"
+            },
+            {
+              "id": "municipalityCode",
+              "displayName": "municipalityCode",
+              "type": "string"
+            },
+            {
+              "id": "datasetVersion",
+              "displayName": "datasetVersion",
+              "type": "string"
+            },
+            {
+              "id": "recordCount",
+              "displayName": "recordCount",
+              "type": "number"
+            },
+            {
+              "id": "payloadJson",
+              "displayName": "payloadJson",
+              "type": "string"
+            },
+            {
+              "id": "sourceUrl",
+              "displayName": "sourceUrl",
+              "type": "string"
+            },
+            {
+              "id": "lastCheckedAt",
+              "displayName": "lastCheckedAt",
+              "type": "string"
+            },
+            {
+              "id": "lastChangedAt",
+              "displayName": "lastChangedAt",
+              "type": "string"
+            },
+            {
+              "id": "lastStatus",
+              "displayName": "lastStatus",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "7ea54c3d-7d3b-4af4-9a7f-c543ce0c85fa",
+      "name": "Record successful unchanged check",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [2816, 256]
+    },
+    {
+      "parameters": {
+        "errorMessage": "={{ 'Validation rejected; previous snapshot preserved: '+$json.errors.join('; ') }}"
+      },
+      "id": "c3fe0382-00d9-4dd9-a038-19b0eaa79384",
+      "name": "Reject invalid dataset",
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [1664, 480]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 * * * *"
+            }
+          ]
+        }
+      },
+      "id": "031557db-076d-4962-8e78-d8372d683f3e",
+      "name": "Hourly JST - inactive until published",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [0, 336]
+    },
+    {
+      "parameters": {
+        "content": "## Evacuation-AR · Workflow 1 · Nagoya\n\nReal GSI emergency-site CSV. Manual import works without credentials. Hourly JST trigger is configured but does not run until the workflow is published.\n\nSnapshots are saved only in the n8n Data Table; the Android/Cloud Run backend is not connected. Keep opening status unknown; facility coordinates are not verified entrances.\n\nRun sequentially during the demo. Add transactional locking/CAS before concurrent production imports. Invalid data and download errors stop before changing the current snapshot. No notification workflow is enabled.",
+        "height": 440,
+        "width": 920,
+        "color": 5
+      },
+      "id": "f5e15cd8-cbd6-4093-a29e-c086a25c3e6a",
+      "name": "Sticky Note 0cc418e9",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [0, -432]
+    },
+    {
+      "parameters": {
+        "content": "## APP DECIDES LOCATION\n### Planned Android behavior · outside this workflow\n\n**User permits location → Android gets GPS coordinates → Cloud Run returns nearby evacuation sites → Android caches the results.**\n\nIf permission is denied, the user chooses an area manually.\n\n**n8n updates supported datasets in the background.** This workflow imports **Nagoya City, Aichi**; it does not detect or track individual users.\n\nLocation-based Android requests and the Cloud Run connection are not implemented here.",
+        "height": 420,
+        "width": 840,
+        "color": 3
+      },
+      "id": "0a65307c-efef-4e9b-bb4e-9a322111682f",
+      "name": "App decides location - Android responsibility",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [1088, -432]
+    }
+  ],
+  "connections": {
+    "Manual import": {
+      "main": [
+        [
+          {
+            "node": "Import configuration",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Import configuration": {
+      "main": [
+        [
+          {
+            "node": "Download official Nagoya CSV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download official Nagoya CSV": {
+      "main": [
+        [
+          {
+            "node": "Extract CSV records",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract CSV records": {
+      "main": [
+        [
+          {
+            "node": "Validate complete dataset",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate complete dataset": {
+      "main": [
+        [
+          {
+            "node": "Dataset valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dataset valid?": {
+      "main": [
+        [
+          {
+            "node": "Read current dataset state",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Reject invalid dataset",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read current dataset state": {
+      "main": [
+        [
+          {
+            "node": "Compare published content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compare published content": {
+      "main": [
+        [
+          {
+            "node": "Content changed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Content changed?": {
+      "main": [
+        [
+          {
+            "node": "Save versioned snapshot",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Record successful unchanged check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save versioned snapshot": {
+      "main": [
+        [
+          {
+            "node": "Publish current snapshot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Publish current snapshot": {
+      "main": [
+        [
+          {
+            "node": "Import summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Record successful unchanged check": {
+      "main": [
+        [
+          {
+            "node": "Import summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hourly JST - inactive until published": {
+      "main": [
+        [
+          {
+            "node": "Import configuration",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "nodeGroups": [
+    {
+      "id": "f8acf39e-128a-4605-8aa1-f5a4aad8322a",
+      "name": "Download and validate",
+      "nodeNames": [
+        "Import configuration",
+        "Download official Nagoya CSV",
+        "Extract CSV records",
+        "Validate complete dataset"
+      ],
+      "description": "Download Nagoya official CSV and validate every record before any storage write."
+    },
+    {
+      "id": "8d2b5b9d-831e-4564-b3ff-aee16a63608a",
+      "name": "Decide whether to update",
+      "nodeNames": [
+        "Dataset valid?",
+        "Reject invalid dataset",
+        "Read current dataset state",
+        "Compare published content"
+      ],
+      "description": "Reject invalid data and compare canonical content with the last published n8n snapshot."
+    },
+    {
+      "id": "b81a9f56-8350-40db-a32c-34baa0d958a4",
+      "name": "Store snapshot or record no change",
+      "nodeNames": [
+        "Content changed?",
+        "Save versioned snapshot",
+        "Publish current snapshot",
+        "Record successful unchanged check",
+        "Import summary"
+      ],
+      "description": "Save changed data before moving the current pointer; unchanged checks retain the existing version."
+    }
+  ],
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true,
+    "timezone": "Asia/Tokyo",
+    "saveManualExecutions": true,
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "executionTimeout": 180,
+    "binaryMode": "separate"
+  },
+  "active": false,
+  "pinData": {}
+}

@@ -1,0 +1,1439 @@
+{
+  "name": "Evacuation-AR | 02 JMA weather and disaster updates",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "4db27ec4-cb99-4af4-aa0d-53ad001c6076",
+      "name": "Manual recovery check",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "url": "https://www.data.jma.go.jp/developer/xml/feed/extra_l.xml",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          },
+          "timeout": 30000
+        }
+      },
+      "id": "c55777e4-321f-4f24-8525-48c8a3997787",
+      "name": "Download recovery feed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [256, 0]
+    },
+    {
+      "parameters": {
+        "options": {
+          "explicitArray": false,
+          "explicitRoot": true,
+          "mergeAttrs": false,
+          "trim": true
+        }
+      },
+      "id": "561dcb35-7e77-4666-ab5f-c35cd9bdc758",
+      "name": "Parse Atom XML",
+      "type": "n8n-nodes-base.xml",
+      "typeVersion": 1,
+      "position": [496, 128]
+    },
+    {
+      "parameters": {
+        "jsCode": "const list = value => value == null ? [] : Array.isArray(value) ? value : [value];\nconst text = value => typeof value === 'string' ? value : value?._ ?? '';\nconst feed = $input.first().json.feed;\nif (!feed || !Number.isFinite(Date.parse(text(feed.updated)))) throw new Error('Invalid JMA Atom feed');\nconst candidates = list(feed.entry).flatMap(entry => {\n  const links = list(entry.link);\n  const sourceUrl = links.map(link => link?.$?.href).find(url => typeof url === 'string' && /^https:\\/\\/www\\.data\\.jma\\.go\\.jp\\/developer\\/xml\\/data\\/[A-Za-z0-9_]+_VPWW53_230000\\.xml$/.test(url));\n  if (!sourceUrl || text(entry.author?.name) !== '名古屋地方気象台') return [];\n  const publishedAt = text(entry.updated);\n  if (!Number.isFinite(Date.parse(publishedAt))) throw new Error('Invalid bulletin timestamp');\n  return [{ sourceUrl, publishedAt, title: text(entry.title) }];\n}).sort((a,b) => Date.parse(b.publishedAt) - Date.parse(a.publishedAt) || b.sourceUrl.localeCompare(a.sourceUrl));\nreturn [{json:{feedUpdatedAt:text(feed.updated), candidates}}];"
+      },
+      "id": "5bdc056e-edbe-4c98-86f4-2168880d5890",
+      "name": "Select Aichi bulletins",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [752, 128]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "f36GWaWPcWYab9Wt",
+          "cachedResultName": "Evacuation-AR JMA weather snapshots"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "recordKey",
+              "keyValue": "current:230000"
+            }
+          ]
+        },
+        "limit": 2
+      },
+      "id": "0498996d-1cb6-47bb-b34a-005e56d469fc",
+      "name": "Read current Aichi snapshot",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [1008, 128]
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all();\nif (rows.length !== 1 || rows[0].json.recordKey !== 'current:230000') throw new Error('Expected exactly one initialized Aichi state row');\nconst current = rows[0].json;\nconst previous = current.payloadJson ? JSON.parse(current.payloadJson) : {};\nconst seen = new Set(previous.processedUrls ?? []);\nif (current.sourceUrl) seen.add(current.sourceUrl);\nconst candidates = $('Select Aichi bulletins').first().json.candidates;\nconst candidate = candidates[0];\nif (!candidate || seen.has(candidate.sourceUrl)) return [];\nif (current.publishedAt && Date.parse(candidate.publishedAt) < Date.parse(current.publishedAt)) return [];\nreturn [{json:{...candidate, processedUrls:[...seen].slice(-199)}}];"
+      },
+      "id": "1821343e-8fee-4c6c-a600-c6a91a814824",
+      "name": "Skip seen or older bulletin",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1248, 128]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.sourceUrl }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          },
+          "timeout": 30000
+        }
+      },
+      "id": "4ab52b10-5042-47dd-8159-12469d0bf485",
+      "name": "Download official bulletin",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [1520, 128]
+    },
+    {
+      "parameters": {
+        "options": {
+          "explicitArray": false,
+          "explicitRoot": true,
+          "mergeAttrs": false,
+          "trim": true
+        }
+      },
+      "id": "172c1348-3c2a-4a9b-9086-e78dba208ada",
+      "name": "Parse bulletin XML",
+      "type": "n8n-nodes-base.xml",
+      "typeVersion": 1,
+      "position": [1760, 128]
+    },
+    {
+      "parameters": {
+        "jsCode": "const list = value => value == null ? [] : Array.isArray(value) ? value : [value];\nconst text = value => typeof value === 'string' ? value : value?._ ?? '';\nconst report = $input.first().json.Report;\nif (!report?.Control || !report?.Head) throw new Error('Missing JMA report headers');\nif (text(report.Control.Status) !== '通常') return [];\nif (text(report.Control.PublishingOffice) !== '名古屋地方気象台' || text(report.Head.Title) !== '愛知県気象警報・注意報') throw new Error('Unexpected warning region or publisher');\nconst candidate = $('Skip seen or older bulletin').first().json;\nconst reportDateTime = text(report.Head.ReportDateTime);\nif (!Number.isFinite(Date.parse(reportDateTime))) throw new Error('Invalid report date');\nconst infoType = text(report.Head.InfoType);\nif (!['発表','訂正','取消'].includes(infoType)) throw new Error('Unsupported bulletin InfoType: '+infoType);\nconst invalidated = infoType === '取消';\nconst municipal = list(report.Body?.Warning).find(w => w?.$?.type === '気象警報・注意報（市町村等）');\nif (!invalidated && !municipal) throw new Error('Missing municipality warning section');\nconst municipalities = invalidated ? [] : list(municipal.Item).map(item => {\n const areaCode = text(item.Area?.Code), areaName = text(item.Area?.Name);\n if (!/^23\\d{5}$/.test(areaCode) || !areaName) throw new Error('Invalid Aichi municipality');\n const kinds = list(item.Kind).map(kind => {\n  const status = text(kind.Status), code = text(kind.Code), name = text(kind.Name);\n  if (!status) throw new Error('Missing warning status');\n  if (status !== '発表警報・注意報はなし' && (!code || !name)) throw new Error('Missing warning kind');\n  return {code,name,status,details:kind};\n });\n if (!kinds.length) throw new Error('Empty municipality warning status');\n return {areaCode,areaName,kinds};\n});\nif (!invalidated && !municipalities.some(m => m.areaCode === '2310000' && m.areaName === '名古屋市')) throw new Error('Nagoya status missing');\nif (new Set(municipalities.map(m=>m.areaCode)).size !== municipalities.length) throw new Error('Duplicate municipality');\nconst storedAt = $now.toISO();\nconst payload = {\n source:'Japan Meteorological Agency', sourceUrl:candidate.sourceUrl,\n publishedAt:candidate.publishedAt, reportDateTime, receivedAt:storedAt,\n infoType, invalidated, interpretation:invalidated?'bulletin_cancelled_status_unknown':'raw_official_statuses',\n headline:text(report.Head.Headline?.Text), municipalities,\n nagoya:municipalities.find(m=>m.areaCode==='2310000') ?? null,\n processedUrls:[...candidate.processedUrls,candidate.sourceUrl].slice(-200),\n control:report.Control, head:report.Head, body:report.Body ?? null,\n backendConnected:false, notificationsSent:false, isDemo:false\n};\nreturn [{json:{recordKey:'current:230000', snapshotKey:'bulletin:'+candidate.sourceUrl.split('/').pop(),sourceUrl:candidate.sourceUrl,publishedAt:candidate.publishedAt,reportDateTime,payloadJson:JSON.stringify(payload),storedAt}}];"
+      },
+      "id": "f7eb2e08-dd6f-4efa-8549-5e0385c1fd52",
+      "name": "Validate municipality statuses",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2016, 128]
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "f36GWaWPcWYab9Wt",
+          "cachedResultName": "Evacuation-AR JMA weather snapshots"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "recordKey",
+              "keyValue": "={{ $('Validate municipality statuses').item.json.snapshotKey }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "recordKey": "={{ $('Validate municipality statuses').item.json.snapshotKey }}",
+            "sourceUrl": "={{ $('Validate municipality statuses').item.json.sourceUrl }}",
+            "publishedAt": "={{ $('Validate municipality statuses').item.json.publishedAt }}",
+            "reportDateTime": "={{ $('Validate municipality statuses').item.json.reportDateTime }}",
+            "payloadJson": "={{ $('Validate municipality statuses').item.json.payloadJson }}",
+            "storedAt": "={{ $('Validate municipality statuses').item.json.storedAt }}"
+          },
+          "schema": [
+            {
+              "id": "recordKey",
+              "displayName": "recordKey",
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sourceUrl",
+              "displayName": "sourceUrl",
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "publishedAt",
+              "displayName": "publishedAt",
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "reportDateTime",
+              "displayName": "reportDateTime",
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "payloadJson",
+              "displayName": "payloadJson",
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "storedAt",
+              "displayName": "storedAt",
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "matchingColumns": []
+        },
+        "options": {}
+      },
+      "id": "aacb8bed-7f01-4de8-8734-d0dcea6c56d6",
+      "name": "Save bulletin snapshot",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [2784, 128]
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "f36GWaWPcWYab9Wt",
+          "cachedResultName": "Evacuation-AR JMA weather snapshots"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "recordKey",
+              "keyValue": "={{ $('Validate municipality statuses').item.json.recordKey }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "recordKey": "={{ $('Validate municipality statuses').item.json.recordKey }}",
+            "sourceUrl": "={{ $('Validate municipality statuses').item.json.sourceUrl }}",
+            "publishedAt": "={{ $('Validate municipality statuses').item.json.publishedAt }}",
+            "reportDateTime": "={{ $('Validate municipality statuses').item.json.reportDateTime }}",
+            "payloadJson": "={{ $('Validate municipality statuses').item.json.payloadJson }}",
+            "storedAt": "={{ $('Validate municipality statuses').item.json.storedAt }}"
+          },
+          "schema": [
+            {
+              "id": "recordKey",
+              "displayName": "recordKey",
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sourceUrl",
+              "displayName": "sourceUrl",
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "publishedAt",
+              "displayName": "publishedAt",
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "reportDateTime",
+              "displayName": "reportDateTime",
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "payloadJson",
+              "displayName": "payloadJson",
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "storedAt",
+              "displayName": "storedAt",
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "matchingColumns": []
+        },
+        "options": {}
+      },
+      "id": "87d43add-78f9-4ebe-a1f1-850d232c3afe",
+      "name": "Publish current Aichi snapshot",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [3024, 128]
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $('Validate municipality statuses').first().json; const p = JSON.parse(r.payloadJson); return [{json:{sourceUrl:r.sourceUrl,reportDateTime:r.reportDateTime,municipalityCount:p.municipalities.length,nagoya:p.nagoya,infoType:p.infoType,invalidated:p.invalidated,backendConnected:false,notificationsSent:false}}];"
+      },
+      "id": "98bbc582-0770-4d09-b506-45bc507e992d",
+      "name": "Warning import summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3280, 128]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 1
+            }
+          ]
+        }
+      },
+      "id": "e1992741-4c93-467f-99aa-4d3b41614eee",
+      "name": "Every minute - inactive until published",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [0, 240]
+    },
+    {
+      "parameters": {
+        "url": "={{ $now.minute === 0 ? 'https://www.data.jma.go.jp/developer/xml/feed/extra_l.xml' : 'https://www.data.jma.go.jp/developer/xml/feed/extra.xml' }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          },
+          "timeout": 30000
+        }
+      },
+      "id": "2baeec83-14d0-44f1-a8df-7811c0c6ec96",
+      "name": "Download recent feed or hourly recovery",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [256, 240]
+    },
+    {
+      "parameters": {
+        "content": "## WORKFLOW 2 · WEATHER BRANCH\n\nManual = latest Aichi bulletin from recovery history. Scheduled = every minute; hourly recovery at minute 00. UNPUBLISHED: no automatic runs.\n\nVPWW53 / Aichi 230000. Nagoya municipality code is 2310000 (different from GSI city code). Stores latest bulletin only, including corrections and raw lifted/no-warning statuses. Bulletin cancellation = unknown status. Not a full event archive.\n\nCloud Run handoff queued before storage; delivery disabled pending setup. No phone notifications. Earthquake/tsunami/volcano branch is below. Municipal evacuation orders are not ingested. App decides user location. Run sequentially; no cross-run lock. Empty feed means no new data, never an all-clear.\n\nJMA public PULL can delay. Review source timestamps. Minute polling uses roughly 43,200 scheduled executions per 30 days if enabled; verify n8n plan allowance.",
+        "height": 440,
+        "width": 1300,
+        "color": 3
+      },
+      "id": "010c46d4-0dee-40a7-b528-a688b6b4c34b",
+      "name": "How to use this warning collector",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [496, -416]
+    },
+    {
+      "parameters": {
+        "url": "https://www.data.jma.go.jp/developer/xml/feed/eqvol_l.xml",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          },
+          "timeout": 20000
+        }
+      },
+      "id": "4d45971c-b015-462c-95e5-9015b93cfb19",
+      "name": "Download eqvol recovery feed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [256, 1056]
+    },
+    {
+      "parameters": {
+        "url": "={{ $now.minute === 0 ? 'https://www.data.jma.go.jp/developer/xml/feed/eqvol_l.xml' : 'https://www.data.jma.go.jp/developer/xml/feed/eqvol.xml' }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          },
+          "timeout": 20000
+        }
+      },
+      "id": "9db95ae9-50af-491e-8f20-a1db688cfdb8",
+      "name": "Download eqvol recent or recovery",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [256, 1296]
+    },
+    {
+      "parameters": {
+        "options": {
+          "explicitArray": false,
+          "explicitRoot": true,
+          "mergeAttrs": false,
+          "trim": true
+        }
+      },
+      "id": "99a595fe-3725-4655-92ae-15d5f50ffab2",
+      "name": "Parse earthquake volcano Atom",
+      "type": "n8n-nodes-base.xml",
+      "typeVersion": 1,
+      "position": [496, 1168]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "Vlk3dI3sfHTbrONO",
+          "cachedResultName": "Evacuation-AR JMA earthquake tsunami volcano"
+        },
+        "returnAll": true
+      },
+      "id": "a298907f-1b1c-401b-b73f-0d63a20d4618",
+      "name": "Read stored earthquake volcano bulletins",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [752, 1168]
+    },
+    {
+      "parameters": {
+        "jsCode": "const list = value => value == null ? [] : Array.isArray(value) ? value : [value];\nconst text = value => typeof value === 'string' ? value : value?._ ?? '';\nconst feed = $('Parse earthquake volcano Atom').first().json.feed;\nif (!feed || !Number.isFinite(Date.parse(text(feed.updated)))) throw new Error('Invalid JMA earthquake/volcano Atom feed');\nconst seen = new Set($input.all().map(item => item.json.sourceUrl).filter(Boolean));\nconst byType = {VTSE41:[],VFVO50:[],VXSE53:[]};\nconst unique = new Set();\nfor (const entry of list(feed.entry)) {\n const sourceUrl = list(entry.link).map(link => link?.$?.href).find(url => typeof url === 'string' && /^https:\\/\\/www\\.data\\.jma\\.go\\.jp\\/developer\\/xml\\/data\\/[A-Za-z0-9]+_[0-9]+_(VXSE53|VTSE41|VFVO50)_[0-9]{6}\\.xml$/.test(url));\n if (!sourceUrl || seen.has(sourceUrl) || unique.has(sourceUrl)) continue;\n unique.add(sourceUrl);\n const publishedAt = text(entry.updated);\n if (!Number.isFinite(Date.parse(publishedAt))) throw new Error('Invalid disaster bulletin timestamp');\n const bulletinType = sourceUrl.split('/').pop().split('_')[2];\n byType[bulletinType].push({sourceUrl,publishedAt,bulletinType,title:text(entry.title)});\n}\nconst selected = [];\nfor (const type of ['VTSE41','VFVO50','VXSE53']) {\n byType[type].sort((a,b)=>Date.parse(b.publishedAt)-Date.parse(a.publishedAt)||b.sourceUrl.localeCompare(a.sourceUrl));\n selected.push(...byType[type].slice(0,3));\n}\nreturn selected.map(json=>({json}));"
+      },
+      "id": "8405f359-af68-4afb-ae28-38a6e62cbe6a",
+      "name": "Select unseen earthquake tsunami volcano",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1008, 1168]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "1822168c-6ca2-49d2-8b6c-ce9cd8b2620e",
+      "name": "Process each disaster bulletin",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [1248, 1168]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.sourceUrl }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          },
+          "timeout": 20000
+        }
+      },
+      "id": "39f66ce0-7a0b-438f-917c-4aa09c54b8ec",
+      "name": "Download disaster bulletin",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [1504, 1328]
+    },
+    {
+      "parameters": {
+        "options": {
+          "explicitArray": false,
+          "explicitRoot": true,
+          "mergeAttrs": false,
+          "trim": true
+        }
+      },
+      "id": "dadc445e-c790-4fe5-b1b2-4f23f8a886ca",
+      "name": "Parse disaster bulletin XML",
+      "type": "n8n-nodes-base.xml",
+      "typeVersion": 1,
+      "position": [1744, 1328]
+    },
+    {
+      "parameters": {
+        "jsCode": "const list = value => value == null ? [] : Array.isArray(value) ? value : [value];\nconst text = value => typeof value === 'string' ? value : value?._ ?? '';\nconst candidate = $('Process each disaster bulletin').item.json;\nconst report = $input.first().json.Report;\nif (!report?.Control || !report?.Head) throw new Error('Missing disaster report headers');\nconst type = candidate.bulletinType;\nconst expectedKind = {VXSE53:'地震情報',VTSE41:'津波警報・注意報・予報',VFVO50:'噴火警報・予報'}[type];\nif (!expectedKind || text(report.Head.InfoKind) !== expectedKind) throw new Error('Disaster bulletin type mismatch');\nconst reportDateTime = text(report.Head.ReportDateTime);\nif (!Number.isFinite(Date.parse(reportDateTime))) throw new Error('Invalid disaster report date');\nconst status = text(report.Control.Status);\nif (!['通常','訓練','試験'].includes(status)) throw new Error('Unknown disaster bulletin control status');\nconst ignored = status !== '通常';\nconst infoType = text(report.Head.InfoType);\nif (!['発表','訂正','取消'].includes(infoType)) throw new Error('Unsupported disaster InfoType');\nconst invalidated = infoType === '取消';\nconst eventId = text(report.Head.EventID);\nif (!ignored && !eventId) throw new Error('Missing disaster event ID');\nlet details = null;\nlet aichiMentioned = null;\nif (!ignored && !invalidated) {\n const body = report.Body;\n if (!body) throw new Error('Missing disaster body');\n if (type === 'VXSE53') {\n  if (!body.Earthquake?.Hypocenter?.Area || !text(body.Earthquake.OriginTime)) throw new Error('Missing earthquake origin or hypocenter');\n  const prefectures = list(body.Intensity?.Observation?.Pref);\n  aichiMentioned = prefectures.some(p => text(p.Code) === '23' || text(p.Name) === '愛知県');\n  details = {kind:'earthquake_information',earthquake:body.Earthquake,intensity:body.Intensity ?? null,observedPrefectures:prefectures,comments:body.Comments ?? null};\n } else if (type === 'VTSE41') {\n  const areas = list(body.Tsunami?.Forecast?.Item).map(item => {\n   const areaCode=text(item.Area?.Code), areaName=text(item.Area?.Name);\n   if (!areaCode || !areaName || !text(item.Category?.Kind?.Code) || !text(item.Category?.Kind?.Name)) throw new Error('Incomplete tsunami area or category');\n   return {areaCode,areaName,category:item.Category,firstHeight:item.FirstHeight ?? null,maxHeight:item.MaxHeight ?? null};\n  });\n  if (!areas.length) throw new Error('Missing tsunami forecast areas');\n  aichiMentioned = areas.some(a => ['390','391'].includes(a.areaCode));\n  details = {kind:'tsunami_warning_advisory_forecast',areas,earthquakes:list(body.Earthquake),comments:body.Comments ?? null};\n } else {\n  const sections = list(body.VolcanoInfo).map(section => ({\n   sectionType:section.$?.type ?? '',\n   items:list(section.Item).map(item => {\n    const areas = list(item.Areas?.Area).map(area => ({code:text(area.Code),name:text(area.Name),raw:area}));\n    if (!text(item.Kind?.Code) || !text(item.Kind?.Name) || !areas.length || areas.some(a=>!a.code||!a.name)) throw new Error('Incomplete volcano kind or area');\n    return {kind:item.Kind,lastKind:item.LastKind ?? null,areaCodeType:item.Areas?.$?.codeType ?? '',areas};\n   })\n  }));\n  if (!sections.length || sections.every(s=>!s.items.length)) throw new Error('Missing volcano warning sections');\n  aichiMentioned = sections.some(s=>s.items.some(i=>i.areaCodeType==='気象・地震・火山情報／市町村等'&&i.areas.some(a=>/^23\\d{5}$/.test(a.code))));\n  details = {kind:'volcano_warning_forecast',sections,content:body.VolcanoInfoContent ?? null};\n }\n}\nconst storedAt = $now.toISO();\nconst payload = {\n source:'Japan Meteorological Agency',sourceUrl:candidate.sourceUrl,bulletinType:type,\n scope:'Japan-wide bulletin archive; user-location matching pending',\n publishedAt:candidate.publishedAt,reportDateTime,eventId,serial:text(report.Head.Serial),\n infoType,invalidated,ignored,controlStatus:status,\n interpretation:ignored?'excluded_training_or_test':invalidated?'bulletin_cancelled_status_unknown':'raw_official_bulletin',\n aichiMentioned,aichiMentionMeaning:'Explicit area/observation mention only; not a risk or all-clear assessment',\n headline:text(report.Head.Headline?.Text),details,\n control:report.Control,head:report.Head,body:report.Body ?? null,\n backendConnected:false,notificationsSent:false\n};\nreturn [{json:{recordKey:'eqvol:'+candidate.sourceUrl.split('/').pop(),sourceUrl:candidate.sourceUrl,publishedAt:candidate.publishedAt,reportDateTime,payloadJson:JSON.stringify(payload),storedAt}}];"
+      },
+      "id": "de5992f9-c9f4-4867-874e-c37a0869826d",
+      "name": "Normalize earthquake tsunami volcano",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2000, 1328]
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "Vlk3dI3sfHTbrONO",
+          "cachedResultName": "Evacuation-AR JMA earthquake tsunami volcano"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "sourceUrl",
+              "keyValue": "={{ $('Normalize earthquake tsunami volcano').item.json.sourceUrl }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "recordKey": "={{ $('Normalize earthquake tsunami volcano').item.json.recordKey }}",
+            "sourceUrl": "={{ $('Normalize earthquake tsunami volcano').item.json.sourceUrl }}",
+            "publishedAt": "={{ $('Normalize earthquake tsunami volcano').item.json.publishedAt }}",
+            "reportDateTime": "={{ $('Normalize earthquake tsunami volcano').item.json.reportDateTime }}",
+            "payloadJson": "={{ $('Normalize earthquake tsunami volcano').item.json.payloadJson }}",
+            "storedAt": "={{ $('Normalize earthquake tsunami volcano').item.json.storedAt }}"
+          },
+          "schema": [
+            {
+              "id": "recordKey",
+              "displayName": "recordKey",
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sourceUrl",
+              "displayName": "sourceUrl",
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "publishedAt",
+              "displayName": "publishedAt",
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "reportDateTime",
+              "displayName": "reportDateTime",
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "payloadJson",
+              "displayName": "payloadJson",
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "storedAt",
+              "displayName": "storedAt",
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "matchingColumns": []
+        },
+        "options": {}
+      },
+      "id": "793a2be9-9c14-4765-a184-fd9b426cfc8b",
+      "name": "Store disaster bulletin",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [2768, 1328]
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows=$input.all().map(i=>JSON.parse(i.json.payloadJson)); return [{json:{processed:rows.length,bulletinTypes:[...new Set(rows.map(r=>r.bulletinType))],ignored:rows.filter(r=>r.ignored).length,scope:'Japan-wide; user-location matching pending',backendConnected:false,notificationsSent:false}}];"
+      },
+      "id": "8ccd8224-a9df-4a4c-bee4-4f16013c7270",
+      "name": "Disaster import summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1504, 1024]
+    },
+    {
+      "parameters": {
+        "content": "## EARTHQUAKE · TSUNAMI · VOLCANO\n\nSecond JMA feed: eqvol / eqvol_l. Same manual + minute triggers. Latest 3 unseen bulletins PER TYPE per run; remaining history is backfilled on later recovery runs.\n\nSupported: VXSE53 detailed earthquake information, VTSE41 tsunami warnings/advisories/forecasts, VFVO50 volcanic warnings/forecasts. Other bulletin codes are skipped. Not earthquake early warning.\n\nNationwide archive, separate from Aichi weather. Raw categories, affected areas, event IDs, revisions and cancellations retained. aichiMentioned is an explicit mention only, never a safety assessment. Cloud Run handoff queued before storage; delivery disabled pending setup. No user-location matching, Workflow 1 call or phone notifications.\n\nEmpty or duplicate feeds skip storage. Run sequentially; no lock/retention. Unpublished: no automatic runs.",
+        "height": 480,
+        "width": 1350,
+        "color": 5
+      },
+      "id": "b64997bd-99f8-47be-a369-dd1101aa9dd2",
+      "name": "Earthquake tsunami volcano scope",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [496, 576]
+    },
+    {
+      "id": "85d6ce61-6255-4f11-bf85-c169bcd50a79",
+      "name": "Prepare weather handoff",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2256, 128],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return $input.all().map((item, index) => {\n  const row = item.json;\n  const bulletin = JSON.parse(row.payloadJson);\n  if (!/^https:\\/\\/www\\.data\\.jma\\.go\\.jp\\/developer\\/xml\\/data\\/[A-Za-z0-9_]+_(?:VPWW53_230000|(?:VXSE53|VTSE41|VFVO50)_[0-9]+)\\.xml$/.test(row.sourceUrl)) throw new Error('Invalid official bulletin source');\n  if (bulletin.sourceUrl !== row.sourceUrl || !Number.isFinite(Date.parse(row.publishedAt))) throw new Error('Invalid bulletin identity');\n  const deliveryKey = 'jma:' + row.sourceUrl;\n  const excluded = bulletin.ignored === true || (bulletin.control?.Status && bulletin.control.Status !== '通常');\n  const envelope = {\n    schemaVersion: 1, deliveryKey, sourceUrl: row.sourceUrl,\n    publishedAt: row.publishedAt, bulletinType: bulletin.bulletinType ?? 'VPWW53',\n    purpose: 'warning_ingestion', bulletin\n  };\n  return {json: {\n    deliveryKey, sourceUrl: row.sourceUrl, publishedAt: row.publishedAt,\n    payloadJson: JSON.stringify(envelope),\n    deliveryStatus: excluded ? 'excluded' : 'pending', acknowledgedAt: ''\n  }, pairedItem: {item: index}};\n});"
+      }
+    },
+    {
+      "id": "6772734b-d47e-4ae9-b13e-64182f109cda",
+      "name": "Prepare disaster handoff",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2256, 1328],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return $input.all().map((item, index) => {\n  const row = item.json;\n  const bulletin = JSON.parse(row.payloadJson);\n  if (!/^https:\\/\\/www\\.data\\.jma\\.go\\.jp\\/developer\\/xml\\/data\\/[A-Za-z0-9_]+_(?:VPWW53_230000|(?:VXSE53|VTSE41|VFVO50)_[0-9]+)\\.xml$/.test(row.sourceUrl)) throw new Error('Invalid official bulletin source');\n  if (bulletin.sourceUrl !== row.sourceUrl || !Number.isFinite(Date.parse(row.publishedAt))) throw new Error('Invalid bulletin identity');\n  const deliveryKey = 'jma:' + row.sourceUrl;\n  const excluded = bulletin.ignored === true || (bulletin.control?.Status && bulletin.control.Status !== '通常');\n  const envelope = {\n    schemaVersion: 1, deliveryKey, sourceUrl: row.sourceUrl,\n    publishedAt: row.publishedAt, bulletinType: bulletin.bulletinType ?? 'VPWW53',\n    purpose: 'warning_ingestion', bulletin\n  };\n  return {json: {\n    deliveryKey, sourceUrl: row.sourceUrl, publishedAt: row.publishedAt,\n    payloadJson: JSON.stringify(envelope),\n    deliveryStatus: excluded ? 'excluded' : 'pending', acknowledgedAt: ''\n  }, pairedItem: {item: index}};\n});"
+      }
+    },
+    {
+      "id": "71c00e35-ded6-4836-be1b-97633ba34a6e",
+      "name": "Queue weather handoff",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [2496, 128],
+      "parameters": {
+        "resource": "row",
+        "operation": "upsert",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "Qz3iLjDkhkL4XXi1",
+          "cachedResultName": "Evacuation-AR warning delivery outbox"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "deliveryKey",
+              "keyValue": "={{ $json.deliveryKey }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "deliveryKey": "={{ $json.deliveryKey }}",
+            "sourceUrl": "={{ $json.sourceUrl }}",
+            "publishedAt": "={{ $json.publishedAt }}",
+            "payloadJson": "={{ $json.payloadJson }}",
+            "deliveryStatus": "={{ $json.deliveryStatus }}",
+            "acknowledgedAt": "={{ $json.acknowledgedAt }}"
+          },
+          "schema": [
+            {
+              "id": "deliveryKey",
+              "displayName": "deliveryKey",
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sourceUrl",
+              "displayName": "sourceUrl",
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "publishedAt",
+              "displayName": "publishedAt",
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "payloadJson",
+              "displayName": "payloadJson",
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "deliveryStatus",
+              "displayName": "deliveryStatus",
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "acknowledgedAt",
+              "displayName": "acknowledgedAt",
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "matchingColumns": []
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "1e4ca126-4577-471c-9f4c-1698345f8858",
+      "name": "Queue disaster handoff",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [2496, 1328],
+      "parameters": {
+        "resource": "row",
+        "operation": "upsert",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "Qz3iLjDkhkL4XXi1",
+          "cachedResultName": "Evacuation-AR warning delivery outbox"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "deliveryKey",
+              "keyValue": "={{ $json.deliveryKey }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "deliveryKey": "={{ $json.deliveryKey }}",
+            "sourceUrl": "={{ $json.sourceUrl }}",
+            "publishedAt": "={{ $json.publishedAt }}",
+            "payloadJson": "={{ $json.payloadJson }}",
+            "deliveryStatus": "={{ $json.deliveryStatus }}",
+            "acknowledgedAt": "={{ $json.acknowledgedAt }}"
+          },
+          "schema": [
+            {
+              "id": "deliveryKey",
+              "displayName": "deliveryKey",
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sourceUrl",
+              "displayName": "sourceUrl",
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "publishedAt",
+              "displayName": "publishedAt",
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "payloadJson",
+              "displayName": "payloadJson",
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "deliveryStatus",
+              "displayName": "deliveryStatus",
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "acknowledgedAt",
+              "displayName": "acknowledgedAt",
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "matchingColumns": []
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "1e67dc48-2dfe-4fa2-a4cf-395c2a8dfe1e",
+      "name": "Cloud Run delivery configuration",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [256, 2112],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const config = { enabled: false, endpointUrl: '' };\nif (config.enabled !== true) return [];\nif (!/^https:\\/\\/[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?\\/[A-Za-z0-9/_-]+$/.test(config.endpointUrl)) throw new Error('Configure an HTTPS ingestion endpoint without credentials, query parameters or fragments');\nreturn [{json: config}];"
+      }
+    },
+    {
+      "id": "d3e5c378-dbb3-47bd-9d5c-2e1371941678",
+      "name": "Read pending warning handoffs",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [512, 2112],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "Qz3iLjDkhkL4XXi1",
+          "cachedResultName": "Evacuation-AR warning delivery outbox"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "deliveryStatus",
+              "keyValue": "pending"
+            }
+          ]
+        },
+        "returnAll": false,
+        "limit": 3,
+        "orderBy": true,
+        "orderByColumn": "createdAt",
+        "orderByDirection": "ASC"
+      }
+    },
+    {
+      "id": "7be17075-89fd-481a-abcb-8918df1769bc",
+      "name": "Deliver each warning handoff",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [768, 2112],
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      }
+    },
+    {
+      "id": "bcfac884-dcc1-4b4e-9de0-454e3be4ae48",
+      "name": "Send warning to Cloud Run",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [1024, 2240],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Cloud Run delivery configuration').first().json.endpointUrl }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpTemplatedCustomAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Idempotency-Key",
+              "value": "={{ $json.deliveryKey }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.payloadJson }}",
+        "options": {
+          "timeout": 3000,
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          },
+          "response": {
+            "response": {
+              "responseFormat": "json",
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "notes": "SETUP REQUIRED: attach a Custom Auth credential with template {\"headers\":{\"Authorization\":\"Bearer {{api_key}}\"}}. The backend must validate this shared ingestion token. Keep it out of node parameters and exports.",
+      "onError": "continueErrorOutput",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 1000,
+      "disabled": true
+    },
+    {
+      "id": "3337ff7c-f251-4839-8275-cd9ec43ac6c5",
+      "name": "Validate backend acknowledgement",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1280, 2240],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const response = $input.first().json;\nconst row = $('Deliver each warning handoff').item.json;\nif (response.statusCode < 200 || response.statusCode >= 300 || !Number.isInteger(response.statusCode) || response.body?.accepted !== true || response.body.deliveryKey !== row.deliveryKey) throw new Error('Backend did not durably acknowledge this delivery key');\nreturn [{json: {deliveryKey: row.deliveryKey, deliveryStatus: 'acknowledged', acknowledgedAt: $now.toISO()}}];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "0657c19e-b56a-4215-a2e9-cb1a2a3ac32d",
+      "name": "Record backend acknowledgement",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [1536, 2240],
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "Qz3iLjDkhkL4XXi1",
+          "cachedResultName": "Evacuation-AR warning delivery outbox"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "deliveryKey",
+              "keyValue": "={{ $json.deliveryKey }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "deliveryStatus": "={{ $json.deliveryStatus }}",
+            "acknowledgedAt": "={{ $json.acknowledgedAt }}"
+          },
+          "schema": [
+            {
+              "id": "deliveryKey",
+              "displayName": "deliveryKey",
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sourceUrl",
+              "displayName": "sourceUrl",
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "publishedAt",
+              "displayName": "publishedAt",
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "payloadJson",
+              "displayName": "payloadJson",
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "deliveryStatus",
+              "displayName": "deliveryStatus",
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "acknowledgedAt",
+              "displayName": "acknowledgedAt",
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "matchingColumns": []
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "e162aba7-12fe-474f-9d37-bd2a054c8424",
+      "name": "Warning handoff summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1024, 1968],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return [{json: {processed: $input.all().length, meaning: 'Completed attempts; inspect outbox for acknowledged or pending rows', notificationsSent: false}}];"
+      }
+    },
+    {
+      "id": "0b49e6ce-d3a8-4c24-852b-b5b5d84e988f",
+      "name": "FCM handoff setup",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [256, 2608],
+      "parameters": {
+        "content": "## CLOUD RUN → FCM · SETUP REQUIRED\n\nDraft only. Delivery configuration and HTTP sender start disabled; no endpoint or credentials exist yet. Collection writes a durable outbox BEFORE marking bulletins processed. Training/test reports are excluded.\n\nEnable the HTTP sender and set enabled=true and endpointUrl only after deploying the authenticated ingestion API and assigning Custom Auth credentials to Send warning to Cloud Run. API contract and Firebase/Android setup: docs/notifications.md.\n\nA separate trigger branch retries up to 3 oldest pending rows each run, even with no new bulletins. HTTP failures and invalid acknowledgements return to the loop and stay pending. HTTP retries twice; backend MUST deduplicate deliveryKey and persist FCM work before accepted=true. Backend acceptance does not mean phone delivery.\n\nBackend decides affected users, meaningful changes and expiry. Never push historical backfill blindly. Cancellations remain unknown, never all-clear. Run sequentially; no cross-run lock. Already archived bulletins are not automatically backfilled into the outbox.",
+        "height": 640,
+        "width": 1650,
+        "color": 3
+      }
+    }
+  ],
+  "connections": {
+    "Manual recovery check": {
+      "main": [
+        [
+          {
+            "node": "Download recovery feed",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Download eqvol recovery feed",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Cloud Run delivery configuration",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download recovery feed": {
+      "main": [
+        [
+          {
+            "node": "Parse Atom XML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Atom XML": {
+      "main": [
+        [
+          {
+            "node": "Select Aichi bulletins",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select Aichi bulletins": {
+      "main": [
+        [
+          {
+            "node": "Read current Aichi snapshot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read current Aichi snapshot": {
+      "main": [
+        [
+          {
+            "node": "Skip seen or older bulletin",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Skip seen or older bulletin": {
+      "main": [
+        [
+          {
+            "node": "Download official bulletin",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download official bulletin": {
+      "main": [
+        [
+          {
+            "node": "Parse bulletin XML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse bulletin XML": {
+      "main": [
+        [
+          {
+            "node": "Validate municipality statuses",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save bulletin snapshot": {
+      "main": [
+        [
+          {
+            "node": "Publish current Aichi snapshot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Publish current Aichi snapshot": {
+      "main": [
+        [
+          {
+            "node": "Warning import summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Every minute - inactive until published": {
+      "main": [
+        [
+          {
+            "node": "Download recent feed or hourly recovery",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Download eqvol recent or recovery",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Cloud Run delivery configuration",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download recent feed or hourly recovery": {
+      "main": [
+        [
+          {
+            "node": "Parse Atom XML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download eqvol recovery feed": {
+      "main": [
+        [
+          {
+            "node": "Parse earthquake volcano Atom",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download eqvol recent or recovery": {
+      "main": [
+        [
+          {
+            "node": "Parse earthquake volcano Atom",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse earthquake volcano Atom": {
+      "main": [
+        [
+          {
+            "node": "Read stored earthquake volcano bulletins",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read stored earthquake volcano bulletins": {
+      "main": [
+        [
+          {
+            "node": "Select unseen earthquake tsunami volcano",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select unseen earthquake tsunami volcano": {
+      "main": [
+        [
+          {
+            "node": "Process each disaster bulletin",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process each disaster bulletin": {
+      "main": [
+        [
+          {
+            "node": "Disaster import summary",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Download disaster bulletin",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download disaster bulletin": {
+      "main": [
+        [
+          {
+            "node": "Parse disaster bulletin XML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse disaster bulletin XML": {
+      "main": [
+        [
+          {
+            "node": "Normalize earthquake tsunami volcano",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store disaster bulletin": {
+      "main": [
+        [
+          {
+            "node": "Process each disaster bulletin",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate municipality statuses": {
+      "main": [
+        [
+          {
+            "node": "Prepare weather handoff",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize earthquake tsunami volcano": {
+      "main": [
+        [
+          {
+            "node": "Prepare disaster handoff",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare weather handoff": {
+      "main": [
+        [
+          {
+            "node": "Queue weather handoff",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Queue weather handoff": {
+      "main": [
+        [
+          {
+            "node": "Save bulletin snapshot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare disaster handoff": {
+      "main": [
+        [
+          {
+            "node": "Queue disaster handoff",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Queue disaster handoff": {
+      "main": [
+        [
+          {
+            "node": "Store disaster bulletin",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cloud Run delivery configuration": {
+      "main": [
+        [
+          {
+            "node": "Read pending warning handoffs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read pending warning handoffs": {
+      "main": [
+        [
+          {
+            "node": "Deliver each warning handoff",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deliver each warning handoff": {
+      "main": [
+        [
+          {
+            "node": "Warning handoff summary",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send warning to Cloud Run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send warning to Cloud Run": {
+      "main": [
+        [
+          {
+            "node": "Validate backend acknowledgement",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Deliver each warning handoff",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate backend acknowledgement": {
+      "main": [
+        [
+          {
+            "node": "Record backend acknowledgement",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Deliver each warning handoff",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Record backend acknowledgement": {
+      "main": [
+        [
+          {
+            "node": "Deliver each warning handoff",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "nodeGroups": [
+    {
+      "id": "5719a1f4-d2b5-431f-9b9b-e23f755b2921",
+      "name": "Read JMA feed",
+      "nodeNames": [
+        "Parse Atom XML",
+        "Select Aichi bulletins",
+        "Read current Aichi snapshot",
+        "Skip seen or older bulletin",
+        "How to use this warning collector"
+      ],
+      "description": "Read Aichi weather candidates and skip previously saved or older bulletins."
+    },
+    {
+      "id": "dd92c1a8-831b-4346-a01e-d97c8285ea17",
+      "name": "Validate and store official statuses",
+      "nodeNames": [
+        "Download official bulletin",
+        "Parse bulletin XML",
+        "Validate municipality statuses",
+        "Save bulletin snapshot",
+        "Publish current Aichi snapshot",
+        "Warning import summary",
+        "Prepare weather handoff",
+        "Queue weather handoff"
+      ],
+      "description": "Validate regional XML, preserve municipality statuses, save history then current snapshot."
+    },
+    {
+      "id": "6451846b-2b93-433e-933b-958fe4a5f310",
+      "name": "Collect earthquake tsunami volcano bulletins",
+      "nodeNames": [
+        "Parse earthquake volcano Atom",
+        "Read stored earthquake volcano bulletins",
+        "Select unseen earthquake tsunami volcano",
+        "Process each disaster bulletin",
+        "Download disaster bulletin",
+        "Parse disaster bulletin XML",
+        "Normalize earthquake tsunami volcano",
+        "Store disaster bulletin",
+        "Disaster import summary",
+        "Earthquake tsunami volcano scope",
+        "Prepare disaster handoff",
+        "Queue disaster handoff"
+      ],
+      "description": "Deduplicate official bulletins, process by type, preserve areas and revisions, archive nationwide reports."
+    },
+    {
+      "id": "7737194b-6c0e-4a26-a69e-91c35b958204",
+      "name": "Deliver warning updates to Cloud Run",
+      "nodeNames": [
+        "Cloud Run delivery configuration",
+        "Read pending warning handoffs",
+        "Deliver each warning handoff",
+        "Send warning to Cloud Run",
+        "Validate backend acknowledgement",
+        "Record backend acknowledgement",
+        "Warning handoff summary",
+        "FCM handoff setup"
+      ],
+      "description": "Persist pending handoffs, retry failures, and acknowledge backend acceptance. Disabled until setup is complete."
+    }
+  ],
+  "settings": {
+    "timezone": "Asia/Tokyo",
+    "executionTimeout": 55,
+    "executionOrder": "v1",
+    "availableInMCP": true,
+    "saveManualExecutions": true,
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "binaryMode": "separate"
+  },
+  "active": false,
+  "pinData": {}
+}

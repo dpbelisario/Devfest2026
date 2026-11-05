@@ -73,3 +73,20 @@ phones; only the backend deploys to Cloud Run.
 
 See [setup](docs/setup.md), [deployment](docs/deployment.md),
 [data sources](docs/data-sources.md), and [walkthrough](docs/demo-walkthrough.md).
+
+## n8n workflows
+
+[Open the n8n instance](https://minhc613.app.n8n.cloud).
+
+- [Workflow 1](https://minhc613.app.n8n.cloud/workflow/6tZRkFszCUvEA32S): downloads,
+  validates and updates Nagoya's official evacuation destination data.
+- [Workflow 2](https://minhc613.app.n8n.cloud/workflow/iaxxDBAjTsiAXCV9): checks
+  Aichi weather warnings and supported nationwide earthquake, tsunami and volcanic
+  bulletins, preserving their affected areas and skipping previously saved data.
+
+The latest exports are `automation/n8n/workflow-1.json` and
+`automation/n8n/workflow-2.json`. Both workflows remain unpublished. Workflow 2
+queues durable warning handoffs and includes a Cloud Run delivery branch, disabled
+pending endpoint/authentication setup. Firebase sending, Android notification
+reception and connecting the two workflows remain pending. See
+[notification setup](docs/notifications.md).
