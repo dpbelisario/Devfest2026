@@ -100,11 +100,11 @@ if gcloud run services describe "$JOBS_SERVICE" --project "$PROJECT" --region "$
   >/dev/null 2>&1 && [ "${REDEPLOY_JOBS:-0}" != 1 ]; then
   echo "    exists, keeping its image (Cloud Build updates it; REDEPLOY_JOBS=1 to force)"
   gcloud run services update "$JOBS_SERVICE" --project "$PROJECT" --region "$REGION" \
-    --service-account "$RUNTIME_SA" --update-env-vars JOBS_ENABLED=true --quiet >/dev/null
+    --service-account "$RUNTIME_SA" --update-env-vars JOBS_ENABLED=true,LIVE_DATA_STORE=off --quiet >/dev/null
 else
   gcloud run deploy "$JOBS_SERVICE" --project "$PROJECT" --region "$REGION" \
     --image "$API_IMAGE" --service-account "$RUNTIME_SA" --no-allow-unauthenticated \
-    --update-env-vars JOBS_ENABLED=true --min-instances 0 --max-instances 2 \
+    --update-env-vars JOBS_ENABLED=true,LIVE_DATA_STORE=off --min-instances 0 --max-instances 2 \
     --timeout 300 --quiet
 fi
 gcloud run services add-iam-policy-binding "$JOBS_SERVICE" --project "$PROJECT" \
