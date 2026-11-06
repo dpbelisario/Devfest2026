@@ -1,3 +1,4 @@
+<meta charset="utf-8">
 <title>Contour</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <script>if (/ContourApp/.test(navigator.userAgent)) document.documentElement.classList.add("native");</script>
@@ -7,6 +8,20 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
 <style>
 .leaflet-image-layer,.leaflet-layer,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-pane,.leaflet-pane>canvas,.leaflet-pane>svg,.leaflet-tile,.leaflet-tile-container,.leaflet-zoom-box{position:absolute;left:0;top:0}.leaflet-container{overflow:hidden}.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile{-webkit-user-select:none;-moz-user-select:none;user-select:none;-webkit-user-drag:none}.leaflet-tile::selection{background:0 0}.leaflet-safari .leaflet-tile{image-rendering:-webkit-optimize-contrast}.leaflet-safari .leaflet-tile-container{width:1600px;height:1600px;-webkit-transform-origin:0 0}.leaflet-marker-icon,.leaflet-marker-shadow{display:block}.leaflet-container .leaflet-overlay-pane svg{max-width:none!important;max-height:none!important}.leaflet-container .leaflet-marker-pane img,.leaflet-container .leaflet-shadow-pane img,.leaflet-container .leaflet-tile,.leaflet-container .leaflet-tile-pane img,.leaflet-container img.leaflet-image-layer{max-width:none!important;max-height:none!important;width:auto;padding:0}.leaflet-container img.leaflet-tile{mix-blend-mode:plus-lighter}.leaflet-container.leaflet-touch-zoom{-ms-touch-action:pan-x pan-y;touch-action:pan-x pan-y}.leaflet-container.leaflet-touch-drag{-ms-touch-action:pinch-zoom;touch-action:none;touch-action:pinch-zoom}.leaflet-container.leaflet-touch-drag.leaflet-touch-zoom{-ms-touch-action:none;touch-action:none}.leaflet-container{-webkit-tap-highlight-color:transparent}.leaflet-container a{-webkit-tap-highlight-color:rgba(51,181,229,.4)}.leaflet-tile{filter:inherit;visibility:hidden}.leaflet-tile-loaded{visibility:inherit}.leaflet-zoom-box{width:0;height:0;-moz-box-sizing:border-box;box-sizing:border-box;z-index:800}.leaflet-overlay-pane svg{-moz-user-select:none}.leaflet-pane{z-index:400}.leaflet-tile-pane{z-index:200}.leaflet-overlay-pane{z-index:400}.leaflet-shadow-pane{z-index:500}.leaflet-marker-pane{z-index:600}.leaflet-tooltip-pane{z-index:650}.leaflet-popup-pane{z-index:700}.leaflet-map-pane canvas{z-index:100}.leaflet-map-pane svg{z-index:200}.leaflet-vml-shape{width:1px;height:1px}.lvml{behavior:url(#default#VML);display:inline-block;position:absolute}.leaflet-control{position:relative;z-index:800;pointer-events:visiblePainted;pointer-events:auto}.leaflet-bottom,.leaflet-top{position:absolute;z-index:1000;pointer-events:none}.leaflet-top{top:0}.leaflet-right{right:0}.leaflet-bottom{bottom:0}.leaflet-left{left:0}.leaflet-control{float:left;clear:both}.leaflet-right .leaflet-control{float:right}.leaflet-top .leaflet-control{margin-top:10px}.leaflet-bottom .leaflet-control{margin-bottom:10px}.leaflet-left .leaflet-control{margin-left:10px}.leaflet-right .leaflet-control{margin-right:10px}.leaflet-fade-anim .leaflet-popup{opacity:0;-webkit-transition:opacity .2s linear;-moz-transition:opacity .2s linear;transition:opacity .2s linear}.leaflet-fade-anim .leaflet-map-pane .leaflet-popup{opacity:1}.leaflet-zoom-animated{-webkit-transform-origin:0 0;-ms-transform-origin:0 0;transform-origin:0 0}svg.leaflet-zoom-animated{will-change:transform}.leaflet-zoom-anim .leaflet-zoom-animated{-webkit-transition:-webkit-transform .25s cubic-bezier(0,0,.25,1);-moz-transition:-moz-transform .25s cubic-bezier(0,0,.25,1);transition:transform .25s cubic-bezier(0,0,.25,1)}.leaflet-pan-anim .leaflet-tile,.leaflet-zoom-anim .leaflet-tile{-webkit-transition:none;-moz-transition:none;transition:none}.leaflet-zoom-anim .leaflet-zoom-hide{visibility:hidden}.leaflet-interactive{cursor:pointer}.leaflet-grab{cursor:-webkit-grab;cursor:-moz-grab;cursor:grab}.leaflet-crosshair,.leaflet-crosshair .leaflet-interactive{cursor:crosshair}.leaflet-control,.leaflet-popup-pane{cursor:auto}.leaflet-dragging .leaflet-grab,.leaflet-dragging .leaflet-grab .leaflet-interactive,.leaflet-dragging .leaflet-marker-draggable{cursor:move;cursor:-webkit-grabbing;cursor:-moz-grabbing;cursor:grabbing}.leaflet-image-layer,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-pane>svg path,.leaflet-tile-container{pointer-events:none}.leaflet-image-layer.leaflet-interactive,.leaflet-marker-icon.leaflet-interactive,.leaflet-pane>svg path.leaflet-interactive,svg.leaflet-image-layer.leaflet-interactive path{pointer-events:visiblePainted;pointer-events:auto}.leaflet-container{background:#ddd;outline-offset:1px}.leaflet-container a{color:#0078a8}.leaflet-zoom-box{border:2px dotted #38f;background:rgba(255,255,255,.5)}.leaflet-container{font-family:"Helvetica Neue",Arial,Helvetica,sans-serif;font-size:12px;font-size:.75rem;line-height:1.5}.leaflet-bar{box-shadow:0 1px 5px rgba(0,0,0,.65);border-radius:4px}.leaflet-bar a{background-color:#fff;border-bottom:1px solid #ccc;width:26px;height:26px;line-height:26px;display:block;text-align:center;text-decoration:none;color:#000}.leaflet-bar a,.leaflet-control-layers-toggle{background-position:50% 50%;background-repeat:no-repeat;display:block}.leaflet-bar a:focus,.leaflet-bar a:hover{background-color:#f4f4f4}.leaflet-bar a:first-child{border-top-left-radius:4px;border-top-right-radius:4px}.leaflet-bar a:last-child{border-bottom-left-radius:4px;border-bottom-right-radius:4px;border-bottom:none}.leaflet-bar a.leaflet-disabled{cursor:default;background-color:#f4f4f4;color:#bbb}.leaflet-touch .leaflet-bar a{width:30px;height:30px;line-height:30px}.leaflet-touch .leaflet-bar a:first-child{border-top-left-radius:2px;border-top-right-radius:2px}.leaflet-touch .leaflet-bar a:last-child{border-bottom-left-radius:2px;border-bottom-right-radius:2px}.leaflet-control-zoom-in,.leaflet-control-zoom-out{font:bold 18px 'Lucida Console',Monaco,monospace;text-indent:1px}.leaflet-touch .leaflet-control-zoom-in,.leaflet-touch .leaflet-control-zoom-out{font-size:22px}.leaflet-control-layers{box-shadow:0 1px 5px rgba(0,0,0,.4);background:#fff;border-radius:5px}.leaflet-control-layers-toggle{background-image:url(images/layers.png);width:36px;height:36px}.leaflet-retina .leaflet-control-layers-toggle{background-image:url(images/layers-2x.png);background-size:26px 26px}.leaflet-touch .leaflet-control-layers-toggle{width:44px;height:44px}.leaflet-control-layers .leaflet-control-layers-list,.leaflet-control-layers-expanded .leaflet-control-layers-toggle{display:none}.leaflet-control-layers-expanded .leaflet-control-layers-list{display:block;position:relative}.leaflet-control-layers-expanded{padding:6px 10px 6px 6px;color:#333;background:#fff}.leaflet-control-layers-scrollbar{overflow-y:scroll;overflow-x:hidden;padding-right:5px}.leaflet-control-layers-selector{margin-top:2px;position:relative;top:1px}.leaflet-control-layers label{display:block;font-size:13px;font-size:1.08333em}.leaflet-control-layers-separator{height:0;border-top:1px solid #ddd;margin:5px -10px 5px -6px}.leaflet-default-icon-path{background-image:url(images/marker-icon.png)}.leaflet-container .leaflet-control-attribution{background:#fff;background:rgba(255,255,255,.8);margin:0}.leaflet-control-attribution,.leaflet-control-scale-line{padding:0 5px;color:#333;line-height:1.4}.leaflet-control-attribution a{text-decoration:none}.leaflet-control-attribution a:focus,.leaflet-control-attribution a:hover{text-decoration:underline}.leaflet-attribution-flag{display:inline!important;vertical-align:baseline!important;width:1em;height:.6669em}.leaflet-left .leaflet-control-scale{margin-left:5px}.leaflet-bottom .leaflet-control-scale{margin-bottom:5px}.leaflet-control-scale-line{border:2px solid #777;border-top:none;line-height:1.1;padding:2px 5px 1px;white-space:nowrap;-moz-box-sizing:border-box;box-sizing:border-box;background:rgba(255,255,255,.8);text-shadow:1px 1px #fff}.leaflet-control-scale-line:not(:first-child){border-top:2px solid #777;border-bottom:none;margin-top:-2px}.leaflet-control-scale-line:not(:first-child):not(:last-child){border-bottom:2px solid #777}.leaflet-touch .leaflet-bar,.leaflet-touch .leaflet-control-attribution,.leaflet-touch .leaflet-control-layers{box-shadow:none}.leaflet-touch .leaflet-bar,.leaflet-touch .leaflet-control-layers{border:2px solid rgba(0,0,0,.2);background-clip:padding-box}.leaflet-popup{position:absolute;text-align:center;margin-bottom:20px}.leaflet-popup-content-wrapper{padding:1px;text-align:left;border-radius:12px}.leaflet-popup-content{margin:13px 24px 13px 20px;line-height:1.3;font-size:13px;font-size:1.08333em;min-height:1px}.leaflet-popup-content p{margin:17px 0;margin:1.3em 0}.leaflet-popup-tip-container{width:40px;height:20px;position:absolute;left:50%;margin-top:-1px;margin-left:-20px;overflow:hidden;pointer-events:none}.leaflet-popup-tip{width:17px;height:17px;padding:1px;margin:-10px auto 0;pointer-events:auto;-webkit-transform:rotate(45deg);-moz-transform:rotate(45deg);-ms-transform:rotate(45deg);transform:rotate(45deg)}.leaflet-popup-content-wrapper,.leaflet-popup-tip{background:#fff;color:#333;box-shadow:0 3px 14px rgba(0,0,0,.4)}.leaflet-container a.leaflet-popup-close-button{position:absolute;top:0;right:0;border:none;text-align:center;width:24px;height:24px;font:16px/24px Tahoma,Verdana,sans-serif;color:#757575;text-decoration:none;background:0 0}.leaflet-container a.leaflet-popup-close-button:focus,.leaflet-container a.leaflet-popup-close-button:hover{color:#585858}.leaflet-popup-scrolled{overflow:auto}.leaflet-oldie .leaflet-popup-content-wrapper{-ms-zoom:1}.leaflet-oldie .leaflet-popup-tip{width:24px;margin:0 auto}.leaflet-oldie .leaflet-control-layers,.leaflet-oldie .leaflet-control-zoom,.leaflet-oldie .leaflet-popup-content-wrapper,.leaflet-oldie .leaflet-popup-tip{border:1px solid #999}.leaflet-div-icon{background:#fff;border:1px solid #666}.leaflet-tooltip{position:absolute;padding:6px;background-color:#fff;border:1px solid #fff;border-radius:3px;color:#222;white-space:nowrap;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none;pointer-events:none;box-shadow:0 1px 3px rgba(0,0,0,.4)}.leaflet-tooltip.leaflet-interactive{cursor:pointer;pointer-events:auto}.leaflet-tooltip-bottom:before,.leaflet-tooltip-left:before,.leaflet-tooltip-right:before,.leaflet-tooltip-top:before{position:absolute;pointer-events:none;border:6px solid transparent;background:0 0;content:""}.leaflet-tooltip-bottom{margin-top:6px}.leaflet-tooltip-top{margin-top:-6px}.leaflet-tooltip-bottom:before,.leaflet-tooltip-top:before{left:50%;margin-left:-6px}.leaflet-tooltip-top:before{bottom:0;margin-bottom:-12px;border-top-color:#fff}.leaflet-tooltip-bottom:before{top:0;margin-top:-12px;margin-left:-6px;border-bottom-color:#fff}.leaflet-tooltip-left{margin-left:-6px}.leaflet-tooltip-right{margin-left:6px}.leaflet-tooltip-left:before,.leaflet-tooltip-right:before{top:50%;margin-top:-6px}.leaflet-tooltip-left:before{right:0;margin-right:-12px;border-left-color:#fff}.leaflet-tooltip-right:before{left:0;margin-left:-12px;border-right-color:#fff}@media print{.leaflet-control{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+/* In-app walking route preview; keep the map usable above the route sheet. */
+.walk-panel { position: absolute; z-index: 30; left: 12px; right: 12px; bottom: calc(var(--bot) + 12px); max-height: 39%; overflow-y: auto; padding: 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); box-shadow: var(--shadow-lg); }
+.walk-panel[hidden] { display: none; }
+.walk-head { display: flex; gap: 12px; justify-content: space-between; align-items: start; }
+.walk-head h2 { margin: 0; font: 600 22px/1.15 var(--f-display); }
+.walk-head button, .walk-panel > button { padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; font: 500 14px/1.2 var(--f-body); }
+.walk-panel p, .walk-panel li { font: 400 13px/1.5 var(--f-body); }
+.walk-panel p { margin: 8px 0; }
+.walk-panel ol { padding-left: 22px; margin: 10px 0; }
+.walk-panel li { margin-bottom: 8px; }
+.walk-panel a { color: var(--accent); }
+.walk-panel summary { cursor: pointer; font: 500 14px/1.5 var(--f-body); }
+.phone.walking .carousel, .phone.walking .ar-fab, .phone.walking .ask-fab { visibility: hidden; pointer-events: none; }
+.phone.walking .leaflet-control-attribution { margin-bottom: 0; }
 </style>
 <style>
 /* Layout: one full-bleed grayscale map; white floating chrome on top; card rail at the bottom that springs into a sheet.
@@ -675,7 +690,7 @@ html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-
         </dl>
         <p class="note"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="8" r="6.6"/><path d="M8 4.6v4.2M8 10.8v.6" stroke-linecap="round"/></svg><span id="dNote">Fictional demonstration location, not a verified official shelter. In a real emergency, follow Nagoya City and local authority guidance.</span></p>
         <div class="actions">
-          <a class="btn primary" id="dirBtn" href="#" target="_blank" rel="noopener"><span data-i18n="d.dir">Directions</span> <svg viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 11 11 5M6 5h5v5"/></svg></a>
+          <button type="button" class="btn primary" id="dirBtn"><span data-i18n="d.dir">Directions</span> <svg viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 11 11 5M6 5h5v5"/></svg></button>
           <button class="btn outline" id="arBtn" data-i18n="ar.btn">3D AR</button>
           <button class="btn outline" id="backBtn" data-i18n="d.back">Back</button>
         </div>
@@ -684,6 +699,14 @@ html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-
     </section>
 
 
+    <section class="walk-panel" id="walkPanel" hidden aria-labelledby="walkTitle">
+      <div class="walk-head"><h2 id="walkTitle"></h2><button type="button" id="walkClose" data-i18n="walk.close">Close</button></div>
+      <p id="walkStatus" role="status" aria-live="polite"></p>
+      <p data-i18n="walk.note"></p>
+      <p data-i18n="walk.privacy"></p>
+      <button type="button" id="walkRetry" data-i18n="walk.retry" hidden>Recalculate</button>
+      <details id="walkDetails" hidden><summary data-i18n="walk.steps">Route steps</summary><ol id="walkSteps"></ol></details>
+    </section>
     <div class="pop" id="pop" role="dialog" aria-label="Map settings">
       <h4 data-i18n="hz.h">Designated for</h4>
       <div class="hz" id="hzFilter"></div>
@@ -721,10 +744,11 @@ html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-
       <div class="page-head"><span>ABOUT CONTOUR</span><button class="sheet-close" style="position:static" data-close aria-label="Close"><svg viewBox="0 0 14 14" stroke="#141714" stroke-width="1.8" stroke-linecap="round"><path d="M2 2l10 10M12 2 2 12"/></svg></button></div>
       <div class="page-body">
         <h2>The nearest safe ground, in two taps</h2>
-        <p>Contour shows the evacuation points closest to you, how far they are on foot, and a one-tap route in Google Maps. It is built for the first minutes after an earthquake, tsunami warning or typhoon, when people need one clear answer.</p>
+        <p>Contour shows the evacuation points closest to you, how far they are on foot, and a walking route preview inside the app. It is built for the first minutes after an earthquake, tsunami warning or typhoon, when people need one clear answer.</p>
         <h3>About this prototype</h3>
         <p>Online, the map lists official designated emergency evacuation sites for Nagoya City from the Geospatial Information Authority of Japan (指定緊急避難場所), refreshed hourly, and Japan Meteorological Agency warnings. These are designations only: opening status, capacity and walking routes are not known, and distances are straight-line estimates. Offline, or when the data cannot be loaded, the app falls back to fictional demo points around Nagoya University, marked "Demo". Without GPS, your position is simulated at Nagoya University. The assistant uses Gemini and can make mistakes.</p>
         <h3>Credits</h3>
+      <p><a href="https://routing.openstreetmap.de/about.html" target="_blank" rel="noopener">Routing: FOSSGIS / OSRM</a> · © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> · <a href="https://www.openstreetmap.org/fixthemap" target="_blank" rel="noopener" data-i18n="walk.fix">Fix the map</a></p>
         <p>Map data © OpenStreetMap contributors. Map rendering by Leaflet.</p>
       </div>
     </section>
@@ -1030,7 +1054,7 @@ html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-
     "status": ["Demo data", "デモデータ", "演示数据", "데모 데이터"],
     "lay.h": ["Map layers", "地図レイヤー", "地图图层", "지도 레이어"],
     "lay.gather": ["Gathering points", "集合場所", "集合点", "집결지"],
-    "lay.route": ["Walking route line", "徒歩ルート線", "步行路线", "도보 경로선"],
+    "lay.route": ["Map connection line", "地図の接続線", "地图连接线", "지도 연결선"],
     "lay.ring": ["Location accuracy ring", "位置精度の円", "位置精度圈", "위치 정확도 원"],
     "card.nearest": ["Nearest", "最寄り", "最近", "가장 가까움"],
     "card.point": ["Evacuation point", "避難場所", "避难点", "대피 장소"],
@@ -1098,6 +1122,27 @@ html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-
     "ask.busy": ["Too many questions. Try again in a minute.", "質問が多すぎます。1分後にもう一度お試しください。", "提问过多，请一分钟后再试。", "질문이 너무 많습니다. 1분 후 다시 시도하세요."],
     "ask.down": ["The assistant isn't available right now. Use the map and official sources.", "現在アシスタントを利用できません。地図と公式情報をご利用ください。", "助手暂时不可用，请使用地图和官方信息。", "지금은 도우미를 사용할 수 없습니다. 지도와 공식 정보를 이용하세요."],
     "ask.off": ["You're offline. The assistant needs a connection.", "オフラインです。アシスタントには接続が必要です。", "您处于离线状态，助手需要网络。", "오프라인입니다. 도우미는 연결이 필요합니다."],
+    "walk.close": ["Close", "閉じる", "关闭", "닫기"],
+    "walk.retry": ["Recalculate", "再計算", "重新计算", "다시 계산"],
+    "walk.steps": ["Route steps", "ルートの手順", "路线步骤", "경로 단계"],
+    "walk.fix": ["Fix the map", "地図を修正", "修正地图", "지도 수정"],
+    "walk.loading": ["Getting your location and walking route…", "現在地と徒歩ルートを取得中…", "正在获取位置和步行路线…", "현재 위치와 도보 경로를 가져오는 중…"],
+    "walk.note": ["Walking preview only. Hazards, closures and site entrances are unverified. Follow local authority instructions.", "徒歩ルートのプレビューです。災害・通行止め・入口は未確認です。自治体の指示に従ってください。", "仅供步行路线预览。未核实灾害、封路和入口。请遵循当地政府指示。", "도보 경로 미리보기입니다. 위험, 폐쇄, 입구는 확인되지 않았습니다. 지자체 지시를 따르세요."],
+    "walk.privacy": ["Directions sends your start and destination coordinates to FOSSGIS for routing.", "ルート検索では出発地と目的地の座標をFOSSGISに送信します。", "路线查询会向 FOSSGIS 发送起点和终点坐标。", "경로 계산을 위해 출발지와 목적지 좌표를 FOSSGIS에 전송합니다."],
+    "walk.demo": ["This is a fictional demo site. Walking directions are unavailable.", "架空のデモ地点のため、徒歩ルートは表示できません。", "这是虚构演示地点，无法提供步行路线。", "가상 데모 장소에는 도보 경로를 제공하지 않습니다."],
+    "walk.location": ["Enable precise location in Nagoya, then recalculate. No walking route was drawn.", "名古屋市内で正確な位置情報を有効にし、再計算してください。ルートは未表示です。", "请在名古屋启用精确定位后重新计算。未绘制步行路线。", "나고야에서 정확한 위치를 켠 후 다시 계산하세요. 도보 경로가 표시되지 않았습니다."],
+    "walk.accuracy": ["Location accuracy is too low. Move to a clearer outdoor area and recalculate.", "位置精度が低いため、屋外の見通しのよい場所で再計算してください。", "定位精度不足，请到开阔室外重新计算。", "위치 정확도가 낮습니다. 시야가 트인 야외에서 다시 계산하세요."],
+    "walk.failed": ["Could not load a walking route. Check your connection and try again.", "徒歩ルートを取得できません。接続を確認して再試行してください。", "无法加载步行路线，请检查网络后重试。", "도보 경로를 불러올 수 없습니다. 연결을 확인하고 다시 시도하세요."],
+    "walk.none": ["No nearby walking connection was found. Site entrance access is unverified.", "近くに徒歩経路が見つかりません。入口へのアクセスは未確認です。", "未找到附近步行连接，场所入口尚未核实。", "인근 도보 연결 경로를 찾지 못했습니다. 입구 접근은 확인되지 않았습니다."],
+    "walk.moved": ["Your location changed. Recalculate the route from your current position.", "現在地が変わりました。ルートを再計算してください。", "您的位置已变化，请重新计算路线。", "위치가 바뀌었습니다. 현재 위치에서 다시 계산하세요."],
+    "walk.summary": ["{d} · about {n} min walking", "{d}・徒歩約{n}分", "{d} · 步行约 {n} 分钟", "{d} · 도보 약 {n}분"],
+    "walk.head": ["Start walking", "出発", "开始步行", "출발"],
+    "walk.arrive": ["End of mapped route; check the site entrance", "地図上の経路終点・入口を確認", "地图路线终点，请确认入口", "지도 경로 끝 · 입구 확인"],
+    "walk.continue": ["Continue", "進む", "继续", "계속 이동"],
+    "walk.left": ["Turn left", "左折", "左转", "좌회전"],
+    "walk.right": ["Turn right", "右折", "右转", "우회전"],
+    "walk.uturn": ["Turn around", "折り返す", "掉头", "돌아서 이동"],
+    "walk.roundabout": ["Follow the roundabout", "環状交差点を進む", "沿环岛前行", "회전교차로를 따라 이동"],
     "ask.shown": ["Shown on the map", "地図に表示しました", "已在地图上显示", "지도에 표시했습니다"],
   };
   let lang = "en";
@@ -1206,20 +1251,119 @@ html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-
     phone.style.setProperty("--carousel-h", h + "px");
   }).observe(carousel);
 
+  // ----- walking route preview (FOSSGIS foot graph, never the car demo router)
+  let walkingPoint = null, walkingData = null, walkingMessage = "", walkingRequest = null;
+  let walkingBusy = false, lastWalkingRequest = 0;
+  const walkingCache = new Map();
+  const walkingPanel = $("walkPanel");
+  function renderWalking() {
+    walkingPanel.hidden = !walkingPoint;
+    phone.classList.toggle("walking", !!walkingPoint);
+    map.attributionControl[walkingPoint ? "addAttribution" : "removeAttribution"]("Routing: FOSSGIS / OSRM");
+    if (!walkingPoint) return;
+    $("walkTitle").textContent = pTitle(walkingPoint);
+    $("walkStatus").textContent = walkingData
+      ? t("walk.summary", { d: fmtDist(walkingData.distance), n: Math.max(1, Math.ceil(walkingData.duration / 60)) })
+      : t(walkingMessage);
+    $("walkRetry").hidden = walkingBusy || !walkingPoint.live;
+    $("walkDetails").hidden = !walkingData;
+    $("walkSteps").innerHTML = walkingData ? walkingData.steps.map(step => {
+      const type = step.maneuver.type, modifier = step.maneuver.modifier || "";
+      const action = type === "depart" ? "head" : type === "arrive" ? "arrive"
+        : /roundabout|rotary/.test(type) ? "roundabout" : modifier === "uturn" ? "uturn"
+        : modifier.includes("left") ? "left" : modifier.includes("right") ? "right" : "continue";
+      return `<li>${esc(t("walk." + action))}${step.name ? " · " + esc(step.name) : ""} · ${fmtDist(step.distance)}</li>`;
+    }).join("") : "";
+  }
+  function closeWalking() {
+    if (walkingRequest) walkingRequest.abort();
+    walkingRequest = null; walkingPoint = null; walkingData = null; walkingBusy = false;
+    renderWalking();
+    if (POINTS[sel]) drawRoute(POINTS[sel]);
+    else { route.setLatLngs([]); routeCasing.setLatLngs([]); }
+  }
+  function validWalkingCoordinate(c) {
+    return Array.isArray(c) && c.length === 2 && c.every(Number.isFinite) && Math.abs(c[0]) <= 180 && Math.abs(c[1]) <= 90;
+  }
+  // Reject missing routes, excessive snapping, malformed geometry and unbounded payloads.
+  function parseWalkingRoute(data, origin, destination) {
+    if (data.code === "NoRoute" || data.code === "NoSegment") throw new Error("walk.none");
+    const r = data.routes && data.routes[0], waypoints = data.waypoints;
+    if (data.code !== "Ok" || !r || !Number.isFinite(r.distance) || r.distance <= 0 || r.distance > 100000 || !Number.isFinite(r.duration) || r.duration < 0) throw new Error("walk.none");
+    if (!Array.isArray(waypoints) || waypoints.length !== 2 || waypoints.some(w => !w || !validWalkingCoordinate(w.location) || !Number.isFinite(w.distance) || w.distance > 75 || w.distance < 0)) throw new Error("walk.none");
+    const coordinates = r.geometry && r.geometry.type === "LineString" && r.geometry.coordinates;
+    if (!Array.isArray(coordinates) || coordinates.length < 2 || coordinates.length > 20000 || !coordinates.every(validWalkingCoordinate)) throw new Error("walk.none");
+    const points = coordinates.map(c => [c[1], c[0]]);
+    if (dist(origin, points[0]) > 75 || dist(destination, points[points.length - 1]) > 75) throw new Error("walk.none");
+    if (!Array.isArray(r.legs) || r.legs.length !== 1 || !Array.isArray(r.legs[0].steps)) throw new Error("walk.none");
+    const steps = r.legs[0].steps;
+    if (!steps.length || steps.length > 500 || steps.some(s => !s || !Number.isFinite(s.distance) || s.distance < 0 || typeof s.name !== "string" || s.name.length > 500 || !s.maneuver || typeof s.maneuver.type !== "string" || (s.maneuver.modifier != null && typeof s.maneuver.modifier !== "string"))) throw new Error("walk.none");
+    return { origin: [...origin], points, steps, distance: r.distance, duration: r.duration };
+  }
+  async function startWalking(p) {
+    if (walkingRequest) walkingRequest.abort();
+    const ctl = new AbortController(); walkingRequest = ctl;
+    walkingPoint = p; walkingData = null; walkingMessage = "walk.loading"; walkingBusy = true;
+    route.setLatLngs([]); routeCasing.setLatLngs([]); closeOverlays();
+    if (sheetState === "open") {
+      closeSheet();
+      if (sheetAnim) await sheetAnim.finished.catch(() => {});
+    }
+    if (ctl.signal.aborted) return;
+    renderWalking();
+    $("walkClose").focus({ preventScroll: true });
+    let timer;
+    try {
+      if (!p.live) throw new Error("walk.demo");
+      if (!await useGps({ quiet: true })) throw new Error("walk.location");
+      if (ctl.signal.aborted) return;
+      if (!Number.isFinite(hereAcc) || hereAcc <= 0 || hereAcc > 50) throw new Error("walk.accuracy");
+      const origin = [...HERE];
+      const key = [...origin, ...p.ll].map(n => n.toFixed(5)).join(",");
+      let result = walkingCache.get(key);
+      if (!result || Date.now() - result.at > 300000) {
+        // Public service policy: no automatic reroutes, at most one request/second.
+        await new Promise(resolve => setTimeout(resolve, Math.max(0, 1100 - (Date.now() - lastWalkingRequest))));
+        if (ctl.signal.aborted) return;
+        lastWalkingRequest = Date.now();
+        timer = setTimeout(() => ctl.abort(), 15000);
+        const coordinates = `${origin[1].toFixed(6)},${origin[0].toFixed(6)};${p.ll[1].toFixed(6)},${p.ll[0].toFixed(6)}`;
+        const response = await fetch(`https://routing.openstreetmap.de/routed-foot/route/v1/foot/${coordinates}?overview=full&geometries=geojson&steps=true&radiuses=75;75&generate_hints=false`, { signal: ctl.signal });
+        const text = await response.text();
+        if (text.length > 1500000) throw new Error("walk.failed");
+        const data = JSON.parse(text);
+        if (!response.ok && data.code !== "NoRoute" && data.code !== "NoSegment") throw new Error("walk.failed");
+        result = { route: parseWalkingRoute(data, origin, p.ll), at: Date.now() };
+        if (walkingCache.size >= 10) walkingCache.delete(walkingCache.keys().next().value);
+        walkingCache.set(key, result);
+      }
+      if (ctl.signal.aborted || walkingRequest !== ctl) return;
+      if (dist(origin, HERE) > 40) throw new Error("walk.moved");
+      walkingData = result.route;
+      $("tRoute").checked = true;
+      route.setLatLngs(walkingData.points).setStyle({ dashArray: null, opacity: 1 });
+      routeCasing.setLatLngs(walkingData.points).setStyle({ dashArray: null, opacity: 0.9 });
+      const top = NATIVE ? 205 : 250;
+      map.flyToBounds(L.latLngBounds(walkingData.points), { paddingTopLeft: [32, top], paddingBottomRight: [32, phone.clientHeight * 0.42], maxZoom: 17, duration: reduced ? 0 : 0.7 });
+    } catch (e) {
+      if (walkingRequest !== ctl) return;
+      walkingMessage = ["walk.demo", "walk.location", "walk.accuracy", "walk.none", "walk.moved"].includes(e.message) ? e.message : "walk.failed";
+    } finally {
+      clearTimeout(timer);
+      if (walkingRequest === ctl) { walkingBusy = false; walkingRequest = null; renderWalking(); }
+    }
+  }
+  $("dirBtn").addEventListener("click", () => { if (POINTS[sheetIdx]) startWalking(POINTS[sheetIdx]); });
+  $("walkClose").addEventListener("click", closeWalking);
+  $("walkRetry").addEventListener("click", () => { if (walkingPoint) startWalking(walkingPoint); });
+
   // ----- selection
   let sel = -1, suppressScroll = 0;
-  function elbowRoute(a, b) { return [a, [a[0], a[1] + (b[1] - a[1]) * 0.55], [b[0], a[1] + (b[1] - a[1]) * 0.55], b]; }
+  // A dotted selection connection is never presented as a street-following route.
   function drawRoute(p) {
-    const pts = p.live ? [HERE, p.ll] : elbowRoute(HERE, p.ll);
-    routeCasing.setLatLngs(pts); route.setLatLngs(pts);
-    route.setStyle({ dashArray: p.live ? "1 9" : null }); routeCasing.setStyle({ dashArray: p.live ? "1 9" : null });
-    const path = route.getElement();
-    if (path && !p.live) {
-      path.setAttribute("pathLength", "1");
-      path.classList.remove("route"); void path.getBoundingClientRect();
-      path.classList.add("route");
-      path.addEventListener("animationend", () => { path.classList.remove("route"); path.removeAttribute("pathLength"); }, { once: true });
-    }
+    if (walkingPoint) return;
+    routeCasing.setLatLngs([HERE, p.ll]); route.setLatLngs([HERE, p.ll]);
+    route.setStyle({ dashArray: "1 9" }); routeCasing.setStyle({ dashArray: "1 9" });
   }
   const NATIVE = document.documentElement.classList.contains("native");
   function uiPad() { return { top: NATIVE ? 205 : 250, bottom: (parseFloat(getComputedStyle(phone).getPropertyValue("--carousel-h")) || 236) + 40 }; }
@@ -1233,7 +1377,7 @@ html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-
     sel = i;
     markers.forEach((m, j) => { const el = m.getElement(); el && el.firstElementChild.classList.toggle("selected", j === i); m.setZIndexOffset(j === i ? 1000 : 0); });
     cards.forEach((c, j) => c.classList.toggle("selected", j === i));
-    if (changed) drawRoute(POINTS[i]);
+    if (changed) { if (walkingPoint) closeWalking(); drawRoute(POINTS[i]); }
     if (from !== "card-scroll") scrollToCard(i, from === "init" ? "auto" : "smooth");
     if (pan && changed) frame(POINTS[i]);
   }
@@ -1329,7 +1473,6 @@ html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-
     $("dHaz").innerHTML = Object.keys(HAZ).filter(k => p.live || ["eq", "fire", "flood", "surge"].includes(k)).map(k => [k, t("haz." + k)]).map(([k, label]) => p.haz.includes(k)
       ? `<span class="chip"><svg viewBox="0 0 12 12" fill="none" stroke="#141714" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m2.5 6.2 2.3 2.3 4.7-5"/></svg>${label}</span>`
       : `<span class="chip no">${label}</span>`).join("");
-    $("dirBtn").href = `https://www.google.com/maps/dir/?api=1${hereSource === "gps" ? "" : `&origin=${HERE[0]},${HERE[1]}`}&destination=${p.ll[0].toFixed(6)},${p.ll[1].toFixed(6)}&travelmode=walking`;
   }
   function openSheet(i) {
     if (sheetState !== "closed") return;
@@ -1485,6 +1628,7 @@ html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-
     else if (sheetState === "open") closeSheet();
     else if (!pick.hidden) closePick();
     else if (drawer.classList.contains("on")) closeDrawer();
+    else if (walkingPoint) closeWalking();
     else { closeLang(); closeOverlays(); document.querySelectorAll(".page").forEach(pg => pg.classList.remove("on")); if (phone.dataset.tab !== "surround") setTab("surround"); }
   });
 
@@ -1519,7 +1663,7 @@ html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-
   });
 
   // ----- pages: the map is home; everything else opens over it from the menu
-  const mapUi = [$("map"), mapBar, document.querySelector("header.top"), $("locateBtn"), $("arFab"), $("askFab"), carousel];
+  const mapUi = [$("walkPanel"), $("map"), mapBar, document.querySelector("header.top"), $("locateBtn"), $("arFab"), $("askFab"), carousel];
   const drawer = $("drawer"), scrim = $("scrim");
   function setTab(name) {
     closeOverlays(); closeLang(); closeDrawer(); closePick();
@@ -1730,7 +1874,7 @@ html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-
     document.querySelectorAll("[data-i18n-aria]").forEach(el => el.setAttribute("aria-label", t(el.dataset.i18nAria)));
     document.querySelectorAll(".lang-btn").forEach(el => el.setAttribute("aria-label", t("lang")));
     document.querySelectorAll("[data-lang-label]").forEach(el => { el.textContent = LANGS[lang].label; });
-    renderStatus(); renderHz(); renderAlerts(); renderAskQuick();
+    renderStatus(); renderHz(); renderAlerts(); renderAskQuick(); renderWalking();
     if (sheetState === "open" && POINTS[sheetIdx]) fillDetail(POINTS[sheetIdx]);
     POINTS.forEach((p, i) => {
       cards[i].innerHTML = cardHTML(p, i);
@@ -1748,7 +1892,7 @@ html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-
     map.flyToBounds(L.latLngBounds(pts), { paddingTopLeft: [40, pad.top], paddingBottomRight: [40, pad.bottom], maxZoom: 16.5, duration: animate && !reduced ? 0.8 : 0 });
   }
   function renderPoints(list, keepId) {
-    if (sheetState !== "closed") return false;
+    if (sheetState !== "closed" || walkingPoint) return false;
     markers.forEach(m => m.remove()); cards.forEach(c => c.remove());
     POINTS = placePoints(list);
     markers = POINTS.map(makeMarker); cards = POINTS.map(makeCard);
@@ -1798,6 +1942,10 @@ html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-
     me.setLatLng(HERE); ring.setLatLng(HERE); ring.setRadius(Math.max(15, Math.min(hereAcc, 300)));
     renderStatus();
     if (arPoint) arPlace();
+    if (walkingData && dist(walkingData.origin, HERE) > 40) {
+      walkingData = null; walkingMessage = "walk.moved";
+      route.setLatLngs([]); routeCasing.setLatLngs([]); renderWalking();
+    }
     if (live && sitesFrom && dist(sitesFrom, HERE) > 150 && sheetState === "closed" && ar.hidden) loadSites({ fit: false, keepId: POINTS[sel] && POINTS[sel].id });
     return true;
   }
@@ -1959,6 +2107,7 @@ html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-
     if (pop.classList.contains("on")) { closeOverlays(); return true; }
     const pg = document.querySelector(".page.on"); if (pg) { pg.classList.remove("on"); return true; }
     if (phone.dataset.tab !== "surround") { setTab("surround"); return true; }
+    if (walkingPoint) { closeWalking(); return true; }
     return false;
   };
 

@@ -60,7 +60,9 @@ See [live-data.md](live-data.md) for the API.
   (Nagoya City, GSI data via the `nagoya-import` workflow) within 4 km. The settings button filters
   by hazard. Cards and the detail sheet show what each site is designated for; opening status and
   capacity are shown as unknown, and distances are straight-line. The dotted line is a straight
-  line, not a route; **Directions** opens Google Maps walking directions.
+  line, not a route. **Directions** opens an in-app walking route preview with distance,
+  estimated time and route steps. See [in-app-directions.md](in-app-directions.md) for requirements
+  and checks.
 - **Location.** The app starts at a demo position (Nagoya University). Location is requested only
   when the user taps the locate button, opens 3D AR or asks the assistant. Positions outside
   Nagoya keep the demo position. The Android shell grants location only to our own page origins.
