@@ -26,6 +26,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.webkit.WebViewAssetLoader
+import kotlinx.coroutines.launch
 
 /**
  * Shows the Contour UI full screen.
@@ -38,8 +39,10 @@ import androidx.webkit.WebViewAssetLoader
  */
 class WebUiActivity : ComponentActivity() {
 
-    private lateinit var web: WebView
+    lateinit var web: WebView
     private var pendingCamera: PermissionRequest? = null
+    private val speechInput = com.contour.app.speech.SpeechInput(this)
+    private val translator = com.contour.app.translation.OfflineTranslator()
     private var pendingLocation: Pair<String, GeolocationPermissions.Callback>? = null
     private val bundledUrl = "https://${WebViewAssetLoader.DEFAULT_DOMAIN}/assets/contour.html"
     private val hostedUrl: String? = BuildConfig.UI_URL.takeIf { it.isNotBlank() }
@@ -64,6 +67,77 @@ class WebUiActivity : ComponentActivity() {
             pendingCamera = null
         }
 
+    val askAudio =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            if (granted) {
+                web.evaluateJavascript("window.onAudioPermissionGranted && window.onAudioPermissionGranted()", null)
+            }
+        }
+
+    class ContourBridge(
+        private val activity: WebUiActivity,
+        private val speechInput: com.contour.app.speech.SpeechInput,
+        private val translator: com.contour.app.translation.OfflineTranslator
+    ) {
+        @android.webkit.JavascriptInterface
+        fun startListening(languageTag: String) {
+            if (activity.checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+                activity.askAudio.launch(Manifest.permission.RECORD_AUDIO)
+                return
+            }
+            activity.runOnUiThread {
+                speechInput.listen(
+                    languageTag = languageTag,
+                    onPartial = { text ->
+                        activity.web.evaluateJavascript("window.onSpeechPartial && window.onSpeechPartial(${org.json.JSONObject.quote(text)})", null)
+                    },
+                    onFinal = { text ->
+                        activity.web.evaluateJavascript("window.onSpeechFinal && window.onSpeechFinal(${org.json.JSONObject.quote(text)})", null)
+                    },
+                    onError = { code ->
+                        activity.web.evaluateJavascript("window.onSpeechError && window.onSpeechError($code)", null)
+                    }
+                )
+            }
+        }
+
+        @android.webkit.JavascriptInterface
+        fun stopListening() {
+            activity.runOnUiThread { speechInput.stop() }
+        }
+
+        @android.webkit.JavascriptInterface
+        fun translateText(text: String, source: String, target: String, callbackName: String) {
+            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                try {
+                    val result = translator.translate(text, source, target)
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                        activity.web.evaluateJavascript("$callbackName(null, ${org.json.JSONObject.quote(result)})", null)
+                    }
+                } catch (e: Exception) {
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                        activity.web.evaluateJavascript("$callbackName(${org.json.JSONObject.quote(e.message ?: "Translation error")}, null)", null)
+                    }
+                }
+            }
+        }
+
+        @android.webkit.JavascriptInterface
+        fun downloadModel(language: String, callbackName: String) {
+            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                try {
+                    translator.downloadLanguage(language)
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                        activity.web.evaluateJavascript("$callbackName(null, true)", null)
+                    }
+                } catch (e: Exception) {
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                        activity.web.evaluateJavascript("$callbackName(${org.json.JSONObject.quote(e.message ?: "Download error")}, false)", null)
+                    }
+                }
+            }
+        }
+    }
     // The page asks for location only when the user taps "my location" or opens 3D AR.
     private val askLocation =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
@@ -85,6 +159,13 @@ class WebUiActivity : ComponentActivity() {
         WindowCompat.getInsetsController(window, window.decorView).apply {
             isAppearanceLightStatusBars = true
             isAppearanceLightNavigationBars = true
+        }
+
+        // Pre-download supported translation language models in the background
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+            com.contour.app.translation.SUPPORTED_LANGUAGES.forEach { lang ->
+                try { translator.downloadLanguage(lang) } catch (_: Exception) {}
+            }
         }
 
         web = WebView(this).apply { setBackgroundColor(Color.parseColor("#F3F5F3")) }
@@ -122,6 +203,8 @@ class WebUiActivity : ComponentActivity() {
             setSupportZoom(false)
             userAgentString = "$userAgentString ContourApp/1.0"   // the page switches to full-screen app mode on this tag
         }
+
+        web.addJavascriptInterface(ContourBridge(this, speechInput, translator), "ContourBridge")
 
         val assets = WebViewAssetLoader.Builder()
             .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(this))
@@ -231,6 +314,8 @@ class WebUiActivity : ComponentActivity() {
 
     override fun onDestroy() {
         web.removeCallbacks(hostedTimeout)
+        speechInput.release()
+        translator.close()
         web.destroy()
         super.onDestroy()
     }
