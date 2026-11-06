@@ -12,6 +12,8 @@ import {
 import { encodePayload } from "../src/services/jobs/payloadCodec.js";
 import { LiveDataService } from "../src/services/liveDataService.js";
 import { RateLimiter } from "../src/services/rateLimiter.js";
+import { parseConfig } from "../src/config.js";
+import { createLiveContext } from "../src/services/createLiveContext.js";
 
 // SYNTHETIC TEST DATA ONLY: not real sites, warnings or bulletins.
 const origin = { lat: 35.17, lng: 136.88 };
@@ -357,4 +359,20 @@ test("assistant tool without a location asks for one", async () => {
   assert.deepEqual(toolResult, {
     error: "Location unknown. Ask the user to enable location.",
   });
+});
+
+test("live context starts without a project and leaves the assistant off", () => {
+  const withoutProject = createLiveContext(
+    parseConfig({ LIVE_DATA_STORE: "memory" }),
+  );
+  assert.ok(withoutProject);
+  assert.equal(withoutProject.assistant, undefined);
+  const withProject = createLiveContext(
+    parseConfig({ LIVE_DATA_STORE: "memory", GOOGLE_CLOUD_PROJECT: "demo" }),
+  );
+  assert.ok(withProject?.assistant);
+  assert.equal(
+    createLiveContext(parseConfig({ LIVE_DATA_STORE: "off" })),
+    undefined,
+  );
 });

@@ -22,17 +22,22 @@ export function createLiveContext(config: AppConfig): LiveContext | undefined {
           databaseId: config.FIRESTORE_DATABASE_ID,
         });
   const live = new LiveDataService({ repository });
-  const assistant = config.ASSISTANT_ENABLED
-    ? new AssistantService({
-        live,
-        model: config.ASSISTANT_MODEL,
-        generate: createGeminiGenerate({
-          project: config.GOOGLE_CLOUD_PROJECT,
-          location: config.GOOGLE_CLOUD_LOCATION,
+  // Vertex AI needs an explicit project; without one the assistant stays off
+  // (POST /api/assistant answers 503) instead of failing server startup.
+  if (config.ASSISTANT_ENABLED && !config.GOOGLE_CLOUD_PROJECT)
+    console.warn("Assistant disabled: set GOOGLE_CLOUD_PROJECT to enable it.");
+  const assistant =
+    config.ASSISTANT_ENABLED && config.GOOGLE_CLOUD_PROJECT
+      ? new AssistantService({
+          live,
           model: config.ASSISTANT_MODEL,
-        }),
-      })
-    : undefined;
+          generate: createGeminiGenerate({
+            project: config.GOOGLE_CLOUD_PROJECT,
+            location: config.GOOGLE_CLOUD_LOCATION,
+            model: config.ASSISTANT_MODEL,
+          }),
+        })
+      : undefined;
   return {
     live,
     assistant,
