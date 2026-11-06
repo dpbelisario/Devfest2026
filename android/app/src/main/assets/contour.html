@@ -609,6 +609,8 @@ html.native .ar-x svg { stroke: var(--ink); }
 .ar-meta small { margin-left: 8px; opacity: .8; font-weight: 400; }
 .alert-chip[hidden], .ask[hidden], .search .s-clear[hidden], .toggle[hidden] { display: none; }
 .ar-haz { margin-top: 6px; font: 400 12.5px/1.4 var(--f-body); opacity: .85; }
+/* Japanese titles: break at spaces, not in the middle of a word */
+html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-break: keep-all; overflow-wrap: anywhere; }
 </style>
 
 <div class="stage">
@@ -933,6 +935,7 @@ html.native .ar-x svg { stroke: var(--ink); }
     "ar.title": ["3D AR directions", "3D ARナビ", "3D AR 导航", "3D AR 길 안내"],
     "ar.btn": ["3D AR", "3D AR", "3D AR", "3D AR"],
     "ar.ahead": ["Keep walking straight", "このまま直進", "继续直走", "계속 직진하세요"],
+    "gather.t": ["Gathering point · demo", "集合場所・デモ", "集合点 · 演示", "집결지 · 데모"],
     "ar.fab": ["3D AR", "3D AR", "3D AR", "3D AR"],
     "pick.title": ["Where do you want to go?", "どこへ向かいますか？", "您要去哪里？", "어디로 가시겠어요?"],
     "pick.sub": ["Pick a place, then follow the arrows.", "行き先を選ぶと、矢印で案内します。", "选择目的地，然后跟着箭头走。", "목적지를 고르고 화살표를 따라가세요."],
@@ -1039,6 +1042,44 @@ html.native .ar-x svg { stroke: var(--ink); }
   try { const s = localStorage.getItem("contour.lang"); if (LANGS[s]) lang = s; } catch (_) {}
   const t = (k, v) => { let s = D[k] ? D[k][LANGS[lang].i] : k; if (v) for (const x in v) s = s.replace("{" + x + "}", v[x]); return s; };
 
+  // ----- place names follow the language. English is the source key; Japanese uses the Japanese name,
+  // Chinese and Korean have their own, and the Japanese name stays as the small second line for them.
+  const NAMES = {
+    "Nagoya University Gymnasium": { zh: "名古屋大学体育馆（演示）", ko: "나고야대학교 체육관 (데모)" },
+    "South Campus Field": { zh: "南校区运动场（演示）", ko: "남쪽 캠퍼스 운동장 (데모)" },
+    "Furo-cho Community Center": { zh: "不老町社区中心（演示）", ko: "후로초 지역센터 (데모)" },
+    "Yamate-dori Open Space": { zh: "山手通开放空地（演示）", ko: "야마테도리 오픈스페이스 (데모)" },
+    "Motoyama Civic Hall": { zh: "本山市民会馆（演示）", ko: "모토야마 시민회관 (데모)" },
+    "Yagoto Hillside School": { zh: "八事山坡学校（演示）", ko: "야고토 언덕 위 학교 (데모)" },
+    "Higashiyama North Lawn": { zh: "东山北草坪广场（演示）", ko: "히가시야마 북쪽 잔디광장 (데모)" },
+  };
+  const TYPES = {
+    "Temporary evacuation shelter": { ja: "一時避難所", zh: "临时避难所", ko: "임시 대피소" },
+    "Temporary evacuation site (open air)": { ja: "一時避難場所（屋外）", zh: "临时避难场所（露天）", ko: "임시 대피 장소 (야외)" },
+    "Designated shelter (indoor)": { ja: "指定避難所（屋内）", zh: "指定避难所（室内）", ko: "지정 대피소 (실내)" },
+    "Temporary gathering site": { ja: "一時集合場所", zh: "临时集合场所", ko: "임시 집결지" },
+    "School gymnasium shelter": { ja: "学校体育館の避難所", zh: "学校体育馆避难所", ko: "학교 체육관 대피소" },
+    "Wide-area evacuation site": { ja: "広域避難場所", zh: "广域避难场所", ko: "광역 대피 장소" },
+  };
+  const LOCS = {
+    "Nagoya University, Chikusa-ku, Nagoya": { ja: "名古屋市千種区 名古屋大学", zh: "名古屋市千种区 名古屋大学", ko: "나고야시 지쿠사구 나고야대학교" },
+    "Nagoya University south campus, Chikusa-ku": { ja: "名古屋大学 南キャンパス（千種区）", zh: "名古屋大学南校区（千种区）", ko: "나고야대학교 남쪽 캠퍼스 (지쿠사구)" },
+    "Furo-cho, Chikusa-ku, Nagoya": { ja: "名古屋市千種区 不老町", zh: "名古屋市千种区 不老町", ko: "나고야시 지쿠사구 후로초" },
+    "Yamate-dori, Showa-ku, Nagoya": { ja: "名古屋市昭和区 山手通", zh: "名古屋市昭和区 山手通", ko: "나고야시 쇼와구 야마테도리" },
+    "Motoyama, Chikusa-ku, Nagoya": { ja: "名古屋市千種区 本山", zh: "名古屋市千种区 本山", ko: "나고야시 지쿠사구 모토야마" },
+    "Yagoto, Showa-ku, Nagoya": { ja: "名古屋市昭和区 八事", zh: "名古屋市昭和区 八事", ko: "나고야시 쇼와구 야고토" },
+    "Higashiyama Park, Chikusa-ku, Nagoya": { ja: "名古屋市千種区 東山公園", zh: "名古屋市千种区 东山公园", ko: "나고야시 지쿠사구 히가시야마 공원" },
+  };
+  const GNAMES = {
+    "Shrine forecourt": { ja: "神社の境内", zh: "神社前广场", ko: "신사 앞마당" },
+    "Bus terminal plaza": { ja: "バスターミナル広場", zh: "公交枢纽广场", ko: "버스터미널 광장" },
+    "Pocket park": { ja: "ポケットパーク", zh: "口袋公园", ko: "소공원" },
+    "Parking lot east": { ja: "東側駐車場", zh: "东侧停车场", ko: "동쪽 주차장" },
+  };
+  const lookup = (tbl, key) => (lang !== "en" && tbl[key] && tbl[key][lang]) || key;
+  const pTitle = p => (p.live ? p.name : lang === "ja" ? p.jp : lookup(NAMES, p.name));
+  const pSub = p => (p.live || lang === "zh" || lang === "ko" || lang === "en" ? p.jp : p.name);
+
   // ----- map
   const BOUNDS = L.latLngBounds([USER[0] - 0.013, USER[1] - 0.017], [USER[0] + 0.013, USER[1] + 0.017]);
   const map = L.map("map", { zoomControl: false, minZoom: 15, maxZoom: 18, maxBounds: BOUNDS.pad(0.08), maxBoundsViscosity: 0.9, zoomSnap: 0.25, attributionControl: true });
@@ -1063,10 +1104,12 @@ html.native .ar-x svg { stroke: var(--ink); }
   };
   let markers = POINTS.map(makeMarker);
   const peopleSvg = '<svg viewBox="0 0 16 16" fill="#fff"><circle cx="5.5" cy="4.5" r="2.2"/><circle cx="11" cy="5" r="1.8"/><path d="M1.5 13c0-2.6 1.8-4.4 4-4.4s4 1.8 4 4.4zM9.4 9.2c.5-.4 1-.6 1.6-.6 1.9 0 3.5 1.6 3.5 4.4h-4c0-1.6-.4-2.8-1.1-3.8z"/></svg>';
+  const gatherPopup = (g, ll) => `<small>${t("gather.t")}</small>${esc(lookup(GNAMES, g.name))} · ${fmtDist(dist(USER, ll))}`;
   const gatherLayer = L.layerGroup(GATHER.map(g => {
     const ll = [USER[0] + g.d[0], USER[1] + g.d[1]];
-    return L.marker(ll, { icon: L.divIcon({ className: "", html: `<div class="pin gray">${peopleSvg}</div>`, iconSize: [28, 34], iconAnchor: [14, 34] }), title: g.name })
-      .bindPopup(`<small>Gathering point · demo</small>${esc(g.name)} · ${fmtDist(dist(USER, ll))}`, { className: "mini-pop", closeButton: false, offset: [0, -30] });
+    const m = L.marker(ll, { icon: L.divIcon({ className: "", html: `<div class="pin gray">${peopleSvg}</div>`, iconSize: [28, 34], iconAnchor: [14, 34] }), title: g.name })
+      .bindPopup(gatherPopup(g, ll), { className: "mini-pop", closeButton: false, offset: [0, -30] });
+    m._g = g; m._ll = ll; return m;
   })).addTo(map);
 
   // ----- cards
@@ -1074,8 +1117,8 @@ html.native .ar-x svg { stroke: var(--ink); }
   const cardHTML = (p, i) => `
     <div class="card-body">
       <div class="eyebrow"><span>${t(i === 0 ? "card.nearest" : "card.point")}</span><span class="num">${String(p.n).padStart(2, "0")}</span></div>
-      <h3 class="name">${esc(p.name)}</h3>
-      <div class="jp">${esc(p.jp)}</div>
+      <h3 class="name">${esc(pTitle(p))}</h3>
+      <div class="jp">${esc(pSub(p))}</div>
       <div class="meta"><span class="dist">${arrowSvg(p.brg)}${fmtDist(p.m)}</span><span class="sep"></span><span>${t("card.walk", { n: p.walk })}</span></div>
       <div class="facts">${p.live ? t("card.live", { h: hazList(p) }) : t("card.facts", { n: p.cap.toLocaleString("en-US") })}</div>
       <button class="cta" type="button" tabindex="-1">${t("card.cta")}</button>
@@ -1084,7 +1127,7 @@ html.native .ar-x svg { stroke: var(--ink); }
   const makeCard = (p, i) => {
     const el = document.createElement("article");
     el.className = "card"; el.dataset.i = i; el.tabIndex = 0;
-    el.setAttribute("aria-label", `${p.name}, ${fmtDist(p.m)}, ${t("card.walk", { n: p.walk })}`);
+    el.setAttribute("aria-label", `${pTitle(p)}, ${fmtDist(p.m)}, ${t("card.walk", { n: p.walk })}`);
     el.innerHTML = cardHTML(p, i);
     el.querySelector(".cta").tabIndex = 0;
     carousel.insertBefore(el, carousel.querySelector(".empty-card"));
@@ -1211,16 +1254,16 @@ html.native .ar-x svg { stroke: var(--ink); }
   const rel = el => { const a = el.getBoundingClientRect(), b = phone.getBoundingClientRect(); return { left: (a.left - b.left) / S, top: (a.top - b.top) / S, width: a.width / S, height: a.height / S }; };
   function fillDetail(p) {
     $("dNum").textContent = String(p.n).padStart(2, "0");
-    $("dName").textContent = p.name;
-    $("dJp").textContent = p.jp;
+    $("dName").textContent = pTitle(p);
+    $("dJp").textContent = pSub(p);
     const [dv, du] = fmtDist(p.m).split(" ");
     $("dDist").innerHTML = `${dv}<small>${du}</small>`;
     $("dWalk").innerHTML = `${p.walk}<small>${t("min")}</small>`;
     $("dCap").innerHTML = p.cap == null ? `<small style="margin:0">${t("d.capu")}</small>` : `${p.cap.toLocaleString("en-US")}`;
-    $("dType").textContent = p.live ? t("site.type") : p.type;
+    $("dType").textContent = p.live ? t("site.type") : lookup(TYPES, p.type);
     $("dNote").textContent = t(p.live ? "d.note.live" : "d.note.demo");
     $("dTag").textContent = t(p.live ? "d.official" : "d.tag");
-    $("dLoc").textContent = p.loc;
+    $("dLoc").textContent = p.live ? p.loc : lookup(LOCS, p.loc);
     $("dHaz").innerHTML = Object.keys(HAZ).filter(k => p.live || ["eq", "fire", "flood", "surge"].includes(k)).map(k => [k, t("haz." + k)]).map(([k, label]) => p.haz.includes(k)
       ? `<span class="chip"><svg viewBox="0 0 12 12" fill="none" stroke="#141714" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m2.5 6.2 2.3 2.3 4.7-5"/></svg>${label}</span>`
       : `<span class="chip no">${label}</span>`).join("");
@@ -1336,7 +1379,7 @@ html.native .ar-x svg { stroke: var(--ink); }
     $("clearQ").hidden = !term;
     let firstMatch = -1, count = 0;
     POINTS.forEach((p, i) => {
-      const hit = !term || p.name.toLowerCase().includes(term) || p.jp.includes(q.value.trim()) || p.loc.toLowerCase().includes(term);
+      const hit = !term || p.name.toLowerCase().includes(term) || pTitle(p).toLowerCase().includes(term) || p.jp.includes(q.value.trim()) || p.loc.toLowerCase().includes(term) || lookup(LOCS, p.loc).toLowerCase().includes(term);
       cards[i].classList.toggle("hide", !hit);
       const el = markers[i].getElement(); if (el) el.classList.toggle("marker-hidden", !hit);
       if (hit) { count++; if (firstMatch < 0) firstMatch = i; }
@@ -1444,7 +1487,7 @@ html.native .ar-x svg { stroke: var(--ink); }
   function renderPick() {
     $("pickList").innerHTML = POINTS.map((p, i) => `<li><button type="button" data-i="${i}">
         <span class="pk-n">${String(p.n).padStart(2, "0")}</span>
-        <span class="pk-t"><b>${esc(p.name)}</b><small>${i === 0 ? t("card.nearest") + " · " : ""}${esc(p.jp)}</small></span>
+        <span class="pk-t"><b>${esc(pTitle(p))}</b><small>${i === 0 ? t("card.nearest") + " · " : ""}${esc(pSub(p))}</small></span>
         <span class="pk-d">${fmtDist(p.m)}<small>${t("card.walk", { n: p.walk })}</small></span></button></li>`).join("");
   }
   function openPick() {
@@ -1509,7 +1552,7 @@ html.native .ar-x svg { stroke: var(--ink); }
   async function openAR(p) {
     if (!p || !ar.hidden) return;
     arPoint = { ...p }; arSeen = false; arHasSensor = false;
-    $("arName").textContent = p.name; $("arJp").textContent = p.jp;
+    $("arName").textContent = pTitle(p); $("arJp").textContent = pSub(p);
     $("arHaz").textContent = p.live ? `${t("card.live", { h: hazList(p) })} · ${t("ar.unknown")}` : "";
     arPlace();
     $("arCamNote").hidden = true; ar.classList.add("nocam");
@@ -1546,7 +1589,9 @@ html.native .ar-x svg { stroke: var(--ink); }
   let att = [], attMode = "reg", attCount = 1;
   try { att = JSON.parse(localStorage.getItem(ATT_KEY) || "[]"); if (!Array.isArray(att)) att = []; } catch (_) { att = []; }
   const saveAtt = () => { try { localStorage.setItem(ATT_KEY, JSON.stringify(att)); } catch (_) {} };
-  $("attShelter").innerHTML = POINTS.map(p => `<option value="${esc(p.name)}">${esc(p.name)}</option>`).join("");
+  function renderShelterOptions() { const cur = $("attShelter").value; $("attShelter").innerHTML = POINTS.map(p => `<option value="${esc(p.name)}">${esc(pTitle(p))}</option>`).join(""); if (cur) $("attShelter").value = cur; }
+  renderShelterOptions();
+  const shelterLabel = name => { const p = POINTS.find(x => x.name === name); return p ? pTitle(p) : name; };
   function setAttMode(m) {
     attMode = m;
     document.querySelectorAll(".seg button").forEach(b => { const on = b.dataset.mode === m; b.classList.toggle("on", on); b.setAttribute("aria-selected", String(on)); });
@@ -1562,7 +1607,7 @@ html.native .ar-x svg { stroke: var(--ink); }
     $("attList").innerHTML = rows.length ? rows.slice().reverse().map(r => `<li>
         <span class="e-name">${esc(r.name)}${r.n > 1 ? " ×" + r.n : ""}</span>
         <span class="e-chip ${r.st}">${t("st." + r.st)}</span>
-        <span class="e-meta">${esc(r.shelter)} · ${new Date(r.ts).toLocaleString(loc, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</span>
+        <span class="e-meta">${esc(shelterLabel(r.shelter))} · ${new Date(r.ts).toLocaleString(loc, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</span>
         <button class="e-rm" type="button" data-rm="${r.id}">${t("att.remove")}</button></li>`).join("")
       : `<li class="e-empty">${t(att.length ? "att.nomatch" : "att.empty")}</li>`;
   }
@@ -1628,9 +1673,10 @@ html.native .ar-x svg { stroke: var(--ink); }
     POINTS.forEach((p, i) => {
       cards[i].innerHTML = cardHTML(p, i);
       cards[i].querySelector(".cta").tabIndex = 0;
-      cards[i].setAttribute("aria-label", `${p.name}, ${fmtDist(p.m)}, ${t("card.walk", { n: p.walk })}`);
+      cards[i].setAttribute("aria-label", `${pTitle(p)}, ${fmtDist(p.m)}, ${t("card.walk", { n: p.walk })}`);
     });
-    setEmptyName(); renderDate(); renderLangPop(); renderAtt(); renderPick();
+    setEmptyName(); renderDate(); renderLangPop(); renderShelterOptions(); renderAtt(); renderPick();
+    gatherLayer.eachLayer(m => m.setPopupContent(gatherPopup(m._g, m._ll)));
   }
 
   // ----- live sites: rebuild markers/cards from a list (only while the detail sheet is closed)
@@ -1645,7 +1691,7 @@ html.native .ar-x svg { stroke: var(--ink); }
     POINTS = placePoints(list);
     markers = POINTS.map(makeMarker); cards = POINTS.map(makeCard);
     sel = -1;
-    $("attShelter").innerHTML = POINTS.map(p => `<option value="${esc(p.name)}">${esc(p.name)}</option>`).join("");
+    renderShelterOptions();
     renderPick();
     applySearch();
     const k = keepId ? POINTS.findIndex(p => p.id === keepId) : -1;
