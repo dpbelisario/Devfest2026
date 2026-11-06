@@ -132,6 +132,8 @@ export interface JobsRepository {
   /** Return which of the given `eqvol:<file>` keys are already stored. */
   findStoredEqvolKeys(recordKeys: string[]): Promise<Set<string>>;
   storeEqvolBulletin(record: EqvolBulletinRecord): Promise<void>;
+  /** Newest stored bulletins first (by publishedAt), for the public alerts view. */
+  listRecentEqvolBulletins(limit: number): Promise<EqvolBulletinRecord[]>;
 
   /** Create the entry unless its deliveryKey exists. Returns true when created. */
   enqueueOutbox(entry: OutboxEntry): Promise<boolean>;

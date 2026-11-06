@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@google-cloud/firestore": "^9.4.0",
+    "@google/genai": "^1.52.0",
     "csv-parse": "^7.0.3",
     "express": "^5.1.0",
     "fast-xml-parser": "^5.12.0",

@@ -52,7 +52,33 @@ Repeat with gesture and three-button navigation. Open the attendance form and it
 that the focused input remains reachable by scrolling, then dismiss the keyboard and check the header
 again. Updating WebView alone should not be required to make the header usable.
 
+## Live data, map and AR
+
+See [live-data.md](live-data.md) for the API.
+
+- **Map.** When online, the map lists the 15 nearest official designated emergency evacuation sites
+  (Nagoya City, GSI data via the `nagoya-import` workflow) within 4 km. The settings button filters
+  by hazard. Cards and the detail sheet show what each site is designated for; opening status and
+  capacity are shown as unknown, and distances are straight-line. The dotted line is a straight
+  line, not a route; **Directions** opens Google Maps walking directions.
+- **Location.** The app starts at a demo position (Nagoya University). Location is requested only
+  when the user taps the locate button, opens 3D AR or asks the assistant. Positions outside
+  Nagoya keep the demo position. The Android shell grants location only to our own page origins.
+- **3D AR.** The arrow points from the current GPS position to the chosen site and updates while
+  walking (distance, "You're near the site" within 25 m, low-accuracy warning above 50 m).
+  Heading comes from the compass; without one, a slider simulates turning.
+- **Disaster info** (menu, or the warning chip on the map) shows the latest JMA Aichi bulletin for
+  Nagoya (official status per warning/advisory) and recent earthquake, tsunami and volcano
+  bulletins, with links to JMA. A cancelled bulletin is shown as "status unknown", never all-clear.
+- **Ask Contour** (button on the map, or the menu) sends questions to the Gemini assistant. It
+  answers from the same data and can highlight sites on the map or start AR toward one.
+- **Offline / API down.** The page falls back to the fictional demo points (marked "Demo") and
+  says so in the status pill.
+
 ## Limits (this is a prototype)
 
-- All shelters, capacities and the user's position (Nagoya University) are fictional demo data.
-- 3D AR here is a compass arrow on the camera view, not ARCore geospatial tracking.
+- Official data covers Nagoya City only. Designated sites are not necessarily open shelters.
+- Demo points, capacities and gathering points are fictional and only appear offline.
+- 3D AR is a compass arrow on the camera view, not ARCore geospatial tracking; accuracy depends on
+  GPS and compass calibration.
+- The assistant can make mistakes; official announcements take priority.
