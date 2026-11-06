@@ -557,6 +557,60 @@ html.native .ar-x svg { stroke: var(--ink); }
 .pk-t small { display: block; margin-top: 2px; font: 400 12.5px/1.3 var(--f-jp); color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pk-d { flex: none; text-align: right; font: 600 19px/1 var(--f-display); color: var(--accent); }
 .pk-d small { display: block; margin-top: 3px; font: 400 12px/1 var(--f-body); color: var(--ink-3); }
+
+/* ===== live data: alert chip, hazard filter, disaster info, assistant ===== */
+.alert-chip { margin: 8px 0 0 8px; display: inline-flex; align-items: center; gap: 7px; height: 26px; max-width: calc(100% - 8px); padding: 0 10px; border-radius: 8px; border: 1px solid #cfa23c; background: #f3e6bf; color: #5a420a; font: 500 12px/1 var(--f-body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; vertical-align: top; }
+.alert-chip.warning { border-color: #c74636; background: #f8dcd6; color: #8c2e22; }
+.alert-chip.emergency { border-color: #6b1a12; background: #8c2e22; color: #fff; }
+.alert-chip b { font-weight: 600; }
+.status.live i { background: var(--green, #178049); }
+.hz { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 6px; }
+.hz button { height: 30px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--wash-line, #d6d7da); background: var(--paper, #fff); font: 400 13px/1 var(--f-body); color: var(--ink); }
+.hz button[aria-pressed="true"] { background: var(--ink); color: #fff; border-color: var(--ink); }
+.dz { padding: 6px 22px 28px; }
+.dz h3 { margin: 22px 0 8px; font: 600 15px/1.3 var(--f-body); }
+.dz .dz-meta { margin: 6px 0 0; font: 400 12.5px/1.45 var(--f-body); color: var(--ink-3); }
+.dz .dz-head { margin: 8px 0 0; font: 400 14px/1.5 var(--f-body); color: var(--ink); }
+.dz ul { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.dz li { padding: 11px 0; border-bottom: 1px solid var(--line); display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; align-items: start; }
+.dz li .k { font: 500 14.5px/1.35 var(--f-body); }
+.dz li .k small { display: block; font: 400 12.5px/1.4 var(--f-body); color: var(--ink-3); margin-top: 2px; }
+.dz li .s { font: 500 12px/1 var(--f-body); padding: 5px 7px; border-radius: 6px; border: 1px solid var(--wash-line, #d6d7da); color: var(--ink-2); white-space: nowrap; }
+.dz li .s.on { border-color: #cfa23c; background: #f3e6bf; color: #5a420a; }
+.dz li .s.on.warning { border-color: #c74636; background: #f8dcd6; color: #8c2e22; }
+.dz li .s.on.emergency { border-color: #6b1a12; background: #8c2e22; color: #fff; }
+.dz .dz-empty { padding: 12px 0; color: var(--ink-3); font: 400 14px/1.45 var(--f-body); border-bottom: 1px solid var(--line); }
+.dz a { color: var(--accent); }
+.dz .dz-btn { margin-top: 18px; height: 44px; width: 100%; border-radius: 8px; box-shadow: inset 0 0 0 1px var(--ink); font: 500 14px/1 var(--f-body); }
+.ask-fab { position: absolute; z-index: 15; left: max(16px, env(safe-area-inset-left, 0px)); bottom: calc(var(--bot) + var(--carousel-h) + 40px); height: 46px; padding: 0 14px 0 11px; border-radius: 10px; background: var(--paper); color: var(--ink); border: 1px solid var(--wash-line, #d6d7da); box-shadow: 0 1px 2px rgba(32,35,33,.08); display: flex; align-items: center; gap: 8px; font: 500 15px/1 var(--f-body); transition: opacity .3s, transform .3s; }
+.ask-fab svg { width: 20px; height: 20px; flex: none; }
+.ask-fab:active { transform: scale(.96); }
+.phone.sheet-open .ask-fab { opacity: 0; pointer-events: none; }
+.ask { position: absolute; z-index: 50; left: 0; right: 0; bottom: 0; height: 82%; display: flex; flex-direction: column; padding-bottom: calc(var(--bot) + 6px); background: var(--paper); border-radius: 16px 16px 0 0; box-shadow: var(--shadow-lg); transform: translateY(105%); transition: transform .45s cubic-bezier(.2,.9,.25,1); }
+.ask.on { transform: none; }
+.ask-head { display: flex; align-items: center; justify-content: space-between; padding: 0 16px 8px 22px; }
+.ask-head h2 { margin: 0; font: 600 26px/1.1 var(--f-display); }
+.ask-log { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; list-style: none; margin: 0; padding: 6px 16px 10px; display: flex; flex-direction: column; gap: 10px; }
+.ask-log li { max-width: 88%; padding: 10px 12px; border-radius: 12px; font: 400 14.5px/1.5 var(--f-body); white-space: pre-wrap; overflow-wrap: anywhere; }
+.ask-log li.u { align-self: flex-end; background: var(--ink); color: #fff; border-bottom-right-radius: 4px; }
+.ask-log li.m { align-self: flex-start; background: var(--wash, #f3f5f3); border-bottom-left-radius: 4px; }
+.ask-log li.m.err { background: #f8dcd6; color: #8c2e22; }
+.ask-log li.m.wait { color: var(--ink-3); }
+.ask-sites { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; white-space: normal; }
+.ask-sites button { min-height: 30px; padding: 5px 9px; border-radius: 8px; background: var(--paper, #fff); border: 1px solid var(--wash-line, #d6d7da); font: 500 12.5px/1.25 var(--f-body); color: var(--ink); text-align: left; }
+.ask-sites button small { color: var(--ink-3); font-weight: 400; margin-left: 4px; }
+.ask-quick { display: flex; gap: 6px; overflow-x: auto; padding: 4px 16px 8px; scrollbar-width: none; }
+.ask-quick button { flex: none; height: 32px; padding: 0 11px; border-radius: 16px; border: 1px solid var(--wash-line, #d6d7da); font: 400 13px/1 var(--f-body); color: var(--ink); background: var(--paper, #fff); }
+.ask-form { display: flex; gap: 8px; padding: 4px 16px 6px; }
+.ask-form input { flex: 1; min-width: 0; height: 46px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--wash-line, #d6d7da); font: 400 15px/1 var(--f-body); background: var(--paper, #fff); color: var(--ink); }
+.ask-form button { flex: none; height: 46px; padding: 0 16px; border-radius: 10px; background: var(--ink); color: #fff; font: 500 15px/1 var(--f-body); }
+.ask-form button:disabled { opacity: .5; }
+.ask-note { margin: 0; padding: 2px 18px 4px; font: 400 11.5px/1.4 var(--f-body); color: var(--ink-3); }
+.ar-meta small { margin-left: 8px; opacity: .8; font-weight: 400; }
+.alert-chip[hidden], .ask[hidden], .search .s-clear[hidden], .toggle[hidden] { display: none; }
+.ar-haz { margin-top: 6px; font: 400 12.5px/1.4 var(--f-body); opacity: .85; }
+/* Japanese titles: break at spaces, not in the middle of a word */
+html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-break: keep-all; overflow-wrap: anywhere; }
 </style>
 
 <div class="stage">
@@ -583,13 +637,14 @@ html.native .ar-x svg { stroke: var(--ink); }
         <svg viewBox="0 0 24 24" fill="none" stroke="#141714" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>
       </button>
       </div>
-      <div class="status" role="note"><i></i><span data-i18n="status">Demo data</span></div>
+      <div class="status" id="status" role="note"><i></i><span id="statusText">Demo data</span></div><button class="alert-chip" id="alertChip" type="button" hidden></button>
     </header>
 
     <button class="locate" id="locateBtn" aria-label="Center on my location">
       <svg viewBox="0 0 24 24" fill="none" stroke="#141714" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="6.5"/><circle cx="12" cy="12" r="2" fill="#141714" stroke="none"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3"/></svg>
     </button>
 
+    <button class="ask-fab" id="askFab" type="button" data-i18n-aria="ask.title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5h16v10H9l-5 4z"/><path d="M8.5 10.5h.01M12 10.5h.01M15.5 10.5h.01" stroke-width="2.6"/></svg><span data-i18n="ask.fab">Ask</span></button>
     <button class="ar-fab" id="arFab" type="button" aria-label="3D AR directions">
       <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="4.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 15 24 4l14 11" opacity=".4"/><path d="M10 28 24 17l14 11" opacity=".7"/><path d="M10 41 24 30l14 11"/></svg>
       <span data-i18n="ar.fab">3D AR</span>
@@ -604,7 +659,7 @@ html.native .ar-x svg { stroke: var(--ink); }
       <div class="detail" id="detail">
         <div class="grab" id="grab"><span></span></div>
         <div>
-          <div class="d-eyebrow"><span data-i18n="d.eyebrow">Evacuation point</span><b id="dNum">01</b><span class="tag" data-i18n="d.tag">Demo</span></div>
+          <div class="d-eyebrow"><span data-i18n="d.eyebrow">Evacuation point</span><b id="dNum">01</b><span class="tag" id="dTag">Demo</span></div>
           <h2 class="d-name" id="dName"></h2>
           <div class="d-jp" id="dJp"></div>
         </div>
@@ -618,7 +673,7 @@ html.native .ar-x svg { stroke: var(--ink); }
           <div><dt data-i18n="d.loc">Location</dt><dd id="dLoc"></dd></div>
           <div><dt data-i18n="d.haz">Rated for</dt><dd><div class="chips" id="dHaz"></div></dd></div>
         </dl>
-        <p class="note"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="8" r="6.6"/><path d="M8 4.6v4.2M8 10.8v.6" stroke-linecap="round"/></svg><span data-i18n="d.note">Fictional demonstration location, not a verified official shelter. In a real emergency, follow Nagoya City and local authority guidance.</span></p>
+        <p class="note"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="8" r="6.6"/><path d="M8 4.6v4.2M8 10.8v.6" stroke-linecap="round"/></svg><span id="dNote">Fictional demonstration location, not a verified official shelter. In a real emergency, follow Nagoya City and local authority guidance.</span></p>
         <div class="actions">
           <a class="btn primary" id="dirBtn" href="#" target="_blank" rel="noopener"><span data-i18n="d.dir">Directions</span> <svg viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 11 11 5M6 5h5v5"/></svg></a>
           <button class="btn outline" id="arBtn" data-i18n="ar.btn">3D AR</button>
@@ -630,8 +685,10 @@ html.native .ar-x svg { stroke: var(--ink); }
 
 
     <div class="pop" id="pop" role="dialog" aria-label="Map settings">
+      <h4 data-i18n="hz.h">Designated for</h4>
+      <div class="hz" id="hzFilter"></div>
       <h4 data-i18n="lay.h">Map layers</h4>
-      <label class="toggle"><span data-i18n="lay.gather">Gathering points</span> <input type="checkbox" id="tGather" checked></label>
+      <label class="toggle" id="gatherToggle"><span data-i18n="lay.gather">Gathering points</span> <input type="checkbox" id="tGather" checked></label>
       <label class="toggle"><span data-i18n="lay.route">Walking route line</span> <input type="checkbox" id="tRoute" checked></label>
       <label class="toggle"><span data-i18n="lay.ring">Location accuracy ring</span> <input type="checkbox" id="tRing" checked></label>
     </div>
@@ -656,7 +713,7 @@ html.native .ar-x svg { stroke: var(--ink); }
         <h3>Typhoon and heavy rain</h3>
         <p>Follow the evacuation level announced by the city. Move early, before roads flood and wind picks up, and avoid rivers and underpasses.</p>
         <h3>Official sources</h3>
-        <p>For real shelter locations and alerts, use the Nagoya City disaster-prevention website and the Japan Meteorological Agency. Contour's points are demo data.</p>
+        <p>When online, Contour shows official designated emergency evacuation sites for Nagoya City (Geospatial Information Authority of Japan data) and the latest Japan Meteorological Agency warnings. Whether a site is open is not known: always check announcements from Nagoya City and the Japan Meteorological Agency.</p>
       </div>
     </section>
 
@@ -666,7 +723,7 @@ html.native .ar-x svg { stroke: var(--ink); }
         <h2>The nearest safe ground, in two taps</h2>
         <p>Contour shows the evacuation points closest to you, how far they are on foot, and a one-tap route in Google Maps. It is built for the first minutes after an earthquake, tsunami warning or typhoon, when people need one clear answer.</p>
         <h3>About this prototype</h3>
-        <p>Every shelter, gathering point, capacity and hazard rating in this build is fictional and placed around Nagoya University for demonstration. None are verified official evacuation shelters. Your location is simulated at the university campus.</p>
+        <p>Online, the map lists official designated emergency evacuation sites for Nagoya City from the Geospatial Information Authority of Japan (指定緊急避難場所), refreshed hourly, and Japan Meteorological Agency warnings. These are designations only: opening status, capacity and walking routes are not known, and distances are straight-line estimates. Offline, or when the data cannot be loaded, the app falls back to fictional demo points around Nagoya University, marked "Demo". Without GPS, your position is simulated at Nagoya University. The assistant uses Gemini and can make mistakes.</p>
         <h3>Credits</h3>
         <p>Map data © OpenStreetMap contributors. Map rendering by Leaflet.</p>
       </div>
@@ -680,7 +737,7 @@ html.native .ar-x svg { stroke: var(--ink); }
     </main>
 
     <main class="view" id="v-disaster" data-view="disaster" data-title="title.disaster">
-      <div class="view-body ph"><p class="ph-t" data-i18n="ph.t">Coming soon</p><p data-i18n="ph.b">This section isn't built yet.</p></div>
+      <div class="view-body dz" id="dz" aria-live="polite"></div>
     </main>
 
     <main class="view" id="v-speech" data-view="speech" data-title="title.speech">
@@ -793,6 +850,7 @@ html.native .ar-x svg { stroke: var(--ink); }
         <div class="ar-jp" id="arJp"></div>
         <div class="ar-meta"><b id="arDist"></b><span id="arWalk"></span></div>
         <input class="ar-turn" id="arTurn" type="range" min="0" max="359" step="1" aria-label="Heading" hidden>
+        <div class="ar-haz" id="arHaz"></div>
         <p class="ar-note" id="arNote"></p>
         <p class="ar-note ar-warn" id="arCamNote" data-i18n="ar.nocam" hidden>Camera unavailable, showing a plain background.</p>
       </div>
@@ -807,6 +865,7 @@ html.native .ar-x svg { stroke: var(--ink); }
         <li><button type="button" data-go="area"><svg viewBox="0 0 28 28" fill="currentColor"><path d="M17.500 2H25v23H3v-9h5.500v-5H14v3h3.500Z"/></svg><span data-i18n="menu.area">Area list</span></button></li>
         <li><button type="button" data-go="att"><svg viewBox="0 0 28 28" fill="currentColor"><path fill-rule="evenodd" d="M10 2.500h8v2.500h4.500A1.500 1.500 0 0 1 24 6.500v18a1.500 1.500 0 0 1-1.500 1.500h-17A1.500 1.500 0 0 1 4 24.500v-18A1.500 1.500 0 0 1 5.500 5H10Zm2 1.800v1.400h4V4.300ZM8 12h2.200v2.200H8Zm4.600.6h7v1.400h-7ZM8 17h2.200v2.200H8Zm4.600.6h7V19h-7Z"/></svg><span data-i18n="menu.att">Attendance sheet</span></button></li>
         <li><button type="button" data-go="disaster"><svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M2.500 10.500a16 16 0 0 1 23 0M6.600 15a10.200 10.200 0 0 1 14.800 0M10.700 19.500a4.400 4.400 0 0 1 6.600 0"/><circle cx="14" cy="24" r="1.800" fill="currentColor" stroke="none"/></svg><span data-i18n="menu.disaster">Disaster info</span></button></li>
+        <li><button type="button" data-go="ask"><svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2.400" stroke-linecap="round" stroke-linejoin="round"><path d="M4.500 6h19v12H11l-6.500 5z"/></svg><span data-i18n="ask.title">Ask Contour</span></button></li>
         <li><button type="button" data-go="info"><svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2.400" stroke-linecap="round" stroke-linejoin="round"><path d="M14 5c-4.400 0-7.500 3.100-7.500 7 0 2.500 1.300 4 2.500 5.500.8 1 1.300 1.800 1.300 3.100h7.400c0-1.300.5-2.100 1.300-3.100 1.200-1.500 2.500-3 2.500-5.500 0-3.900-3.100-7-7.500-7Z"/><path d="M11 23h6"/></svg><span data-i18n="menu.know">Know-how on disasters</span></button></li>
         <li><button type="button" data-go="about"><svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2.400" stroke-linecap="round"><circle cx="14" cy="14" r="10"/><path d="M14 13v6"/><circle cx="14" cy="9" r=".8" fill="currentColor"/></svg><span data-i18n="menu.about">About Contour</span></button></li>
         <li><button type="button" data-go="speech"><svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2.400" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg><span data-i18n="menu.speech">Speech &amp; Translation</span></button></li>
@@ -823,6 +882,16 @@ html.native .ar-x svg { stroke: var(--ink); }
       <ul class="pick-list" id="pickList"></ul>
     </section>
 
+    <!-- Assistant (Gemini via the Contour API) -->
+    <div class="pickdim" id="askDim"></div>
+    <section class="ask" id="ask" hidden role="dialog" aria-modal="true" aria-labelledby="askTitle">
+      <div class="pick-grab"><span></span></div>
+      <div class="ask-head"><h2 id="askTitle" data-i18n="ask.title">Ask Contour</h2><button class="sheet-close" style="position:static" id="askClose" type="button" data-i18n-aria="d.back"><svg viewBox="0 0 14 14" stroke="#141714" stroke-width="1.8" stroke-linecap="round"><path d="M2 2l10 10M12 2 2 12"/></svg></button></div>
+      <ol class="ask-log" id="askLog"></ol>
+      <div class="ask-quick" id="askQuick"></div>
+      <form class="ask-form" id="askForm" autocomplete="off"><input id="askInput" type="text" maxlength="500" data-i18n-ph="ask.ph" data-i18n-aria="ask.ph"><button type="submit" id="askSend" data-i18n="ask.send">Send</button></form>
+      <p class="ask-note" data-i18n="ask.note"></p>
+    </section>
     <div class="langpop" id="langpop" role="menu" aria-label="Language"></div>
 
     <div class="toast" id="toast" role="status"></div>
@@ -835,7 +904,7 @@ html.native .ar-x svg { stroke: var(--ink); }
 <script>
 (() => {
   const USER = [35.1545, 136.9645];
-  const HAZ = { eq: "Earthquake", fire: "Large fire", flood: "Flood", surge: "Storm surge" };
+  const HAZ = { eq: "Earthquake", tsunami: "Tsunami", flood: "Flood", inland: "Inland flooding", surge: "Storm surge", slide: "Landslide", fire: "Large fire", volcano: "Volcano" };
   const RAW = [
     { name: "Nagoya University Gymnasium", jp: "名古屋大学 体育館（デモ）", d: [0.0024, -0.0024], cap: 500, type: "Temporary evacuation shelter", loc: "Nagoya University, Chikusa-ku, Nagoya", haz: ["eq", "fire", "flood"] },
     { name: "South Campus Field", jp: "南グラウンド（デモ）", d: [-0.0036, -0.0010], cap: 1200, type: "Temporary evacuation site (open air)", loc: "Nagoya University south campus, Chikusa-ku", haz: ["eq", "fire"] },
@@ -860,8 +929,29 @@ html.native .ar-x svg { stroke: var(--ink); }
   const walkMin = m => Math.max(1, Math.round(m * 1.15 / 78));
   const esc = s => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
-  const POINTS = RAW.map(p => { const ll = [USER[0] + p.d[0], USER[1] + p.d[1]]; const m = dist(USER, ll); return { ...p, ll, m, brg: bearing(USER, ll), walk: walkMin(m) }; })
+  // ----- data: official designated sites + JMA alerts from the Contour API; demo points offline.
+  // The hosted page calls its own origin; the bundled offline copy calls the public host.
+  const API = /^https?:$/.test(location.protocol) && location.hostname && location.hostname !== "appassets.androidplatform.net"
+    ? location.origin : "https://gen-lang-client-0467526025.web.app";
+  const NAGOYA_BOX = [[35.02, 136.78], [35.28, 137.07]];
+  const inNagoya = ll => ll[0] > NAGOYA_BOX[0][0] && ll[0] < NAGOYA_BOX[1][0] && ll[1] > NAGOYA_BOX[0][1] && ll[1] < NAGOYA_BOX[1][1];
+  const HAZ_API = { earthquake: "eq", tsunami: "tsunami", flood: "flood", inlandFlood: "inland", stormSurge: "surge", landslide: "slide", fire: "fire", volcano: "volcano" };
+  const API_HAZ = Object.fromEntries(Object.entries(HAZ_API).map(([a, b]) => [b, a]));
+  let HERE = USER, hereSource = "demo", hereAcc = 0, live = false, dataset = null, hazard = "", loadedAt = null, watchId = null;
+  const DEMO = RAW.map(p => ({ ...p, ll: [USER[0] + p.d[0], USER[1] + p.d[1]] }));
+  const siteRaw = s => ({ id: s.id, name: s.name, jp: s.address, ll: [s.latitude, s.longitude], cap: null, loc: s.address, haz: s.disasters.map(d => HAZ_API[d]).filter(Boolean), live: true });
+  const placePoints = list => list.map(p => { const m = dist(HERE, p.ll); return { ...p, m, brg: bearing(HERE, p.ll), walk: walkMin(m) }; })
     .sort((a, b) => a.m - b.m).map((p, i) => ({ ...p, n: i + 1 }));
+  let POINTS = placePoints(DEMO);
+  async function getJson(url, { body, timeout = 9000 } = {}) {
+    const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), timeout);
+    try {
+      const r = await fetch(url, body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal: ctl.signal } : { signal: ctl.signal });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) { const e = new Error(data.error || "HTTP " + r.status); e.status = r.status; throw e; }
+      return data;
+    } finally { clearTimeout(timer); }
+  }
 
   const $ = id => document.getElementById(id);
   let S = 1;
@@ -903,6 +993,7 @@ html.native .ar-x svg { stroke: var(--ink); }
     "ar.title": ["3D AR directions", "3D ARナビ", "3D AR 导航", "3D AR 길 안내"],
     "ar.btn": ["3D AR", "3D AR", "3D AR", "3D AR"],
     "ar.ahead": ["Keep walking straight", "このまま直進", "继续直走", "계속 직진하세요"],
+    "gather.t": ["Gathering point · demo", "集合場所・デモ", "集合点 · 演示", "집결지 · 데모"],
     "ar.fab": ["3D AR", "3D AR", "3D AR", "3D AR"],
     "pick.title": ["Where do you want to go?", "どこへ向かいますか？", "您要去哪里？", "어디로 가시겠어요?"],
     "pick.sub": ["Pick a place, then follow the arrows.", "行き先を選ぶと、矢印で案内します。", "选择目的地，然后跟着箭头走。", "목적지를 고르고 화살표를 따라가세요."],
@@ -948,7 +1039,8 @@ html.native .ar-x svg { stroke: var(--ink); }
     "card.cta": ["View details", "詳細を見る", "查看详情", "자세히 보기"],
     "empty.t": ["No match", "該当なし", "无匹配", "일치 없음"],
     "empty.n": ["Nothing called “{q}”", "「{q}」は見つかりません", "没有名为“{q}”的结果", "“{q}” 검색 결과 없음"],
-    "empty.f": ["Try a place name such as “Gymnasium” or “Motoyama”. Search covers the demo points only.", "「Gymnasium」や「Motoyama」などの地名でお試しください。検索対象はデモ地点のみです。", "请尝试“Gymnasium”或“Motoyama”等地名。搜索仅涵盖演示地点。", "“Gymnasium”이나 “Motoyama” 같은 지명으로 검색해 보세요. 데모 지점만 검색됩니다."],
+    "empty.f.old": ["Try a place name such as “Gymnasium” or “Motoyama”. Search covers the demo points only.", "「Gymnasium」や「Motoyama」などの地名でお試しください。検索対象はデモ地点のみです。", "请尝试“Gymnasium”或“Motoyama”等地名。搜索仅涵盖演示地点。", "“Gymnasium”이나 “Motoyama” 같은 지명으로 검색해 보세요. 데모 지점만 검색됩니다."],
+    "empty.f": ["Try another name. Search covers the points listed on the map.", "別の名前でお試しください。検索対象は地図上の地点です。", "请尝试其他名称。搜索范围为地图上的地点。", "다른 이름으로 시도하세요. 검색 대상은 지도 위 지점입니다."],
     "d.eyebrow": ["Evacuation point", "避難場所", "避难点", "대피 장소"],
     "d.tag": ["Demo", "デモ", "演示", "데모"],
     "d.dist": ["Distance", "距離", "距离", "거리"], "d.walk": ["Walk", "徒歩", "步行", "도보"], "d.cap": ["Capacity", "収容人数", "容量", "수용 인원"],
@@ -957,10 +1049,98 @@ html.native .ar-x svg { stroke: var(--ink); }
     "d.dir": ["Directions", "経路", "路线", "길 안내"], "d.back": ["Back", "戻る", "返回", "뒤로"],
     "min": ["min", "分", "分钟", "분"],
     "haz.eq": ["Earthquake", "地震", "地震", "지진"], "haz.fire": ["Large fire", "大規模火災", "大火", "대형 화재"], "haz.flood": ["Flood", "洪水", "洪水", "홍수"], "haz.surge": ["Storm surge", "高潮", "风暴潮", "폭풍 해일"],
+    "haz.tsunami": ["Tsunami", "津波", "海啸", "쓰나미"], "haz.inland": ["Inland flooding", "内水氾濫", "内涝", "내수 범람"], "haz.slide": ["Landslide", "土砂災害", "山体滑坡", "산사태"], "haz.volcano": ["Volcano", "火山", "火山", "화산"],
+    "hz.h": ["Designated for", "対応する災害", "适用灾害", "대응 재해"], "hz.all": ["All", "すべて", "全部", "전체"],
+    "status.live": ["Official data · Nagoya City", "公式データ・名古屋市", "官方数据 · 名古屋市", "공식 데이터 · 나고야시"],
+    "status.demo": ["Demo data", "デモデータ", "演示数据", "데모 데이터"],
+    "status.off": ["Demo data · offline", "デモデータ（オフライン）", "演示数据 · 离线", "데모 데이터 · 오프라인"],
+    "status.gps": ["your location", "現在地", "您的位置", "현재 위치"],
+    "live.none": ["No designated site within 4 km", "4 km以内に該当する避難場所はありません", "4 公里内没有符合的避难场所", "4km 이내에 해당 대피 장소가 없습니다"],
+    "live.fail": ["Couldn't load official data. Showing demo points.", "公式データを読み込めません。デモ地点を表示しています。", "无法加载官方数据，显示演示地点。", "공식 데이터를 불러올 수 없어 데모 지점을 표시합니다."],
+    "loc.outside": ["You're outside Nagoya, the area this data covers. Staying at the demo position.", "名古屋市外のため、デモ位置のままにします。", "您不在名古屋市内（数据范围外），保持演示位置。", "나고야시 밖이라 데모 위치를 유지합니다."],
+    "loc.denied": ["Location unavailable. Using the demo position.", "位置情報を利用できません。デモ位置を使います。", "无法获取位置，使用演示位置。", "위치를 사용할 수 없어 데모 위치를 사용합니다."],
+    "loc.ok": ["Using your location (±{a} m)", "現在地を使用中（±{a} m）", "正在使用您的位置（±{a} 米）", "현재 위치 사용 중 (±{a} m)"],
+    "site.type": ["Designated emergency evacuation site", "指定緊急避難場所", "指定紧急避难场所", "지정 긴급 대피 장소"],
+    "card.live": ["Designated: {h}", "対応: {h}", "适用：{h}", "대응: {h}"],
+    "d.official": ["Official", "公式", "官方", "공식"],
+    "d.capu": ["Unknown", "不明", "未知", "알 수 없음"],
+    "d.note.live": ["Official designated emergency evacuation site (GSI / Nagoya City). Whether it is open is unknown, and the distance is straight-line. Follow announcements from Nagoya City.", "国土地理院・名古屋市の指定緊急避難場所です。開設状況は不明で、距離は直線距離です。名古屋市の発表に従ってください。", "国土地理院/名古屋市指定的紧急避难场所。是否开放未知，距离为直线距离。请遵循名古屋市的通知。", "국토지리원·나고야시 지정 긴급 대피 장소입니다. 개설 여부는 알 수 없으며 거리는 직선거리입니다. 나고야시의 안내를 따르세요."],
+    "d.note.demo": ["Fictional demonstration location, not a verified official shelter. In a real emergency, follow Nagoya City and local authority guidance.", "架空のデモ地点で、公式の避難所ではありません。実際の災害時は名古屋市や自治体の指示に従ってください。", "虚构的演示地点，非官方避难所。实际灾害时请遵循名古屋市及当地政府的指示。", "가상의 데모 지점이며 공식 대피소가 아닙니다. 실제 재난 시 나고야시와 지자체의 안내를 따르세요."],
+    "ar.gps": ["Using your GPS position (±{a} m). Turn your phone to follow the arrows.", "GPSの現在地を使用中（±{a} m）。スマホを回して矢印を追ってください。", "正在使用GPS位置（±{a} 米）。转动手机，跟着箭头走。", "GPS 위치 사용 중 (±{a} m). 휴대폰을 돌려 화살표를 따라가세요."],
+    "ar.weak": ["GPS accuracy is low (±{a} m). Directions are approximate.", "GPSの精度が低いです（±{a} m）。方向は目安です。", "GPS精度较低（±{a} 米），方向仅供参考。", "GPS 정확도가 낮습니다 (±{a} m). 방향은 참고용입니다."],
+    "ar.arrived": ["You're near the site", "目的地付近です", "已到达目的地附近", "목적지 근처입니다"],
+    "ar.unknown": ["Opening status unknown", "開設状況は不明", "开放状态未知", "개설 여부 알 수 없음"],
+    "ar.straight": ["straight-line", "直線距離", "直线距离", "직선거리"],
+    "dz.weather": ["Weather warnings · Nagoya", "気象警報・注意報（名古屋市）", "气象警报 · 名古屋市", "기상 경보·주의보 (나고야시)"],
+    "dz.quake": ["Earthquake, tsunami and volcano", "地震・津波・火山", "地震、海啸和火山", "지진·쓰나미·화산"],
+    "dz.none": ["No warnings or advisories in effect for Nagoya in the latest bulletin.", "最新の発表では、名古屋市に発表中の警報・注意報はありません。", "最新发布中，名古屋市没有生效的警报或注意报。", "최신 발표에서 나고야시에 발효 중인 경보·주의보는 없습니다."],
+    "dz.cancel": ["The latest bulletin was cancelled. Current status unknown.", "最新の発表は取り消されました。現在の状況は不明です。", "最新发布已取消，当前状态未知。", "최신 발표가 취소되었습니다. 현재 상황은 알 수 없습니다."],
+    "dz.nodata": ["No bulletin stored yet. Status unknown.", "まだ発表情報がありません。状況は不明です。", "尚无发布信息，状态未知。", "아직 발표 정보가 없습니다. 상황은 알 수 없습니다."],
+    "dz.noquake": ["No recent bulletins stored.", "最近の発表はありません。", "近期没有发布。", "최근 발표가 없습니다."],
+    "dz.fail": ["Couldn't load alerts. Check the Japan Meteorological Agency directly.", "情報を読み込めません。気象庁のサイトで確認してください。", "无法加载信息，请直接查看日本气象厅。", "정보를 불러올 수 없습니다. 기상청에서 직접 확인하세요."],
+    "dz.at": ["Issued {t}", "発表 {t}", "发布于 {t}", "발표 {t}"],
+    "dz.checked": ["Checked {t}. Source: Japan Meteorological Agency. Contour may lag behind; official announcements take priority.", "確認 {t}。出典：気象庁。Contourの情報は遅れることがあります。公式発表を優先してください。", "检查于 {t}。来源：日本气象厅。Contour 可能有延迟，以官方通知为准。", "확인 {t}. 출처: 일본 기상청. Contour는 늦을 수 있으니 공식 발표를 우선하세요."],
+    "dz.jma": ["Open JMA warnings for Nagoya", "気象庁の名古屋市の警報を開く", "打开日本气象厅名古屋市警报", "기상청 나고야시 경보 열기"],
+    "dz.refresh": ["Refresh", "更新", "刷新", "새로고침"],
+    "dz.aichi": ["Mentions Aichi", "愛知県に言及", "提及爱知县", "아이치현 언급"],
+    "st.on": ["In effect", "発表中", "生效中", "발효 중"],
+    "alert.chip": ["{n} in effect · Nagoya", "名古屋市 {n} 発表中", "名古屋市 {n} 生效中", "나고야시 {n} 발효 중"],
+    "ask.title": ["Ask Contour", "Contourに聞く", "询问 Contour", "Contour에 묻기"],
+    "ask.fab": ["Ask", "質問", "提问", "질문"],
+    "ask.ph": ["Ask about shelters or warnings", "避難場所や警報について質問", "询问避难场所或警报", "대피 장소나 경보에 대해 질문"],
+    "ask.send": ["Send", "送信", "发送", "보내기"],
+    "ask.note": ["AI answers can be wrong. Follow official instructions. In danger, call 119.", "AIの回答は誤ることがあります。公式の指示に従ってください。危険な時は119番へ。", "AI 回答可能有误。请遵循官方指示。遇到危险请拨打 119。", "AI 답변은 틀릴 수 있습니다. 공식 지시를 따르세요. 위급하면 119."],
+    "ask.hello": ["Hi. I can find official evacuation sites near you, check current warnings, and guide you with AR. What's happening?", "こんにちは。近くの公式避難場所の検索、現在の警報の確認、ARでの案内ができます。どうしましたか？", "你好。我可以查找附近的官方避难场所、查看当前警报，并用 AR 为你导航。发生了什么？", "안녕하세요. 근처 공식 대피 장소 찾기, 현재 경보 확인, AR 길 안내를 도와드려요. 무슨 일인가요?"],
+    "ask.q1": ["Earthquake now. Where should I go?", "地震です。どこに逃げればいい？", "发生地震了，我该去哪里？", "지진이에요. 어디로 가야 하나요?"],
+    "ask.q2": ["Any warnings in Nagoya now?", "今、名古屋に警報は出ていますか？", "现在名古屋有警报吗？", "지금 나고야에 경보가 있나요?"],
+    "ask.q3": ["Guide me to the nearest flood site", "一番近い洪水の避難場所へ案内して", "带我去最近的洪水避难场所", "가장 가까운 홍수 대피 장소로 안내해 줘"],
+    "ask.wait": ["Checking official data…", "公式データを確認中…", "正在查询官方数据…", "공식 데이터를 확인하는 중…"],
+    "ask.busy": ["Too many questions. Try again in a minute.", "質問が多すぎます。1分後にもう一度お試しください。", "提问过多，请一分钟后再试。", "질문이 너무 많습니다. 1분 후 다시 시도하세요."],
+    "ask.down": ["The assistant isn't available right now. Use the map and official sources.", "現在アシスタントを利用できません。地図と公式情報をご利用ください。", "助手暂时不可用，请使用地图和官方信息。", "지금은 도우미를 사용할 수 없습니다. 지도와 공식 정보를 이용하세요."],
+    "ask.off": ["You're offline. The assistant needs a connection.", "オフラインです。アシスタントには接続が必要です。", "您处于离线状态，助手需要网络。", "오프라인입니다. 도우미는 연결이 필요합니다."],
+    "ask.shown": ["Shown on the map", "地図に表示しました", "已在地图上显示", "지도에 표시했습니다"],
   };
   let lang = "en";
   try { const s = localStorage.getItem("contour.lang"); if (LANGS[s]) lang = s; } catch (_) {}
   const t = (k, v) => { let s = D[k] ? D[k][LANGS[lang].i] : k; if (v) for (const x in v) s = s.replace("{" + x + "}", v[x]); return s; };
+
+  // ----- place names follow the language. English is the source key; Japanese uses the Japanese name,
+  // Chinese and Korean have their own, and the Japanese name stays as the small second line for them.
+  const NAMES = {
+    "Nagoya University Gymnasium": { zh: "名古屋大学体育馆（演示）", ko: "나고야대학교 체육관 (데모)" },
+    "South Campus Field": { zh: "南校区运动场（演示）", ko: "남쪽 캠퍼스 운동장 (데모)" },
+    "Furo-cho Community Center": { zh: "不老町社区中心（演示）", ko: "후로초 지역센터 (데모)" },
+    "Yamate-dori Open Space": { zh: "山手通开放空地（演示）", ko: "야마테도리 오픈스페이스 (데모)" },
+    "Motoyama Civic Hall": { zh: "本山市民会馆（演示）", ko: "모토야마 시민회관 (데모)" },
+    "Yagoto Hillside School": { zh: "八事山坡学校（演示）", ko: "야고토 언덕 위 학교 (데모)" },
+    "Higashiyama North Lawn": { zh: "东山北草坪广场（演示）", ko: "히가시야마 북쪽 잔디광장 (데모)" },
+  };
+  const TYPES = {
+    "Temporary evacuation shelter": { ja: "一時避難所", zh: "临时避难所", ko: "임시 대피소" },
+    "Temporary evacuation site (open air)": { ja: "一時避難場所（屋外）", zh: "临时避难场所（露天）", ko: "임시 대피 장소 (야외)" },
+    "Designated shelter (indoor)": { ja: "指定避難所（屋内）", zh: "指定避难所（室内）", ko: "지정 대피소 (실내)" },
+    "Temporary gathering site": { ja: "一時集合場所", zh: "临时集合场所", ko: "임시 집결지" },
+    "School gymnasium shelter": { ja: "学校体育館の避難所", zh: "学校体育馆避难所", ko: "학교 체육관 대피소" },
+    "Wide-area evacuation site": { ja: "広域避難場所", zh: "广域避难场所", ko: "광역 대피 장소" },
+  };
+  const LOCS = {
+    "Nagoya University, Chikusa-ku, Nagoya": { ja: "名古屋市千種区 名古屋大学", zh: "名古屋市千种区 名古屋大学", ko: "나고야시 지쿠사구 나고야대학교" },
+    "Nagoya University south campus, Chikusa-ku": { ja: "名古屋大学 南キャンパス（千種区）", zh: "名古屋大学南校区（千种区）", ko: "나고야대학교 남쪽 캠퍼스 (지쿠사구)" },
+    "Furo-cho, Chikusa-ku, Nagoya": { ja: "名古屋市千種区 不老町", zh: "名古屋市千种区 不老町", ko: "나고야시 지쿠사구 후로초" },
+    "Yamate-dori, Showa-ku, Nagoya": { ja: "名古屋市昭和区 山手通", zh: "名古屋市昭和区 山手通", ko: "나고야시 쇼와구 야마테도리" },
+    "Motoyama, Chikusa-ku, Nagoya": { ja: "名古屋市千種区 本山", zh: "名古屋市千种区 本山", ko: "나고야시 지쿠사구 모토야마" },
+    "Yagoto, Showa-ku, Nagoya": { ja: "名古屋市昭和区 八事", zh: "名古屋市昭和区 八事", ko: "나고야시 쇼와구 야고토" },
+    "Higashiyama Park, Chikusa-ku, Nagoya": { ja: "名古屋市千種区 東山公園", zh: "名古屋市千种区 东山公园", ko: "나고야시 지쿠사구 히가시야마 공원" },
+  };
+  const GNAMES = {
+    "Shrine forecourt": { ja: "神社の境内", zh: "神社前广场", ko: "신사 앞마당" },
+    "Bus terminal plaza": { ja: "バスターミナル広場", zh: "公交枢纽广场", ko: "버스터미널 광장" },
+    "Pocket park": { ja: "ポケットパーク", zh: "口袋公园", ko: "소공원" },
+    "Parking lot east": { ja: "東側駐車場", zh: "东侧停车场", ko: "동쪽 주차장" },
+  };
+  const lookup = (tbl, key) => (lang !== "en" && tbl[key] && tbl[key][lang]) || key;
+  const pTitle = p => (p.live ? p.name : lang === "ja" ? p.jp : lookup(NAMES, p.name));
+  const pSub = p => (p.live || lang === "zh" || lang === "ko" || lang === "en" ? p.jp : p.name);
 
   // ----- map
   const BOUNDS = L.latLngBounds([USER[0] - 0.013, USER[1] - 0.017], [USER[0] + 0.013, USER[1] + 0.017]);
@@ -974,21 +1154,24 @@ html.native .ar-x svg { stroke: var(--ink); }
   map.setView(USER, 16);
 
   const ring = L.circle(USER, { radius: 70, stroke: false, fillColor: "#2b88ff", fillOpacity: 0.12, interactive: false }).addTo(map);
-  L.marker(USER, { icon: L.divIcon({ className: "", html: '<div class="me"><b></b><i></i></div>', iconSize: [22, 22], iconAnchor: [11, 11] }), keyboard: false, interactive: false, zIndexOffset: 500 }).addTo(map);
+  const me = L.marker(USER, { icon: L.divIcon({ className: "", html: '<div class="me"><b></b><i></i></div>', iconSize: [22, 22], iconAnchor: [11, 11] }), keyboard: false, interactive: false, zIndexOffset: 500 }).addTo(map);
 
   const routeCasing = L.polyline([], { color: "#ffffff", weight: 8, opacity: 0.9, lineCap: "round", lineJoin: "round", interactive: false }).addTo(map);
   const route = L.polyline([], { color: "#178049", weight: 4.5, lineCap: "round", lineJoin: "round", interactive: false }).addTo(map);
 
-  const markers = POINTS.map((p, i) => {
+  const makeMarker = (p, i) => {
     const m = L.marker(p.ll, { icon: L.divIcon({ className: "", html: `<div class="pin">${p.n}</div>`, iconSize: [34, 41], iconAnchor: [17, 41] }), title: p.name, riseOnHover: true });
     m.on("click", () => select(i, { from: "pin" }));
     return m.addTo(map);
-  });
+  };
+  let markers = POINTS.map(makeMarker);
   const peopleSvg = '<svg viewBox="0 0 16 16" fill="#fff"><circle cx="5.5" cy="4.5" r="2.2"/><circle cx="11" cy="5" r="1.8"/><path d="M1.5 13c0-2.6 1.8-4.4 4-4.4s4 1.8 4 4.4zM9.4 9.2c.5-.4 1-.6 1.6-.6 1.9 0 3.5 1.6 3.5 4.4h-4c0-1.6-.4-2.8-1.1-3.8z"/></svg>';
+  const gatherPopup = (g, ll) => `<small>${t("gather.t")}</small>${esc(lookup(GNAMES, g.name))} · ${fmtDist(dist(USER, ll))}`;
   const gatherLayer = L.layerGroup(GATHER.map(g => {
     const ll = [USER[0] + g.d[0], USER[1] + g.d[1]];
-    return L.marker(ll, { icon: L.divIcon({ className: "", html: `<div class="pin gray">${peopleSvg}</div>`, iconSize: [28, 34], iconAnchor: [14, 34] }), title: g.name })
-      .bindPopup(`<small>Gathering point · demo</small>${esc(g.name)} · ${fmtDist(dist(USER, ll))}`, { className: "mini-pop", closeButton: false, offset: [0, -30] });
+    const m = L.marker(ll, { icon: L.divIcon({ className: "", html: `<div class="pin gray">${peopleSvg}</div>`, iconSize: [28, 34], iconAnchor: [14, 34] }), title: g.name })
+      .bindPopup(gatherPopup(g, ll), { className: "mini-pop", closeButton: false, offset: [0, -30] });
+    m._g = g; m._ll = ll; return m;
   })).addTo(map);
 
   // ----- cards
@@ -996,21 +1179,23 @@ html.native .ar-x svg { stroke: var(--ink); }
   const cardHTML = (p, i) => `
     <div class="card-body">
       <div class="eyebrow"><span>${t(i === 0 ? "card.nearest" : "card.point")}</span><span class="num">${String(p.n).padStart(2, "0")}</span></div>
-      <h3 class="name">${esc(p.name)}</h3>
-      <div class="jp">${esc(p.jp)}</div>
+      <h3 class="name">${esc(pTitle(p))}</h3>
+      <div class="jp">${esc(pSub(p))}</div>
       <div class="meta"><span class="dist">${arrowSvg(p.brg)}${fmtDist(p.m)}</span><span class="sep"></span><span>${t("card.walk", { n: p.walk })}</span></div>
-      <div class="facts">${t("card.facts", { n: p.cap.toLocaleString("en-US") })}</div>
+      <div class="facts">${p.live ? t("card.live", { h: hazList(p) }) : t("card.facts", { n: p.cap.toLocaleString("en-US") })}</div>
       <button class="cta" type="button" tabindex="-1">${t("card.cta")}</button>
     </div>`;
-  const cards = POINTS.map((p, i) => {
+  const hazList = p => { const h = p.haz.map(k => t("haz." + k)); return h.length > 3 ? h.slice(0, 3).join(" · ") + " +" + (h.length - 3) : h.join(" · "); };
+  const makeCard = (p, i) => {
     const el = document.createElement("article");
     el.className = "card"; el.dataset.i = i; el.tabIndex = 0;
-    el.setAttribute("aria-label", `${p.name}, ${fmtDist(p.m)}, ${t("card.walk", { n: p.walk })}`);
+    el.setAttribute("aria-label", `${pTitle(p)}, ${fmtDist(p.m)}, ${t("card.walk", { n: p.walk })}`);
     el.innerHTML = cardHTML(p, i);
     el.querySelector(".cta").tabIndex = 0;
-    carousel.appendChild(el);
+    carousel.insertBefore(el, carousel.querySelector(".empty-card"));
     return el;
-  });
+  };
+  let cards = POINTS.map(makeCard);
   const emptyCard = document.createElement("article");
   emptyCard.className = "card empty-card hide";
   emptyCard.innerHTML = `<div class="eyebrow"><span data-i18n="empty.t"></span></div><h3 class="name" id="emptyName"></h3><div class="facts" data-i18n="empty.f"></div>`;
@@ -1025,10 +1210,11 @@ html.native .ar-x svg { stroke: var(--ink); }
   let sel = -1, suppressScroll = 0;
   function elbowRoute(a, b) { return [a, [a[0], a[1] + (b[1] - a[1]) * 0.55], [b[0], a[1] + (b[1] - a[1]) * 0.55], b]; }
   function drawRoute(p) {
-    const pts = elbowRoute(USER, p.ll);
+    const pts = p.live ? [HERE, p.ll] : elbowRoute(HERE, p.ll);
     routeCasing.setLatLngs(pts); route.setLatLngs(pts);
+    route.setStyle({ dashArray: p.live ? "1 9" : null }); routeCasing.setStyle({ dashArray: p.live ? "1 9" : null });
     const path = route.getElement();
-    if (path) {
+    if (path && !p.live) {
       path.setAttribute("pathLength", "1");
       path.classList.remove("route"); void path.getBoundingClientRect();
       path.classList.add("route");
@@ -1039,7 +1225,7 @@ html.native .ar-x svg { stroke: var(--ink); }
   function uiPad() { return { top: NATIVE ? 205 : 250, bottom: (parseFloat(getComputedStyle(phone).getPropertyValue("--carousel-h")) || 236) + 40 }; }
   function frame(p, animate = true) {
     const pad = uiPad();
-    map.flyToBounds(L.latLngBounds([USER, p.ll]), { paddingTopLeft: [40, pad.top], paddingBottomRight: [40, pad.bottom], maxZoom: 17, duration: animate && !reduced ? 0.8 : 0 });
+    map.flyToBounds(L.latLngBounds([HERE, p.ll]), { paddingTopLeft: [40, pad.top], paddingBottomRight: [40, pad.bottom], maxZoom: 17, duration: animate && !reduced ? 0.8 : 0 });
   }
   function select(i, { from = "", pan = true } = {}) {
     if (i < 0 || i >= POINTS.length) return;
@@ -1052,7 +1238,7 @@ html.native .ar-x svg { stroke: var(--ink); }
     if (pan && changed) frame(POINTS[i]);
   }
   function scrollToCard(i, behavior = "smooth") {
-    const c = cards[i]; if (c.classList.contains("hide")) return;
+    const c = cards[i]; if (!c || c.classList.contains("hide")) return;
     const left = c.offsetLeft - parseFloat(getComputedStyle(carousel).scrollPaddingLeft || 20);
     suppressScroll = Date.now() + 700;
     carousel.scrollTo({ left, behavior: reduced ? "auto" : behavior });
@@ -1130,18 +1316,20 @@ html.native .ar-x svg { stroke: var(--ink); }
   const rel = el => { const a = el.getBoundingClientRect(), b = phone.getBoundingClientRect(); return { left: (a.left - b.left) / S, top: (a.top - b.top) / S, width: a.width / S, height: a.height / S }; };
   function fillDetail(p) {
     $("dNum").textContent = String(p.n).padStart(2, "0");
-    $("dName").textContent = p.name;
-    $("dJp").textContent = p.jp;
+    $("dName").textContent = pTitle(p);
+    $("dJp").textContent = pSub(p);
     const [dv, du] = fmtDist(p.m).split(" ");
     $("dDist").innerHTML = `${dv}<small>${du}</small>`;
     $("dWalk").innerHTML = `${p.walk}<small>${t("min")}</small>`;
-    $("dCap").innerHTML = `${p.cap.toLocaleString("en-US")}`;
-    $("dType").textContent = p.type;
-    $("dLoc").textContent = p.loc;
-    $("dHaz").innerHTML = Object.keys(HAZ).map(k => [k, t("haz." + k)]).map(([k, label]) => p.haz.includes(k)
+    $("dCap").innerHTML = p.cap == null ? `<small style="margin:0">${t("d.capu")}</small>` : `${p.cap.toLocaleString("en-US")}`;
+    $("dType").textContent = p.live ? t("site.type") : lookup(TYPES, p.type);
+    $("dNote").textContent = t(p.live ? "d.note.live" : "d.note.demo");
+    $("dTag").textContent = t(p.live ? "d.official" : "d.tag");
+    $("dLoc").textContent = p.live ? p.loc : lookup(LOCS, p.loc);
+    $("dHaz").innerHTML = Object.keys(HAZ).filter(k => p.live || ["eq", "fire", "flood", "surge"].includes(k)).map(k => [k, t("haz." + k)]).map(([k, label]) => p.haz.includes(k)
       ? `<span class="chip"><svg viewBox="0 0 12 12" fill="none" stroke="#141714" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m2.5 6.2 2.3 2.3 4.7-5"/></svg>${label}</span>`
       : `<span class="chip no">${label}</span>`).join("");
-    $("dirBtn").href = `https://www.google.com/maps/dir/?api=1&origin=${USER[0]},${USER[1]}&destination=${p.ll[0].toFixed(6)},${p.ll[1].toFixed(6)}&travelmode=walking`;
+    $("dirBtn").href = `https://www.google.com/maps/dir/?api=1${hereSource === "gps" ? "" : `&origin=${HERE[0]},${HERE[1]}`}&destination=${p.ll[0].toFixed(6)},${p.ll[1].toFixed(6)}&travelmode=walking`;
   }
   function openSheet(i) {
     if (sheetState !== "closed") return;
@@ -1247,13 +1435,13 @@ html.native .ar-x svg { stroke: var(--ink); }
 
   // ----- search
   const q = $("q");
-  function setEmptyName() { $("emptyName").textContent = t("empty.n", { q: q.value.trim() }); }
+  function setEmptyName() { $("emptyName").textContent = POINTS.length ? t("empty.n", { q: q.value.trim() }) : t("live.none"); }
   function applySearch() {
     const term = q.value.trim().toLowerCase();
     $("clearQ").hidden = !term;
     let firstMatch = -1, count = 0;
     POINTS.forEach((p, i) => {
-      const hit = !term || p.name.toLowerCase().includes(term) || p.jp.includes(q.value.trim()) || p.loc.toLowerCase().includes(term);
+      const hit = !term || p.name.toLowerCase().includes(term) || pTitle(p).toLowerCase().includes(term) || p.jp.includes(q.value.trim()) || p.loc.toLowerCase().includes(term) || lookup(LOCS, p.loc).toLowerCase().includes(term);
       cards[i].classList.toggle("hide", !hit);
       const el = markers[i].getElement(); if (el) el.classList.toggle("marker-hidden", !hit);
       if (hit) { count++; if (firstMatch < 0) firstMatch = i; }
@@ -1262,7 +1450,7 @@ html.native .ar-x svg { stroke: var(--ink); }
     setEmptyName();
     route.setStyle({ opacity: count ? 1 : 0 }); routeCasing.setStyle({ opacity: count && $("tRoute").checked ? 0.9 : 0 });
     if (!$("tRoute").checked) route.setStyle({ opacity: 0 });
-    if (count && (cards[sel].classList.contains("hide") || term)) { const keep = !cards[sel].classList.contains("hide") ? sel : firstMatch; sel = -1; select(keep, { from: "search" }); }
+    if (count && (sel < 0 || !cards[sel] || cards[sel].classList.contains("hide") || term)) { const keep = sel >= 0 && cards[sel] && !cards[sel].classList.contains("hide") ? sel : firstMatch; sel = -1; select(keep, { from: "search" }); }
     else if (!count) carousel.scrollTo({ left: 0 });
   }
   q.addEventListener("input", applySearch);
@@ -1270,12 +1458,13 @@ html.native .ar-x svg { stroke: var(--ink); }
   $("clearQ").addEventListener("click", () => { q.value = ""; applySearch(); q.focus(); });
 
   // ----- locate
-  $("locateBtn").addEventListener("click", () => {
+  function flyHere() {
     const pad = uiPad();
     const z = 16.5;
     const shift = (pad.bottom - pad.top) / 2;
-    map.flyTo(map.unproject(map.project(USER, z).add([0, shift]), z), z, { duration: reduced ? 0 : 0.8 });
-  });
+    map.flyTo(map.unproject(map.project(HERE, z).add([0, shift]), z), z, { duration: reduced ? 0 : 0.8 });
+  }
+  $("locateBtn").addEventListener("click", async () => { if (hereSource !== "gps") await useGps(); flyHere(); });
 
   // ----- menu, settings, pages, toast
   const pop = $("pop");
@@ -1292,6 +1481,7 @@ html.native .ar-x svg { stroke: var(--ink); }
   document.addEventListener("keydown", e => {
     if (e.key !== "Escape") return;
     if (!ar.hidden) closeAR();
+    else if (!ask.hidden) closeAsk();
     else if (sheetState === "open") closeSheet();
     else if (!pick.hidden) closePick();
     else if (drawer.classList.contains("on")) closeDrawer();
@@ -1329,7 +1519,7 @@ html.native .ar-x svg { stroke: var(--ink); }
   });
 
   // ----- pages: the map is home; everything else opens over it from the menu
-  const mapUi = [$("map"), mapBar, document.querySelector("header.top"), $("locateBtn"), $("arFab"), carousel];
+  const mapUi = [$("map"), mapBar, document.querySelector("header.top"), $("locateBtn"), $("arFab"), $("askFab"), carousel];
   const drawer = $("drawer"), scrim = $("scrim");
   function setTab(name) {
     closeOverlays(); closeLang(); closeDrawer(); closePick();
@@ -1338,6 +1528,7 @@ html.native .ar-x svg { stroke: var(--ink); }
     document.querySelectorAll(".view").forEach(v => v.classList.toggle("on", v.dataset.view === name));
     mapUi.forEach(el => { el.inert = name !== "surround"; });
     if (name === "surround") requestAnimationFrame(() => map.invalidateSize());
+    if (name === "disaster") { renderAlerts(); loadAlerts(); }
   }
   function openDrawer() { closeOverlays(); closeLang(); drawer.classList.add("on"); drawer.setAttribute("aria-hidden", "false"); scrim.classList.add("on"); }
   function closeDrawer() { drawer.classList.remove("on"); drawer.setAttribute("aria-hidden", "true"); scrim.classList.remove("on"); }
@@ -1349,6 +1540,7 @@ html.native .ar-x svg { stroke: var(--ink); }
   drawer.querySelectorAll("[data-go]").forEach(b => b.addEventListener("click", () => {
     const go = b.dataset.go;
     if (go === "info" || go === "about") { closeDrawer(); $("page-" + go).classList.add("on"); }
+    else if (go === "ask") { closeDrawer(); openAsk(); }
     else setTab(go);
   }));
 
@@ -1357,7 +1549,7 @@ html.native .ar-x svg { stroke: var(--ink); }
   function renderPick() {
     $("pickList").innerHTML = POINTS.map((p, i) => `<li><button type="button" data-i="${i}">
         <span class="pk-n">${String(p.n).padStart(2, "0")}</span>
-        <span class="pk-t"><b>${esc(p.name)}</b><small>${i === 0 ? t("card.nearest") + " · " : ""}${esc(p.jp)}</small></span>
+        <span class="pk-t"><b>${esc(pTitle(p))}</b><small>${i === 0 ? t("card.nearest") + " · " : ""}${esc(pSub(p))}</small></span>
         <span class="pk-d">${fmtDist(p.m)}<small>${t("card.walk", { n: p.walk })}</small></span></button></li>`).join("");
   }
   function openPick() {
@@ -1370,7 +1562,8 @@ html.native .ar-x svg { stroke: var(--ink); }
     pick.classList.remove("on"); pickDim.classList.remove("on");
     setTimeout(() => { if (!pick.classList.contains("on")) pick.hidden = true; }, 380);
   }
-  $("arFab").addEventListener("click", openPick);
+  // AR is a location feature: ask for GPS now, and the list re-sorts from the real position when it arrives.
+  $("arFab").addEventListener("click", () => { openPick(); if (live && hereSource !== "gps") useGps({ quiet: true }); });
   pickDim.addEventListener("click", closePick);
   $("pickList").addEventListener("click", e => {
     const b = e.target.closest("[data-i]"); if (!b) return;
@@ -1386,10 +1579,20 @@ html.native .ar-x svg { stroke: var(--ink); }
   const norm180 = a => ((a % 360) + 540) % 360 - 180;
   function arGuideText(rel) { const a = Math.abs(rel); return t(a < 22 ? "ar.ahead" : a > 140 ? "ar.around" : rel > 0 ? "ar.right" : "ar.left"); }
   function arUpdate() {
+    if (!arPoint) return;
     const target = arPoint.brg - arHead;
     arRel += norm180(target - arRel);                 // keep the rotation continuous (no 360° spin at the wrap)
     arPath.style.transform = `rotateZ(${arRel.toFixed(1)}deg)`;
-    $("arGuide").textContent = arGuideText(norm180(target));
+    $("arGuide").textContent = arPoint.m < 25 && hereSource === "gps" ? t("ar.arrived") : arGuideText(norm180(target));
+  }
+  // Recompute distance and bearing to the AR target from the current position.
+  function arPlace() {
+    if (!arPoint) return;
+    arPoint.m = dist(HERE, arPoint.ll); arPoint.brg = bearing(HERE, arPoint.ll); arPoint.walk = walkMin(arPoint.m);
+    $("arDist").innerHTML = fmtDist(arPoint.m) + (arPoint.live ? `<small>${t("ar.straight")}</small>` : "");
+    $("arWalk").textContent = t("card.walk", { n: arPoint.walk });
+    if (hereSource === "gps") $("arNote").textContent = t(hereAcc > 50 ? "ar.weak" : "ar.gps", { a: Math.round(hereAcc) });
+    arUpdate();
   }
   function arSetHeading(h, smooth = true) { arHead += smooth ? norm180(h - arHead) * 0.3 : norm180(h - arHead); arUpdate(); }
   // heading of the phone's rear camera from the full orientation (works when the phone is held upright)
@@ -1405,19 +1608,22 @@ html.native .ar-x svg { stroke: var(--ink); }
     if (typeof e.webkitCompassHeading === "number") h = e.webkitCompassHeading;
     else if (e.absolute && e.alpha != null && e.beta != null && e.gamma != null) h = rearHeading(e.alpha, e.beta, e.gamma);
     if (h == null || isNaN(h)) return;
-    if (!arSeen) { arSeen = true; arHasSensor = true; arTurn.hidden = true; $("arNote").textContent = t("ar.live"); arSetHeading(h, false); }
+    if (!arSeen) { arSeen = true; arHasSensor = true; arTurn.hidden = true; $("arNote").textContent = hereSource === "gps" ? t(hereAcc > 50 ? "ar.weak" : "ar.gps", { a: Math.round(hereAcc) }) : t("ar.live"); arSetHeading(h, false); }
     else arSetHeading(h);
   }
   async function openAR(p) {
     if (!p || !ar.hidden) return;
-    arPoint = p; arSeen = false; arHasSensor = false;
-    $("arName").textContent = p.name; $("arJp").textContent = p.jp;
-    $("arDist").textContent = fmtDist(p.m); $("arWalk").textContent = t("card.walk", { n: p.walk });
+    arPoint = { ...p }; arSeen = false; arHasSensor = false;
+    $("arName").textContent = pTitle(p); $("arJp").textContent = pSub(p);
+    $("arHaz").textContent = p.live ? `${t("card.live", { h: hazList(p) })} · ${t("ar.unknown")}` : "";
+    arPlace();
     $("arCamNote").hidden = true; ar.classList.add("nocam");
     ar.hidden = false;
     // demo heading until a real sensor reports in: start turned ~40° away so the arrows visibly point somewhere
     arHead = (p.brg - 40 + 360) % 360; arRel = 40; arUpdate();
-    arTurn.value = Math.round(arHead); arTurn.hidden = false; $("arNote").textContent = t("ar.demo");
+    arTurn.value = Math.round(arHead); arTurn.hidden = false; $("arNote").textContent = hereSource === "gps" ? t(hereAcc > 50 ? "ar.weak" : "ar.gps", { a: Math.round(hereAcc) }) : t("ar.demo");
+    // Real position for real sites: ask for location now that AR is in use (falls back to the demo position).
+    if (p.live && hereSource !== "gps") useGps({ quiet: true }).then(() => { if (arPoint) { arPoint.m = dist(HERE, arPoint.ll); arPlace(); if (!arSeen) $("arNote").textContent = hereSource === "gps" ? t("ar.gps", { a: Math.round(hereAcc) }) : t("ar.demo"); } });
     // iOS needs an explicit permission request from a tap
     try { if (window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission === "function") await DeviceOrientationEvent.requestPermission(); } catch (_) {}
     window.addEventListener("deviceorientationabsolute", onOri);
@@ -1445,7 +1651,9 @@ html.native .ar-x svg { stroke: var(--ink); }
   let att = [], attMode = "reg", attCount = 1;
   try { att = JSON.parse(localStorage.getItem(ATT_KEY) || "[]"); if (!Array.isArray(att)) att = []; } catch (_) { att = []; }
   const saveAtt = () => { try { localStorage.setItem(ATT_KEY, JSON.stringify(att)); } catch (_) {} };
-  $("attShelter").innerHTML = POINTS.map(p => `<option value="${esc(p.name)}">${esc(p.name)}</option>`).join("");
+  function renderShelterOptions() { const cur = $("attShelter").value; $("attShelter").innerHTML = POINTS.map(p => `<option value="${esc(p.name)}">${esc(pTitle(p))}</option>`).join(""); if (cur) $("attShelter").value = cur; }
+  renderShelterOptions();
+  const shelterLabel = name => { const p = POINTS.find(x => x.name === name); return p ? pTitle(p) : name; };
   function setAttMode(m) {
     attMode = m;
     document.querySelectorAll(".seg button").forEach(b => { const on = b.dataset.mode === m; b.classList.toggle("on", on); b.setAttribute("aria-selected", String(on)); });
@@ -1461,7 +1669,7 @@ html.native .ar-x svg { stroke: var(--ink); }
     $("attList").innerHTML = rows.length ? rows.slice().reverse().map(r => `<li>
         <span class="e-name">${esc(r.name)}${r.n > 1 ? " ×" + r.n : ""}</span>
         <span class="e-chip ${r.st}">${t("st." + r.st)}</span>
-        <span class="e-meta">${esc(r.shelter)} · ${new Date(r.ts).toLocaleString(loc, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</span>
+        <span class="e-meta">${esc(shelterLabel(r.shelter))} · ${new Date(r.ts).toLocaleString(loc, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</span>
         <button class="e-rm" type="button" data-rm="${r.id}">${t("att.remove")}</button></li>`).join("")
       : `<li class="e-empty">${t(att.length ? "att.nomatch" : "att.empty")}</li>`;
   }
@@ -1522,17 +1730,228 @@ html.native .ar-x svg { stroke: var(--ink); }
     document.querySelectorAll("[data-i18n-aria]").forEach(el => el.setAttribute("aria-label", t(el.dataset.i18nAria)));
     document.querySelectorAll(".lang-btn").forEach(el => el.setAttribute("aria-label", t("lang")));
     document.querySelectorAll("[data-lang-label]").forEach(el => { el.textContent = LANGS[lang].label; });
+    renderStatus(); renderHz(); renderAlerts(); renderAskQuick();
+    if (sheetState === "open" && POINTS[sheetIdx]) fillDetail(POINTS[sheetIdx]);
     POINTS.forEach((p, i) => {
       cards[i].innerHTML = cardHTML(p, i);
       cards[i].querySelector(".cta").tabIndex = 0;
-      cards[i].setAttribute("aria-label", `${p.name}, ${fmtDist(p.m)}, ${t("card.walk", { n: p.walk })}`);
+      cards[i].setAttribute("aria-label", `${pTitle(p)}, ${fmtDist(p.m)}, ${t("card.walk", { n: p.walk })}`);
     });
-    setEmptyName(); renderDate(); renderLangPop(); renderAtt(); renderPick();
+    setEmptyName(); renderDate(); renderLangPop(); renderShelterOptions(); renderAtt(); renderPick();
+    gatherLayer.eachLayer(m => m.setPopupContent(gatherPopup(m._g, m._ll)));
   }
+
+  // ----- live sites: rebuild markers/cards from a list (only while the detail sheet is closed)
+  function fitNearest(animate = true) {
+    const pad = uiPad();
+    const pts = [HERE, ...POINTS.slice(0, 3).map(p => p.ll)];
+    map.flyToBounds(L.latLngBounds(pts), { paddingTopLeft: [40, pad.top], paddingBottomRight: [40, pad.bottom], maxZoom: 16.5, duration: animate && !reduced ? 0.8 : 0 });
+  }
+  function renderPoints(list, keepId) {
+    if (sheetState !== "closed") return false;
+    markers.forEach(m => m.remove()); cards.forEach(c => c.remove());
+    POINTS = placePoints(list);
+    markers = POINTS.map(makeMarker); cards = POINTS.map(makeCard);
+    sel = -1;
+    renderShelterOptions();
+    renderPick();
+    applySearch();
+    const k = keepId ? POINTS.findIndex(p => p.id === keepId) : -1;
+    if (POINTS.length && sel < 0) select(Math.max(0, k), { from: "init", pan: false });
+    if (!POINTS.length) { route.setLatLngs([]); routeCasing.setLatLngs([]); }
+    return true;
+  }
+  function setLive(on) {
+    live = on;
+    if (on) {
+      map.setMinZoom(12); map.setMaxBounds(L.latLngBounds(NAGOYA_BOX).pad(0.05));
+      map.removeLayer(gatherLayer); $("gatherToggle").hidden = true;
+    }
+    renderStatus();
+  }
+  function renderStatus() {
+    const el = $("statusText"); if (!el) return;
+    el.textContent = live ? t("status.live") + (hereSource === "gps" ? " · " + t("status.gps") : "") : t(loadedAt === false ? "status.off" : "status.demo");
+    $("status").classList.toggle("live", live);
+  }
+  let sitesSeq = 0, sitesFrom = null;
+  async function loadSites({ fit = true, keepId } = {}) {
+    const seq = ++sitesSeq;
+    const qs = new URLSearchParams({ lat: HERE[0].toFixed(5), lng: HERE[1].toFixed(5), limit: "15", radiusMeters: "4000" });
+    if (hazard) qs.set("disaster", API_HAZ[hazard]);
+    try {
+      const r = await getJson(`${API}/api/sites?${qs}`);
+      if (seq !== sitesSeq) return;
+      dataset = r.dataset; loadedAt = Date.now(); sitesFrom = HERE;
+      setLive(true);
+      if (renderPoints(r.sites.map(siteRaw), keepId) && fit && POINTS.length) fitNearest();
+    } catch (_) {
+      if (seq !== sitesSeq) return;
+      if (!live) { loadedAt = false; renderStatus(); say(t("live.fail")); }
+    }
+  }
+  // Ask for the real position only when a feature needs it (locate, AR, assistant).
+  function onPosition(pos) {
+    const ll = [pos.coords.latitude, pos.coords.longitude];
+    if (!inNagoya(ll)) return false;
+    HERE = ll; hereSource = "gps"; hereAcc = pos.coords.accuracy || 0;
+    me.setLatLng(HERE); ring.setLatLng(HERE); ring.setRadius(Math.max(15, Math.min(hereAcc, 300)));
+    renderStatus();
+    if (arPoint) arPlace();
+    if (live && sitesFrom && dist(sitesFrom, HERE) > 150 && sheetState === "closed" && ar.hidden) loadSites({ fit: false, keepId: POINTS[sel] && POINTS[sel].id });
+    return true;
+  }
+  function useGps({ quiet = false } = {}) {
+    return new Promise(resolve => {
+      if (!navigator.geolocation) { if (!quiet) say(t("loc.denied")); resolve(false); return; }
+      navigator.geolocation.getCurrentPosition(pos => {
+        if (!onPosition(pos)) { if (!quiet) say(t("loc.outside")); resolve(false); return; }
+        if (!quiet) say(t("loc.ok", { a: Math.round(hereAcc) }));
+        if (watchId == null) watchId = navigator.geolocation.watchPosition(onPosition, () => {}, { enableHighAccuracy: true, maximumAge: 5000 });
+        if (live || loadedAt == null) loadSites({ fit: false }); else loadSites();
+        resolve(true);
+      }, () => { if (!quiet) say(t("loc.denied")); resolve(false); }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 15000 });
+    });
+  }
+  function renderHz() {
+    const keys = ["", "eq", "tsunami", "flood", "inland", "surge", "slide", "fire"];
+    $("hzFilter").innerHTML = keys.map(k => `<button type="button" data-hz="${k}" aria-pressed="${k === hazard}">${k ? t("haz." + k) : t("hz.all")}</button>`).join("");
+  }
+  $("hzFilter").addEventListener("click", e => {
+    const b = e.target.closest("[data-hz]"); if (!b) return;
+    e.stopPropagation();   // keep the settings popup open while switching filters
+    hazard = b.dataset.hz;
+    $("hzFilter").querySelectorAll("[data-hz]").forEach(x => x.setAttribute("aria-pressed", String(x.dataset.hz === hazard)));
+    if (live) loadSites();
+    else { renderPoints(DEMO.filter(p => !hazard || p.haz.includes(hazard))); fitNearest(); }
+  });
+
+  // ----- JMA alerts (Disaster info page + chip on the map)
+  let alerts = null, alertsState = "idle";
+  const KIND_EN = { "02": "Snowstorm warning", "03": "Heavy rain warning", "04": "Flood warning", "05": "Storm warning", "06": "Heavy snow warning", "07": "High wave warning", "08": "Storm surge warning", "10": "Heavy rain advisory", "12": "Heavy snow advisory", "13": "Snowstorm advisory", "14": "Thunderstorm advisory", "15": "Gale advisory", "16": "High wave advisory", "17": "Snowmelt advisory", "18": "Flood advisory", "19": "Storm surge advisory", "20": "Dense fog advisory", "21": "Dry air advisory", "22": "Avalanche advisory", "23": "Low temperature advisory", "24": "Frost advisory", "25": "Ice accretion advisory", "26": "Snow accretion advisory", "32": "Snowstorm emergency warning", "33": "Heavy rain emergency warning", "35": "Storm emergency warning", "36": "Heavy snow emergency warning", "37": "High wave emergency warning", "38": "Storm surge emergency warning" };
+  const BULLETIN = { VXSE51: ["Seismic intensity report", "震度速報"], VXSE52: ["Earthquake epicenter report", "震源に関する情報"], VXSE53: ["Earthquake information", "震源・震度に関する情報"], VTSE41: ["Tsunami warning / advisory", "津波警報・注意報"], VTSE51: ["Tsunami information", "津波情報"], VTSE52: ["Offshore tsunami information", "沖合の津波観測に関する情報"], VFVO50: ["Volcanic warning", "噴火警報・予報"], VFVO56: ["Eruption notice", "噴火速報"] };
+  const kindName = k => lang === "ja" ? k.name : (lang === "en" && KIND_EN[k.code] ? `${KIND_EN[k.code]} (${k.name})` : k.name);
+  const fmtTime = iso => { const d = new Date(iso); return isNaN(d) ? iso : d.toLocaleString(LANGS[lang].loc, { timeZone: "Asia/Tokyo", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) + " JST"; };
+  async function loadAlerts() {
+    if (alertsState === "loading") return;
+    alertsState = "loading";
+    try { alerts = await getJson(`${API}/api/alerts`); alertsState = "ok"; }
+    catch (_) { alertsState = alerts ? "ok" : "fail"; }
+    renderAlerts();
+  }
+  function renderAlerts() {
+    const active = alerts && alerts.weather && alerts.weather.nagoya ? alerts.weather.nagoya.kinds.filter(k => k.inEffect) : [];
+    const chip = $("alertChip");
+    if (active.length) {
+      const rank = { emergency: 3, warning: 2, advisory: 1, other: 0 };
+      const top = active.slice().sort((a, b) => rank[b.level] - rank[a.level])[0];
+      chip.hidden = false; chip.className = "alert-chip " + top.level;
+      chip.innerHTML = `<b>${esc(kindName(top))}</b>${active.length > 1 ? " +" + (active.length - 1) : ""}`;
+      chip.setAttribute("aria-label", t("alert.chip", { n: active.length }));
+    } else chip.hidden = true;
+    const dz = $("dz"); if (!dz) return;
+    if (!alerts) { dz.innerHTML = `<p class="dz-empty">${alertsState === "fail" ? esc(t("dz.fail")) : "…"}</p><a class="btn outline dz-btn" href="https://www.jma.go.jp/bosai/warning/#area_type=class20s&area_code=2310000" target="_blank" rel="noopener">${t("dz.jma")}</a>`; return; }
+    const w = alerts.weather;
+    let html = `<h3>${t("dz.weather")}</h3>`;
+    if (!w) html += `<p class="dz-empty">${t("dz.nodata")}</p>`;
+    else {
+      if (!w.nagoya) html += `<p class="dz-empty">${t("dz.cancel")}</p>`;
+      else {
+        const kinds = w.nagoya.kinds.filter(k => k.name);
+        html += kinds.length ? `<ul>${kinds.sort((a, b) => b.inEffect - a.inEffect).map(k => `<li><span class="k">${esc(kindName(k))}</span><span class="s ${k.inEffect ? "on " + k.level : ""}">${k.inEffect ? t("st.on") : esc(k.status)}</span></li>`).join("")}</ul>` : `<p class="dz-empty">${t("dz.none")}</p>`;
+        if (kinds.length && !kinds.some(k => k.inEffect)) html += `<p class="dz-meta">${t("dz.none")}</p>`;
+      }
+      if (w.headline) html += `<p class="dz-head" lang="ja">${esc(w.headline)}</p>`;
+      html += `<p class="dz-meta">${t("dz.at", { t: fmtTime(w.reportDateTime) })} · <a href="${esc(w.sourceUrl)}" target="_blank" rel="noopener">JMA XML</a></p>`;
+    }
+    html += `<h3>${t("dz.quake")}</h3>`;
+    html += alerts.bulletins.length ? `<ul>${alerts.bulletins.map(b => { const n = BULLETIN[b.bulletinType] || [b.bulletinType, b.bulletinType]; return `<li><span class="k">${esc(lang === "ja" ? n[1] : n[0])}<small lang="ja">${esc(b.headline)}</small><small>${t("dz.at", { t: fmtTime(b.reportDateTime) })}${b.aichiMentioned ? " · " + t("dz.aichi") : ""}</small></span><span class="s${b.aichiMentioned ? " on warning" : ""}">${esc(b.infoType)}</span></li>`; }).join("")}</ul>` : `<p class="dz-empty">${t("dz.noquake")}</p>`;
+    html += `<p class="dz-meta">${t("dz.checked", { t: fmtTime(alerts.checkedAt) })}</p>`;
+    html += `<a class="btn outline dz-btn" href="https://www.jma.go.jp/bosai/warning/#area_type=class20s&area_code=2310000" target="_blank" rel="noopener">${t("dz.jma")}</a>`;
+    html += `<button class="dz-btn" type="button" id="dzRefresh">${t("dz.refresh")}</button>`;
+    dz.innerHTML = html;
+  }
+  document.addEventListener("click", e => { if (e.target.closest("#dzRefresh")) loadAlerts(); });
+  $("alertChip").addEventListener("click", () => setTab("disaster"));
+
+  // ----- assistant: Gemini answers from the same official data and can drive the map / AR
+  const ask = $("ask"), askDim = $("askDim"), askLog = $("askLog");
+  const askHistory = []; let askBusy = false;
+  function renderAskQuick() {
+    $("askQuick").innerHTML = ["ask.q1", "ask.q2", "ask.q3"].map(k => `<button type="button" data-q="${k}">${esc(t(k))}</button>`).join("");
+    if (!askLog.children.length) addAsk("m", t("ask.hello"));
+  }
+  function addAsk(kind, text, sites) {
+    const li = document.createElement("li"); li.className = kind; li.textContent = text;
+    if (sites && sites.length) {
+      const box = document.createElement("div"); box.className = "ask-sites";
+      box.innerHTML = sites.slice(0, 6).map(s => `<button type="button" data-site="${esc(s.id)}">${esc(s.name)}<small>${fmtDist(s.distanceMeters)}</small></button>`).join("");
+      li.appendChild(box);
+    }
+    askLog.appendChild(li); askLog.scrollTop = askLog.scrollHeight;
+    return li;
+  }
+  let askSites = new Map();
+  function showSite(id, { openAr = false } = {}) {
+    let i = POINTS.findIndex(p => p.id === id);
+    if (i < 0) {
+      const s = askSites.get(id); if (!s) return;
+      const keep = POINTS.filter(p => p.live).map(({ m, brg, walk, n, ...rest }) => rest);
+      if (!renderPoints([...keep, siteRaw(s)], id)) return;
+      i = POINTS.findIndex(p => p.id === id);
+    }
+    if (i < 0) return;
+    closeAsk();
+    if (q.value) { q.value = ""; applySearch(); }
+    select(i, { from: "ask" });
+    if (openAr) setTimeout(() => openAR(POINTS[i]), 350);
+  }
+  async function sendAsk(text) {
+    text = text.trim(); if (!text || askBusy) return;
+    askBusy = true; $("askSend").disabled = true; $("askInput").value = "";
+    addAsk("u", text);
+    const wait = addAsk("m wait", t("ask.wait"));
+    if (hereSource !== "gps") await useGps({ quiet: true });
+    try {
+      const r = await getJson(`${API}/api/assistant`, { timeout: 45000, body: { message: text, language: lang, location: { lat: +HERE[0].toFixed(5), lng: +HERE[1].toFixed(5), source: hereSource }, history: askHistory.slice(-6) } });
+      wait.remove();
+      (r.sites || []).forEach(s => askSites.set(s.id, s));
+      addAsk("m", r.reply || "…", r.sites);
+      askHistory.push({ role: "user", text }, { role: "model", text: r.reply || "" });
+      for (const a of r.actions || []) {
+        if (a.type === "startAr") { showSite(a.siteId, { openAr: true }); break; }
+        if (a.type === "showSites" && a.siteIds.length) {
+          const keep = POINTS.filter(p => p.live).map(({ m, brg, walk, n, ...rest }) => rest);
+          const add = a.siteIds.filter(id => !keep.some(p => p.id === id)).map(id => askSites.get(id)).filter(Boolean).map(siteRaw);
+          if (renderPoints([...keep, ...add], a.siteIds[0])) { const i = POINTS.findIndex(p => p.id === a.siteIds[0]); if (i >= 0) { select(i, { from: "ask" }); } say(t("ask.shown")); }
+        }
+      }
+    } catch (e) {
+      wait.remove();
+      addAsk("m err", t(e.status === 429 ? "ask.busy" : e.status ? "ask.down" : navigator.onLine === false ? "ask.off" : "ask.down"));
+    } finally { askBusy = false; $("askSend").disabled = false; }
+  }
+  function openAsk() {
+    if (!ask.hidden) return;
+    closeOverlays(); closePick(); renderAskQuick(); ask.hidden = false;
+    requestAnimationFrame(() => { ask.classList.add("on"); askDim.classList.add("on"); });
+  }
+  function closeAsk() {
+    if (ask.hidden) return;
+    ask.classList.remove("on"); askDim.classList.remove("on"); $("askInput").blur();
+    setTimeout(() => { if (!ask.classList.contains("on")) ask.hidden = true; }, 380);
+  }
+  $("askFab").addEventListener("click", openAsk);
+  $("askClose").addEventListener("click", closeAsk);
+  askDim.addEventListener("click", closeAsk);
+  $("askForm").addEventListener("submit", e => { e.preventDefault(); sendAsk($("askInput").value); });
+  $("askQuick").addEventListener("click", e => { const b = e.target.closest("[data-q]"); if (b) sendAsk(t(b.dataset.q)); });
+  askLog.addEventListener("click", e => { const b = e.target.closest("[data-site]"); if (b) showSite(b.dataset.site); });
 
   // Android back button: close the top-most thing, otherwise go back to the map; false lets the app close.
   window.contourBack = () => {
     if (!ar.hidden) { closeAR(); return true; }
+    if (!ask.hidden) { closeAsk(); return true; }
     if (!pick.hidden) { closePick(); return true; }
     if (sheetState === "open") { closeSheet(); return true; }
     if (langpop.classList.contains("on")) { closeLang(); return true; }
@@ -1688,9 +2107,11 @@ html.native .ar-x svg { stroke: var(--ink); }
   applyLang(); setTab("surround");
   requestAnimationFrame(() => {
     select(0, { from: "init", pan: false });
-    const pad = uiPad();
-    map.fitBounds(L.latLngBounds([USER, POINTS[0].ll, POINTS[1].ll, POINTS[2].ll]), { paddingTopLeft: [40, pad.top], paddingBottomRight: [40, pad.bottom], maxZoom: 16.5 });
+    fitNearest(false);
+    loadSites();
+    loadAlerts();
   });
+  setInterval(() => { if (!document.hidden) loadAlerts(); }, 120000);
   function fit() {
     if (NATIVE) { S = 1; phone.style.transform = ""; return; }   // Android app: fill the real screen, no phone frame
     const w = document.documentElement.clientWidth, h = document.documentElement.clientHeight;
