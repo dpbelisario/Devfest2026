@@ -32,7 +32,7 @@ const environmentSchema = z.object({
     .enum(["true", "false", ""])
     .default("true")
     .transform((value) => value !== "false"),
-  ASSISTANT_MODEL: z.string().trim().min(1).default("gemini-2.5-flash"),
+  ASSISTANT_MODEL: z.string().trim().min(1).default("gemini-3.5-flash-lite"),
   /** Vertex AI location for Gemini; `global` serves the most models. */
   GOOGLE_CLOUD_LOCATION: z.string().trim().min(1).default("global"),
   /** Assistant requests allowed per client IP per minute, per instance. */

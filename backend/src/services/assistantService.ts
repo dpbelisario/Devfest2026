@@ -95,7 +95,7 @@ const tools: FunctionDeclaration[] = [
   {
     name: "start_ar_navigation",
     description:
-      "Open the camera AR arrow pointing toward one site. Use only when the user asks to be guided or navigated there.",
+      "Open the camera AR arrow pointing toward one site. Call it whenever the user asks to be guided, navigated or taken to a place.",
     parametersJsonSchema: {
       type: "object",
       properties: { site_id: { type: "string" } },
@@ -118,7 +118,8 @@ function systemInstruction(request: AssistantRequest): string {
     "Distances are straight-line, not walking routes. Prefer sites designated for the hazard the user mentions.",
     "Weather statuses are official JMA wording. If there is no data, say it is unknown; never declare an all-clear.",
     "Always tell people to follow instructions from Nagoya City and the Japan Meteorological Agency. For life-threatening emergencies, call 119 (fire and ambulance) or 110 (police).",
-    "When you recommend specific sites, call show_sites_on_map with their ids. Call start_ar_navigation only when the user asks to be guided to a place.",
+    "When you recommend specific sites, call show_sites_on_map with their ids.",
+    "If the user asks to be guided, navigated or taken somewhere (for example: guide me, take me, navigate, 案内して, 带我去, 안내해 줘), find suitable sites and then call start_ar_navigation with the single best one (nearest site designated for their hazard). Do not ask for confirmation first.",
     where,
   ].join("\n");
 }

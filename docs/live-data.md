@@ -17,7 +17,7 @@ The service keeps the decoded dataset in memory and re-reads Firestore every
 ## Assistant
 
 `backend/src/services/assistantService.ts` runs Gemini (`ASSISTANT_MODEL`,
-default `gemini-2.5-flash`, Vertex AI in `GOOGLE_CLOUD_LOCATION`) with four
+default `gemini-3.5-flash-lite`, Vertex AI in `GOOGLE_CLOUD_LOCATION`) with four
 tools:
 
 - `find_evacuation_sites` and `get_current_alerts` read the data above;
