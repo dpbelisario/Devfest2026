@@ -17,3 +17,5 @@ ios/DerivedData/
 ios/Contour/GoogleService-Info.plist
 **/xcuserdata/
 *.xcuserstate
+.playwright-cli/
+output/playwright/

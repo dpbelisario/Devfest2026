@@ -5,6 +5,7 @@ import { directionsRouter } from "./routes/directions.js";
 import { createJobsRouter } from "./routes/jobs.js";
 import { createLiveRouter, type LiveContext } from "./routes/live.js";
 import { webAppRouter } from "./routes/webApp.js";
+import { indoorRouter } from "./routes/indoor.js";
 import type { JobsContext } from "./services/jobs/context.js";
 
 const noStore = "no-store";
@@ -26,6 +27,7 @@ export function createApp(
   app.use("/destinations", destinationsRouter);
   app.use("/directions", directionsRouter);
   app.use("/app", webAppRouter);
+  app.use("/api/indoor", indoorRouter);
   if (options.live) app.use("/api", createLiveRouter(options.live));
   if (options.jobs) app.use("/jobs", createJobsRouter(options.jobs));
   // Errors must not be cached: Firebase Hosting's CDN otherwise keeps a 404 for
