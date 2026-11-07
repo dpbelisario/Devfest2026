@@ -276,13 +276,18 @@ class WebUiActivity : ComponentActivity() {
             }
         }
 
-        // Back button: let the page close its top-most layer first; exit only when it has nothing to close.
+        // Back button / back gesture: let the page close its top-most layer first (search, sheet, AR,
+        // menu pages); leave the app only when the page has nothing to close.
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 web.evaluateJavascript("(window.contourBack && window.contourBack()) === true") { handled ->
                     if (handled != "true") {
+                        // Hand this one press to the system, then turn the callback back on. Since Android 12
+                        // back on the home screen only moves the app to the background, so a callback left
+                        // disabled would make every later back press exit the app instead of closing a page.
                         isEnabled = false
                         onBackPressedDispatcher.onBackPressed()
+                        isEnabled = true
                     }
                 }
             }
