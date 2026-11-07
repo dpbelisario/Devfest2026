@@ -9,7 +9,7 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
-    <!-- Test alert only: strong vibration with the test siren. -->
+    <!-- Test alert only: a short strong vibration. -->
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-feature android:name="android.hardware.camera.ar" android:required="false" />

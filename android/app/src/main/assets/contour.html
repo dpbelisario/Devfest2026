@@ -1383,10 +1383,10 @@ html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-
     "al.restricted": ["If Android says “Restricted setting”, open App info, tap ⋮ (top right), choose “Allow restricted settings”, then try again.", "「制限付き設定」と表示されたら、アプリ情報を開き、右上の⋮から「制限付き設定を許可」を選んで、もう一度お試しください。", "如果 Android 提示“受限制的设置”，请打开应用信息，点右上角 ⋮，选择“允许受限制的设置”，然后重试。", "“제한된 설정”이라고 표시되면 앱 정보를 열고 오른쪽 위 ⋮에서 “제한된 설정 허용”을 선택한 뒤 다시 시도하세요."],
     "al.appinfo": ["Open app info", "アプリ情報を開く", "打开应用信息", "앱 정보 열기"],
     "al.test": ["Test the pop-up", "表示をテスト", "测试弹出", "표시 테스트"],
-    "al.test.d": ["Sends a test alert: lock your phone, and about 8 seconds later it vibrates, sounds a test siren and Contour opens by itself.", "テスト警報を送ります。画面をロックすると、約8秒後に振動とテスト用サイレンが鳴り、Contourが自動で開きます。", "发送测试警报：锁屏后约 8 秒，手机会振动并响起测试警笛，Contour 自动打开。", "테스트 경보를 보냅니다. 화면을 잠그면 약 8초 후 진동과 테스트 사이렌이 울리고 Contour가 자동으로 열립니다."],
+    "al.test.d": ["Sends a test alert: lock your phone, and about 8 seconds later a test alert appears, the phone vibrates and Contour opens by itself.", "テスト警報を送ります。画面をロックすると、約8秒後にテスト警報が届いて振動し、Contourが自動で開きます。", "发送测试警报：锁屏后约 8 秒会收到测试警报并振动，Contour 自动打开。", "테스트 경보를 보냅니다. 화면을 잠그면 약 8초 후 테스트 경보가 오고 진동한 뒤 Contour가 자동으로 열립니다."],
     "ta.title": ["Send a test alert?", "テスト警報を送りますか？", "发送测试警报吗？", "테스트 경보를 보낼까요?"],
-    "ta.body": ["After you tap Yes, lock your phone (press the power button). In about 8 seconds it will vibrate and sound a test siren, then Contour opens by itself. This is only a test.", "「はい」を押したら、電源ボタンで画面をロックしてください。約8秒後にスマホが振動してテスト用のサイレンが鳴り、Contourが自動で開きます。これはテストです。", "点“是”后，请按电源键锁屏。约 8 秒后手机会振动并响起测试警笛，然后 Contour 会自动打开。这只是测试。", "“예”를 누른 후 전원 버튼으로 화면을 잠그세요. 약 8초 후 휴대폰이 진동하고 테스트 사이렌이 울린 뒤 Contour가 자동으로 열립니다. 테스트일 뿐입니다."],
-    "ta.body.browser": ["This plays a short test siren and shows the alert screen. In the Android app, the test also works with your phone locked.", "短いテスト用サイレンを鳴らし、警報画面を表示します。Androidアプリでは、画面ロック中でもテストできます。", "将播放一段测试警笛并显示警报画面。在 Android 应用中，锁屏时也能测试。", "짧은 테스트 사이렌을 울리고 경보 화면을 표시합니다. Android 앱에서는 화면이 잠겨 있어도 테스트할 수 있습니다."],
+    "ta.body": ["After you tap Yes, lock your phone (press the power button). In about 8 seconds a test alert appears and the phone vibrates, then Contour opens by itself. This is only a test.", "「はい」を押したら、電源ボタンで画面をロックしてください。約8秒後にテスト警報が届いてスマホが振動し、Contourが自動で開きます。これはテストです。", "点“是”后，请按电源键锁屏。约 8 秒后会收到测试警报并振动，然后 Contour 会自动打开。这只是测试。", "“예”를 누른 후 전원 버튼으로 화면을 잠그세요. 약 8초 후 테스트 경보가 오고 휴대폰이 진동한 뒤 Contour가 자동으로 열립니다. 테스트일 뿐입니다."],
+    "ta.body.browser": ["This shows the alert screen. In the Android app, the test also works with your phone locked.", "警報画面を表示します。Androidアプリでは、画面ロック中でもテストできます。", "将显示警报画面。在 Android 应用中，锁屏时也能测试。", "경보 화면을 표시합니다. Android 앱에서는 화면이 잠겨 있어도 테스트할 수 있습니다."],
     "ta.yes": ["Yes, send test", "はい、送る", "是，发送", "예, 보내기"],
     "ta.no": ["No", "いいえ", "否", "아니요"],
     "ta.lock": ["Lock your phone now. Test alert in 8 seconds.", "今すぐ画面をロックしてください。8秒後にテスト警報が届きます。", "请立即锁屏，8 秒后收到测试警报。", "지금 화면을 잠그세요. 8초 후 테스트 경보가 옵니다."],
@@ -2855,8 +2855,9 @@ html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-
   $("alAppInfo").addEventListener("click", () => { if (hasAlertBridge()) ContourBridge.openAlertSetting("appInfo"); });
   // Test alert (menu "Test alert" and the setup page): a fake earthquake early warning.
   // In the app it goes through the real pop-up path after 5 s, so users can check their own phone.
-  // First a Yes / No box; on Yes the app waits 8 s (time to lock the phone), then vibrates, sounds a
-  // test siren and pops up exactly like a real alert. In a browser the alert screen shows at once.
+  // First a Yes / No box; on Yes the app waits 8 s (time to lock the phone), then wakes the screen, shows a
+  // test alert notification with a short vibration and pops up like a real alert. In a browser the alert
+  // screen shows at once.
   const TEST_DELAY = 8000;
   const appCanTest = () => { const st = alertStatus(); return st && typeof ContourBridge.testAlert === "function" ? st : null; };
   function runTestAlert() {
@@ -2866,22 +2867,14 @@ html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-
     $("taDim").hidden = false; $("taBox").hidden = false; $("taYes").focus({ preventScroll: true });
   }
   function closeTestBox() { $("taDim").hidden = true; $("taBox").hidden = true; }
-  // Browser preview of the siren: same rising and falling tone as the app, for 3 seconds.
-  function browserSiren() {
-    try {
-      const ac = new (window.AudioContext || window.webkitAudioContext)(), o = ac.createOscillator(), g = ac.createGain(), now = ac.currentTime;
-      o.type = "sine"; g.gain.value = 0.25; o.connect(g).connect(ac.destination);
-      for (let i = 0; i < 2; i++) { o.frequency.setValueAtTime(650, now + i * 1.5); o.frequency.linearRampToValueAtTime(1350, now + i * 1.5 + 0.75); o.frequency.linearRampToValueAtTime(650, now + i * 1.5 + 1.5); }
-      o.start(now); o.stop(now + 3);
-    } catch (_) { }
-    try { navigator.vibrate && navigator.vibrate([900, 250, 900, 250, 900]); } catch (_) { }
-  }
+  // Browser preview: vibrate where the browser supports it (no sound).
+  function browserBuzz() { try { navigator.vibrate && navigator.vibrate([900, 250, 900, 250, 900]); } catch (_) { } }
   $("taNo").addEventListener("click", closeTestBox);
   $("taDim").addEventListener("click", closeTestBox);
   $("taYes").addEventListener("click", () => {
     closeTestBox();
     if (appCanTest()) { ContourBridge.testAlert("eew", TEST_DELAY); say(t("ta.lock"), 6000); }
-    else { browserSiren(); window.contourAlert({ kind: "eew", title: "緊急地震速報（テスト）", text: "強い揺れに備えてください。（Contourのテストです）", test: true }); }
+    else { browserBuzz(); window.contourAlert({ kind: "eew", title: "緊急地震速報（テスト）", text: "強い揺れに備えてください。（Contourのテストです）", test: true }); }
   });
   $("alTest").addEventListener("click", runTestAlert);
   // In the app, open the setup page once on first launch if anything is still off.

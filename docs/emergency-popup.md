@@ -34,9 +34,8 @@ it on again. The setup page explains this and has an **Open app info** button.
 
 **Test alert** (menu, below About Contour) or **Test the pop-up** (setup page) first asks **Yes / No**.
 On Yes, lock the phone: about 8 seconds later the screen wakes, a test alert notification
-(緊急地震速報（テスト）) appears on the lock screen with strong vibration and a test siren (generated in
-`alert/TestSiren.kt`, alarm volume), and about 3.5 seconds later Contour pops up through the real pop-up
-path.
+(緊急地震速報（テスト）) appears on the lock screen with a short strong vibration (no sound), and about
+3.5 seconds later Contour pops up through the real pop-up path.
 
 The official message on the alert screen is translated into the app language for the usual 緊急速報
 wording (earthquake area, 強い揺れに備えてください, tsunami and evacuation sentences, (気象庁)), with
