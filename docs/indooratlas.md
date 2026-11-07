@@ -158,6 +158,9 @@ reuse the following contract when the implementations are integrated:
   Commands are `start221`, `stop`, `correctFloor`, `cameraStart`, and `cameraStop`.
   Navigation IDs match `[a-zA-Z0-9-]{1,80}`; stop/correction commands target the
   active navigation. The Android listener accepts only the trusted main frame.
+  The separately scoped fictional sample engine also uses `demoSensorsStart`
+  and `demoSensorsStop` on this transport with `sample-<session>` IDs. It is named
+  `ContourIndoorDemo` and must not replace the native `ContourIndoor` object.
 - Dispatch `contour-indoor` with event detail containing `navigationId`, `status`,
   `floor`, `floorSource`, `uncertaintyFloors`, `heading`, `cameraTracking`, and
   optional `legs`. Each leg has `length` and `begin`/`end` points containing

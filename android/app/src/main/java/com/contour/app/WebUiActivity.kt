@@ -275,6 +275,19 @@ class WebUiActivity : ComponentActivity() {
             }
         }
 
+    // The fictional sample navigator has its own pressure session, separate from IndoorAtlas.
+    private var demoSensorsRequest: PageRequest? = null
+    private val indoorDemoSensors by lazy {
+        com.contour.app.indoor.IndoorSensors(this) { hPa ->
+            val request = demoSensorsRequest
+            if (request != null && request.generation == pageGeneration && pageReady &&
+                lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED) &&
+                isTrustedOrigin(Uri.parse(web.url ?: ""))) {
+                web.evaluateJavascript("window.contourIndoor && window.contourIndoor({p:$hPa})", null)
+            }
+        }
+    }
+
     class ContourBridge(
         private val activity: WebUiActivity,
         private val speechInput: com.contour.app.speech.SpeechInput,
@@ -323,6 +336,15 @@ class WebUiActivity : ComponentActivity() {
                 com.contour.app.alert.EmergencyPopup.showTest(ctx, k, "緊急地震速報（テスト）", "強い揺れに備えてください。（Contourのテストです）")
             }, delayMs.coerceIn(0, 60_000).toLong())
         }
+
+        // ----- Indoor navigation (demo): barometer readings for floor changes
+
+        /** Older pages retain motion/simulation fallback; pressure requires the guarded main-frame message bridge. */
+        @android.webkit.JavascriptInterface
+        fun startIndoor(): String = "none"
+
+        @android.webkit.JavascriptInterface
+        fun stopIndoor() = Unit
 
         @android.webkit.JavascriptInterface
         fun stopListening() {
@@ -451,11 +473,23 @@ class WebUiActivity : ComponentActivity() {
                 val id = data.optString("navigationId")
                 if (!id.matches(Regex("[a-zA-Z0-9-]{1,80}"))) return@addWebMessageListener
                 when (data.optString("type")) {
-                    "start221" -> startIndoor(id)
+                    "start221" -> {
+                        demoSensorsRequest = null
+                        indoorDemoSensors.stop()
+                        startIndoor(id)
+                    }
                     "stop" -> if (indoorRequest?.id == id) { indoorRequest = null; indoor.stop() }
                     "correctFloor" -> if (indoorRequest?.id == id) indoor.correctFloor(data.optInt("floor", -1))
                     "cameraStart" -> startNativeCamera(id)
                     "cameraStop" -> if (nativeCameraRequest?.id == id) stopNativeCamera()
+                    "demoSensorsStart" -> {
+                        demoSensorsRequest = PageRequest(id, pageGeneration)
+                        if (lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)) indoorDemoSensors.start()
+                    }
+                    "demoSensorsStop" -> if (demoSensorsRequest?.id == id) {
+                        demoSensorsRequest = null
+                        indoorDemoSensors.stop()
+                    }
                 }
             }
         }
@@ -483,6 +517,8 @@ class WebUiActivity : ComponentActivity() {
                 pageGeneration++
                 indoorRequest = null
                 indoor.stop()
+                demoSensorsRequest = null
+                indoorDemoSensors.stop()
                 stopNativeCamera()
                 pendingCamera?.deny()
                 pendingCamera = null
@@ -582,6 +618,7 @@ class WebUiActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         web.onResume()
+        demoSensorsRequest?.takeIf { it.generation == pageGeneration }?.let { indoorDemoSensors.start() }
         notifyAlertSetup()   // back from a settings screen: refresh the setup page
         indoorRequest?.takeIf { it.generation == pageGeneration && pendingIndoorPermission == null }?.let { indoor.start(it.id) }
         nativeCameraRequest?.let { continueNativeCamera(it) }
@@ -599,6 +636,7 @@ class WebUiActivity : ComponentActivity() {
     override fun onPause() {
         if (::nativeCamera.isInitialized) nativeCamera.stop()
         indoor.pause()
+        indoorDemoSensors.pause()
         web.evaluateJavascript("window.dispatchEvent(new CustomEvent('contour-indoor-paused'))", null)
         web.onPause()
         super.onPause()
@@ -610,6 +648,8 @@ class WebUiActivity : ComponentActivity() {
         pendingCamera?.deny()
         pendingCamera = null
         web.removeCallbacks(hostedTimeout)
+        demoSensorsRequest = null
+        indoorDemoSensors.stop()
         speechInput.release()
         translator.close()
         web.destroy()
