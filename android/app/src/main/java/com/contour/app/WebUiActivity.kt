@@ -67,6 +67,76 @@ class WebUiActivity : ComponentActivity() {
             pendingCamera = null
         }
 
+    // ----- Emergency pop-up: an alert waiting for the page, and the page's load state.
+    private var pendingAlert: org.json.JSONObject? = null
+    private var pageReady = false
+
+    val askNotifications =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { _ -> notifyAlertSetup() }
+
+    fun notifyAlertSetup() {
+        if (::web.isInitialized) web.evaluateJavascript("window.onAlertSetupChanged && window.onAlertSetupChanged()", null)
+    }
+
+    /** Opens the settings screen for one emergency pop-up permission. */
+    fun openAlertSetting(which: String) {
+        val pkg = Uri.parse("package:$packageName")
+        val intent = when (which) {
+            "notifications" -> {
+                // First time: the normal permission dialog. After that (or if it was refused): the settings screen.
+                val prefs = getSharedPreferences("contour", MODE_PRIVATE)
+                if (android.os.Build.VERSION.SDK_INT >= 33 && !prefs.getBoolean("askedNotifications", false) &&
+                    checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                    prefs.edit().putBoolean("askedNotifications", true).apply()
+                    askNotifications.launch(Manifest.permission.POST_NOTIFICATIONS); return
+                }
+                Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, packageName)
+            }
+            "listener" -> if (android.os.Build.VERSION.SDK_INT >= 30)
+                Intent(android.provider.Settings.ACTION_NOTIFICATION_LISTENER_DETAIL_SETTINGS)
+                    .putExtra(android.provider.Settings.EXTRA_NOTIFICATION_LISTENER_COMPONENT_NAME,
+                        com.contour.app.alert.EmergencyPopup.listenerComponent(this).flattenToString())
+            else Intent(android.provider.Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
+            "overlay" -> Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION, pkg)
+            "fullScreen" -> if (android.os.Build.VERSION.SDK_INT >= 34)
+                Intent(android.provider.Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT, pkg) else return
+            else -> Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, pkg)   // "appInfo"
+        }
+        try { startActivity(intent) } catch (_: ActivityNotFoundException) {
+            try { startActivity(Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, pkg)) } catch (_: ActivityNotFoundException) { }
+        }
+    }
+
+    /** Reads an emergency alert from the intent (from the listener, or the test button) for the page. */
+    private fun takeAlert(intent: Intent?) {
+        val kind = intent?.getStringExtra(com.contour.app.alert.EmergencyPopup.EXTRA_KIND) ?: return
+        intent.removeExtra(com.contour.app.alert.EmergencyPopup.EXTRA_KIND)
+        // Show over the lock screen and wake the display for the alert.
+        if (android.os.Build.VERSION.SDK_INT >= 27) { setShowWhenLocked(true); setTurnScreenOn(true) }
+        else @Suppress("DEPRECATION") window.addFlags(
+            android.view.WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or android.view.WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON)
+        getSystemService(android.app.NotificationManager::class.java)?.cancel(7110)
+        pendingAlert = org.json.JSONObject()
+            .put("kind", kind)
+            .put("title", intent.getStringExtra(com.contour.app.alert.EmergencyPopup.EXTRA_TITLE).orEmpty())
+            .put("text", intent.getStringExtra(com.contour.app.alert.EmergencyPopup.EXTRA_TEXT).orEmpty())
+        deliverAlert()
+    }
+
+    private fun deliverAlert() {
+        val a = pendingAlert ?: return
+        if (!pageReady || !::web.isInitialized) return
+        web.evaluateJavascript("(window.contourAlert && (window.contourAlert($a), true)) === true") { ok ->
+            if (ok == "true") pendingAlert = null
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        takeAlert(intent)
+    }
+
     val askAudio =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
             if (granted) {
@@ -99,6 +169,27 @@ class WebUiActivity : ComponentActivity() {
                     }
                 )
             }
+        }
+
+        // ----- Emergency pop-up setup page
+
+        /** JSON: which pop-up permissions are on ({listener, overlay, notifications, fullScreen}). */
+        @android.webkit.JavascriptInterface
+        fun alertSetupStatus(): String = com.contour.app.alert.EmergencyPopup.status(activity).toString()
+
+        @android.webkit.JavascriptInterface
+        fun openAlertSetting(which: String) {
+            activity.runOnUiThread { activity.openAlertSetting(which) }
+        }
+
+        /** Simulates an official alert after [delayMs], so the user can leave the app and watch it pop up. */
+        @android.webkit.JavascriptInterface
+        fun testAlert(kind: String, delayMs: Int) {
+            val k = com.contour.app.alert.AlertKind.entries.firstOrNull { it.id == kind } ?: com.contour.app.alert.AlertKind.EARTHQUAKE
+            val ctx = activity.applicationContext
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                com.contour.app.alert.EmergencyPopup.show(ctx, k, "緊急地震速報（テスト表示）", "Contour test. 強い揺れに備えてください。")
+            }, delayMs.coerceIn(0, 60_000).toLong())
         }
 
         @android.webkit.JavascriptInterface
@@ -224,8 +315,13 @@ class WebUiActivity : ComponentActivity() {
                 return true
             }
 
+            override fun onPageStarted(view: WebView, url: String, favicon: android.graphics.Bitmap?) {
+                pageReady = false
+            }
+
             override fun onPageFinished(view: WebView, url: String) {
                 if (Uri.parse(url).host == hostedHost) web.removeCallbacks(hostedTimeout)
+                if (isOurs(Uri.parse(url).host)) { pageReady = true; deliverAlert() }
             }
 
             override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
@@ -300,6 +396,7 @@ class WebUiActivity : ComponentActivity() {
         } else {
             web.restoreState(savedInstanceState)
         }
+        takeAlert(intent)   // opened by an emergency alert
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -310,6 +407,7 @@ class WebUiActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         web.onResume()
+        notifyAlertSetup()   // back from a settings screen: refresh the setup page
     }
 
     override fun onPause() {

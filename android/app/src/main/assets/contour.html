@@ -468,7 +468,13 @@ body { font-family: var(--f-body); }
 .meta { font: 400 14px/1 var(--f-body); }
 .dist { font: 600 20px/1 var(--f-display); letter-spacing: .01em; }
 .facts { font: 400 13px/1.35 var(--f-body); }
-.cta { height: 46px; margin-top: 14px; }
+.cta { height: 46px; margin-top: 14px; display: flex; align-items: center; justify-content: center; gap: 9px; }
+.cta svg { width: 18px; height: 18px; flex: none; }
+/* card top row: number + label on the left, "Details ›" on the right */
+.eyebrow .num { margin-right: 8px; }
+.eyebrow .det { display: inline-flex; align-items: center; gap: 6px; margin: -8px -6px -8px 0; padding: 8px 10px 8px 12px; min-height: 32px; font: 500 13.5px/1 var(--f-body); color: var(--accent-deep, #0f5e36); background: var(--accent-wash, rgba(23,128,73,.10)); border-radius: 16px; }
+.eyebrow .det svg { width: 6px; height: 10px; }
+.eyebrow .det:active { background: var(--green-deep, #b5d8c3); }
 .sheet { box-shadow: var(--shadow-lg); }
 .d-eyebrow { font: 400 13px/1 var(--f-body); letter-spacing: 0; text-transform: none; }
 .tag { font: 500 11px/1 var(--f-body); letter-spacing: 0; text-transform: none; border-radius: 4px; padding: 3px 6px; }
@@ -630,6 +636,43 @@ html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-
 .ph-r { display: flex; align-items: center; gap: 12px; }
 .ph-r .lang-btn { padding: 8px 0; }
 [data-l][hidden] { display: none; }
+/* Emergency alert screen (opens by itself on an official alert) */
+.alert-screen { position: absolute; z-index: 110; inset: 0; margin: 0; display: flex; flex-direction: column; background: linear-gradient(#b3261e 0 160px, var(--paper, #fff) 160px); overflow-y: auto; }
+.alert-screen[hidden] { display: none; }
+.al-top { flex: none; padding: calc(var(--top) + 22px) 22px 22px; background: #b3261e; color: #fff; }
+.al-eyebrow { display: flex; align-items: center; gap: 8px; font: 600 13px/1 var(--f-body); letter-spacing: .04em; opacity: .92; }
+.al-eyebrow svg { width: 18px; height: 18px; }
+.al-top h2 { margin: 12px 0 10px; font: 700 34px/1.05 var(--f-display); }
+.al-do { margin: 0; font: 500 16px/1.5 var(--f-body); }
+.al-body { flex: 1; display: flex; flex-direction: column; gap: 14px; padding: 18px 18px calc(var(--bot) + 18px); }
+.al-official { padding: 12px 14px; border-radius: 10px; background: #fbeceb; color: #5c1712; }
+.al-official small, .al-site small { display: block; margin-bottom: 6px; font: 500 12px/1.2 var(--f-body); color: var(--ink-3); }
+.al-official small { color: #8c2e22; }
+.al-official b { display: block; font: 600 15px/1.4 var(--f-jp, var(--f-body)); }
+.al-official p { margin: 4px 0 0; font: 400 14px/1.5 var(--f-jp, var(--f-body)); white-space: pre-wrap; }
+.al-site { padding: 14px; border-radius: 12px; border: 1px solid var(--wash-line, #d6d7da); }
+.al-name { font: 700 22px/1.2 var(--f-display); color: var(--ink); }
+.al-sub { margin-top: 2px; font: 400 13px/1.3 var(--f-jp, var(--f-body)); color: var(--ink-3); }
+.al-meta { margin-top: 8px; font: 600 16px/1 var(--f-body); color: var(--accent, #178049); }
+.al-ar { display: flex; align-items: center; justify-content: center; gap: 10px; height: 56px; border-radius: 10px; background: var(--ink); color: #fff; font: 600 17px/1 var(--f-body); }
+.al-ar svg { width: 22px; height: 22px; }
+.al-row { display: flex; gap: 10px; }
+.al-row button { flex: 1; height: 48px; border-radius: 10px; border: 1px solid var(--wash-line, #d6d7da); background: var(--paper, #fff); color: var(--ink); font: 500 15px/1 var(--f-body); }
+.al-note { margin: 0; font: 400 12.5px/1.45 var(--f-body); color: var(--ink-3); }
+/* Emergency pop-up setup page */
+.page .al-steps { list-style: none; padding: 0; margin: 16px 0 10px; display: grid; gap: 10px; counter-reset: al; }
+.al-steps li { display: flex; align-items: center; gap: 12px; padding: 12px 12px 12px 14px; border-radius: 10px; border: 1px solid var(--wash-line, #d6d7da); max-width: none; }
+.al-steps li div { flex: 1; min-width: 0; display: grid; gap: 3px; }
+.al-steps li b { font: 600 15px/1.3 var(--f-body); color: var(--ink); }
+.al-steps li span { font: 400 13px/1.4 var(--f-body); color: var(--ink-3); }
+.al-steps li button { flex: none; min-width: 84px; height: 38px; padding: 0 12px; border-radius: 19px; background: var(--ink); color: #fff; font: 500 13.5px/1 var(--f-body); }
+.al-steps li.on button { background: var(--accent-wash, rgba(23,128,73,.10)); color: var(--accent-deep, #0f5e36); }
+.al-steps li button:disabled { opacity: 1; }
+.al-steps li:not(.on) button:disabled { opacity: .4; }
+.al-small { font-size: 13px !important; color: var(--ink-3) !important; }
+.al-wide { width: 100%; margin-top: 6px; }
+.al-allon { padding: 10px 12px; border-radius: 10px; background: var(--accent-wash, rgba(23,128,73,.10)); color: var(--accent-deep, #0f5e36) !important; }
+.al-browser { padding: 10px 12px; border-radius: 10px; background: var(--wash, #f3f5f3); }
 /* Disaster info: the original Japanese JMA text, under its translation */
 .dz .dz-orig { margin-top: -4px; font-size: 12.5px; color: var(--ink-3); }
 </style>
@@ -667,10 +710,6 @@ html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-
     </button>
 
     <button class="ask-fab" id="askFab" type="button" data-i18n-aria="ask.title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5h16v10H9l-5 4z"/><path d="M8.5 10.5h.01M12 10.5h.01M15.5 10.5h.01" stroke-width="2.6"/></svg><span data-i18n="ask.fab">Ask</span></button>
-    <button class="ar-fab" id="arFab" type="button" aria-label="3D AR directions">
-      <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="4.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 15 24 4l14 11" opacity=".4"/><path d="M10 28 24 17l14 11" opacity=".7"/><path d="M10 41 24 30l14 11"/></svg>
-      <span data-i18n="ar.fab">3D AR</span>
-    </button>
 
     <div class="carousel" id="carousel" aria-label="Evacuation points"></div>
 
@@ -842,6 +881,28 @@ html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-
       </div>
     </section>
 
+    <!-- Emergency pop-up setup (Android app): permissions + test -->
+    <section class="page" id="page-alerts" aria-label="Emergency pop-up">
+      <div class="page-head"><span data-i18n="menu.alerts">Emergency pop-up</span><div class="ph-r" data-lang-slot><button class="sheet-close" style="position:static" data-close data-i18n-aria="walk.close" aria-label="Close"><svg viewBox="0 0 14 14" stroke="#141714" stroke-width="1.8" stroke-linecap="round"><path d="M2 2l10 10M12 2 2 12"/></svg></button></div></div>
+      <div class="page-body">
+        <h2 data-i18n="al.setup.h">Open Contour when an emergency alert arrives</h2>
+        <p data-i18n="al.setup.p"></p>
+        <p class="al-allon" id="alAllOn" data-i18n="al.allon" hidden></p>
+        <p class="al-browser" id="alBrowser" data-i18n="al.browser" hidden></p>
+        <ol class="al-steps">
+          <li data-setting="listener"><div><b data-i18n="al.s.listener"></b><span data-i18n="al.s.listener.d"></span></div><button type="button"></button></li>
+          <li data-setting="overlay"><div><b data-i18n="al.s.overlay"></b><span data-i18n="al.s.overlay.d"></span></div><button type="button"></button></li>
+          <li data-setting="notifications"><div><b data-i18n="al.s.notifications"></b><span data-i18n="al.s.notifications.d"></span></div><button type="button"></button></li>
+          <li data-setting="fullScreen"><div><b data-i18n="al.s.fullScreen"></b><span data-i18n="al.s.fullScreen.d"></span></div><button type="button"></button></li>
+        </ol>
+        <p class="al-small" data-i18n="al.restricted"></p>
+        <button type="button" class="btn outline al-wide" id="alAppInfo" data-i18n="al.appinfo">Open app info</button>
+        <h3 data-i18n="al.test">Test the pop-up</h3>
+        <p class="al-small" id="alTestNote" data-i18n="al.test.d"></p>
+        <button type="button" class="btn primary al-wide" id="alTest" data-i18n="al.test">Test the pop-up</button>
+      </div>
+    </section>
+
     <!-- ===== Tab pages ===== -->
 
     <main class="view" id="v-area" data-view="area" data-title="title.area">
@@ -970,6 +1031,27 @@ html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-
     </section>
 
 
+    <!-- Emergency alert screen: opened by the phone's official alert (Android app), or by the test button -->
+    <section class="alert-screen" id="alertScreen" hidden role="alertdialog" aria-modal="true" aria-labelledby="alKind">
+      <div class="al-top">
+        <div class="al-eyebrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2 20h20Z"/><path d="M12 10v4.5M12 17.2v.3"/></svg><span data-i18n="al.eyebrow">Emergency alert</span></div>
+        <h2 id="alKind"></h2>
+        <p class="al-do" id="alDo"></p>
+      </div>
+      <div class="al-body">
+        <div class="al-official" id="alOfficial"><small data-i18n="al.official"></small><b id="alTitle" lang="ja"></b><p id="alText" lang="ja"></p></div>
+        <div class="al-site" id="alSite">
+          <small id="alSiteLabel"></small>
+          <div class="al-name" id="alName"></div>
+          <div class="al-sub" id="alSub"></div>
+          <div class="al-meta" id="alMeta"></div>
+        </div>
+        <button type="button" class="al-ar" id="alAr"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="4.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 15 24 4l14 11" opacity=".4"/><path d="M10 28 24 17l14 11" opacity=".7"/><path d="M10 41 24 30l14 11"/></svg><span data-i18n="card.ar">3D AR directions</span></button>
+        <div class="al-row"><button type="button" id="alMap" data-i18n="al.map">Open map</button><button type="button" id="alClose" data-i18n="al.close">Close</button></div>
+        <p class="al-note" data-i18n="al.note"></p>
+      </div>
+    </section>
+
     <!-- Hamburger menu: everything that is not the map -->
     <div class="scrim" id="scrim"></div>
     <nav class="drawer" id="drawer" aria-label="Menu" aria-hidden="true">
@@ -980,6 +1062,7 @@ html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-
         <li><button type="button" data-go="disaster"><svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M2.500 10.500a16 16 0 0 1 23 0M6.600 15a10.200 10.200 0 0 1 14.800 0M10.700 19.500a4.400 4.400 0 0 1 6.600 0"/><circle cx="14" cy="24" r="1.800" fill="currentColor" stroke="none"/></svg><span data-i18n="menu.disaster">Disaster info</span></button></li>
         <li><button type="button" data-go="ask"><svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2.400" stroke-linecap="round" stroke-linejoin="round"><path d="M4.500 6h19v12H11l-6.500 5z"/></svg><span data-i18n="ask.title">Ask Contour</span></button></li>
         <li><button type="button" data-go="info"><svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2.400" stroke-linecap="round" stroke-linejoin="round"><path d="M14 5c-4.400 0-7.500 3.100-7.500 7 0 2.500 1.300 4 2.500 5.500.8 1 1.300 1.800 1.300 3.100h7.400c0-1.300.5-2.100 1.300-3.100 1.200-1.500 2.500-3 2.500-5.500 0-3.900-3.100-7-7.500-7Z"/><path d="M11 23h6"/></svg><span data-i18n="menu.know">Know-how on disasters</span></button></li>
+        <li><button type="button" data-go="alerts"><svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2.400" stroke-linecap="round" stroke-linejoin="round"><path d="M7 19.5V13a7 7 0 0 1 14 0v6.5l1.8 2.5H5.2Z"/><path d="M11.5 24.5a2.6 2.6 0 0 0 5 0"/><path d="M4 9.5a10.5 10.5 0 0 1 3-5M24 9.5a10.5 10.5 0 0 0-3-5"/></svg><span data-i18n="menu.alerts">Emergency pop-up</span></button></li>
         <li><button type="button" data-go="about"><svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2.400" stroke-linecap="round"><circle cx="14" cy="14" r="10"/><path d="M14 13v6"/><circle cx="14" cy="9" r=".8" fill="currentColor"/></svg><span data-i18n="menu.about">About Contour</span></button></li>
         <li><button type="button" data-go="speech"><svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2.400" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg><span data-i18n="menu.speech">Speech &amp; Translation</span></button></li>
       </ul>
@@ -1150,6 +1233,8 @@ html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-
     "card.walk": ["{n} min walk", "徒歩{n}分", "步行{n}分钟", "도보 {n}분"],
     "card.facts": ["Capacity {n}", "収容人数 {n}", "容量 {n}", "수용 인원 {n}"],
     "card.cta": ["View details", "詳細を見る", "查看详情", "자세히 보기"],
+    "card.ar": ["3D AR directions", "3D ARで案内", "3D AR 导航", "3D AR 길 안내"],
+    "card.det": ["Details", "詳細", "详情", "상세"],
     "empty.t": ["No match", "該当なし", "无匹配", "일치 없음"],
     "empty.n": ["Nothing called “{q}”", "「{q}」は見つかりません", "没有名为“{q}”的结果", "“{q}” 검색 결과 없음"],
     "empty.f.old": ["Try a place name such as “Gymnasium” or “Motoyama”. Search covers the demo points only.", "「Gymnasium」や「Motoyama」などの地名でお試しください。検索対象はデモ地点のみです。", "请尝试“Gymnasium”或“Motoyama”等地名。搜索仅涵盖演示地点。", "“Gymnasium”이나 “Motoyama” 같은 지명으로 검색해 보세요. 데모 지점만 검색됩니다."],
@@ -1234,6 +1319,43 @@ html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-
     "walk.roundabout": ["Follow the roundabout", "環状交差点を進む", "沿环岛前行", "회전교차로를 따라 이동"],
     "ask.shown": ["Shown on the map", "地図に表示しました", "已在地图上显示", "지도에 표시했습니다"],
     "area.h": ["Prefectures", "都道府県", "都道府县", "도도부현"],
+    "menu.alerts": ["Emergency pop-up", "緊急時の自動表示", "紧急自动弹出", "긴급 자동 표시"],
+    "al.eyebrow": ["Emergency alert", "緊急速報", "紧急警报", "긴급 경보"],
+    "al.k.eew": ["Earthquake Early Warning", "緊急地震速報", "紧急地震速报", "긴급 지진 속보"],
+    "al.k.tsunami": ["Tsunami warning", "津波警報", "海啸警报", "쓰나미 경보"],
+    "al.k.special": ["Emergency warning", "特別警報", "特别警报", "특별경보"],
+    "al.k.evac": ["Evacuation order", "避難指示", "避难指示", "대피 지시"],
+    "al.k.alert": ["Emergency alert", "緊急速報", "紧急警报", "긴급 경보"],
+    "al.do.eew": ["Protect your head and stay away from windows. When the shaking stops, go to an evacuation site.", "頭を守り、窓から離れてください。揺れが収まったら避難場所へ向かってください。", "保护头部，远离窗户。摇晃停止后，前往避难场所。", "머리를 보호하고 창문에서 떨어지세요. 흔들림이 멈추면 대피 장소로 이동하세요."],
+    "al.do.tsunami": ["Leave the coast and rivers now. Go to high ground or a tall, sturdy building.", "今すぐ海岸や川から離れ、高台や高く頑丈な建物へ避難してください。", "立即远离海岸和河流，前往高地或坚固的高楼。", "지금 바로 해안과 강에서 벗어나 높은 곳이나 튼튼한 고층 건물로 대피하세요."],
+    "al.do.special": ["A rare and dangerous situation. Act now to protect your life.", "数十年に一度の危険な状況です。命を守る行動をとってください。", "这是数十年一遇的危险情况，请立即采取保护生命的行动。", "수십 년에 한 번 있는 위험한 상황입니다. 즉시 생명을 지키는 행동을 하세요."],
+    "al.do.evac": ["The city has ordered evacuation. If it is safe to move, go to an evacuation site now.", "市から避難指示が出ています。安全に移動できるなら、今すぐ避難場所へ向かってください。", "市政府已发布避难指示。如能安全移动，请立即前往避难场所。", "시에서 대피 지시를 내렸습니다. 안전하게 이동할 수 있다면 지금 대피 장소로 가세요."],
+    "al.do.alert": ["Read the official message and follow its instructions.", "公式のメッセージを確認し、指示に従ってください。", "请阅读官方信息并遵循指示。", "공식 메시지를 확인하고 지시를 따르세요."],
+    "al.official": ["Official message", "公式メッセージ", "官方信息（日语）", "공식 메시지 (일본어)"],
+    "al.nearest": ["Nearest evacuation site", "最寄りの避難場所", "最近的避难场所", "가장 가까운 대피 장소"],
+    "al.nearest.h": ["Nearest site designated for {h}", "{h}に対応する最寄りの避難場所", "最近的{h}指定避难场所", "{h} 대응 가장 가까운 대피 장소"],
+    "al.map": ["Open map", "地図を開く", "打开地图", "지도 열기"],
+    "al.close": ["Close", "閉じる", "关闭", "닫기"],
+    "al.note": ["Whether a site is open is unknown. Follow official instructions.", "避難場所の開設状況は不明です。公式の指示に従ってください。", "避难场所是否开放未知，请遵循官方指示。", "대피 장소 개설 여부는 알 수 없습니다. 공식 지시를 따르세요."],
+    "al.setup.h": ["Open Contour when an emergency alert arrives", "緊急速報が届いたらContourを自動で開く", "收到紧急警报时自动打开 Contour", "긴급 경보가 오면 Contour를 자동으로 열기"],
+    "al.setup.p": ["When your phone receives an official emergency alert (緊急速報: earthquake early warning, tsunami, emergency warning or evacuation order), Contour opens by itself and shows the nearest evacuation site. Turn on the settings below once. Drills and ordinary notifications never open it.", "スマホに公式の緊急速報（緊急地震速報・津波・特別警報・避難指示）が届くと、Contourが自動で開き、最寄りの避難場所を表示します。下の設定を一度オンにしてください。訓練や普通の通知では開きません。", "手机收到官方紧急警报（緊急速報：紧急地震速报、海啸、特别警报或避难指示）时，Contour 会自动打开并显示最近的避难场所。请将下方设置开启一次。演练和普通通知不会触发。", "휴대폰에 공식 긴급 경보(緊急速報: 긴급 지진 속보, 쓰나미, 특별경보, 대피 지시)가 오면 Contour가 자동으로 열려 가장 가까운 대피 장소를 보여 줍니다. 아래 설정을 한 번 켜 주세요. 훈련이나 일반 알림으로는 열리지 않습니다."],
+    "al.s.listener": ["Notification access", "通知へのアクセス", "通知使用权", "알림 접근 권한"],
+    "al.s.listener.d": ["Lets Contour notice the official alert. Other notifications are ignored and nothing is saved.", "公式の緊急速報に気づくために使います。他の通知は無視し、何も保存しません。", "用于察觉官方紧急警报。其他通知一律忽略，不保存任何内容。", "공식 긴급 경보를 알아차리는 데 사용합니다. 다른 알림은 무시하며 아무것도 저장하지 않습니다."],
+    "al.s.overlay": ["Display over other apps", "他のアプリの上に重ねて表示", "显示在其他应用上层", "다른 앱 위에 표시"],
+    "al.s.overlay.d": ["Lets Contour open on top of the app you are using.", "使用中のアプリの上にContourを開けるようにします。", "让 Contour 能在当前应用上层打开。", "사용 중인 앱 위에 Contour를 열 수 있게 합니다."],
+    "al.s.notifications": ["Notifications", "通知", "通知", "알림"],
+    "al.s.notifications.d": ["Needed to open the alert screen on a locked phone.", "ロック中のスマホで警報画面を開くために必要です。", "在锁屏时打开警报画面所必需。", "잠긴 휴대폰에서 경보 화면을 열려면 필요합니다."],
+    "al.s.fullScreen": ["Full-screen alerts", "全画面通知", "全屏通知", "전체 화면 알림"],
+    "al.s.fullScreen.d": ["Lets the alert screen fill the screen (Android 14 and later).", "警報画面を全画面で表示します（Android 14以降）。", "让警报画面全屏显示（Android 14 及以上）。", "경보 화면을 전체 화면으로 표시합니다 (Android 14 이상)."],
+    "al.on": ["On ✓", "オン ✓", "已开启 ✓", "켜짐 ✓"],
+    "al.turnon": ["Turn on", "オンにする", "开启", "켜기"],
+    "al.restricted": ["If Android says “Restricted setting”, open App info, tap ⋮ (top right), choose “Allow restricted settings”, then try again.", "「制限付き設定」と表示されたら、アプリ情報を開き、右上の⋮から「制限付き設定を許可」を選んで、もう一度お試しください。", "如果 Android 提示“受限制的设置”，请打开应用信息，点右上角 ⋮，选择“允许受限制的设置”，然后重试。", "“제한된 설정”이라고 표시되면 앱 정보를 열고 오른쪽 위 ⋮에서 “제한된 설정 허용”을 선택한 뒤 다시 시도하세요."],
+    "al.appinfo": ["Open app info", "アプリ情報を開く", "打开应用信息", "앱 정보 열기"],
+    "al.test": ["Test the pop-up", "表示をテスト", "测试弹出", "표시 테스트"],
+    "al.test.d": ["Tap, then go to the home screen or lock the phone. Contour opens by itself in 5 seconds.", "タップしたら、ホーム画面に戻るか画面をロックしてください。5秒後にContourが自動で開きます。", "点按后返回主屏幕或锁屏，5 秒后 Contour 会自动打开。", "누른 후 홈 화면으로 가거나 화면을 잠그세요. 5초 후 Contour가 자동으로 열립니다."],
+    "al.test.soon": ["Opening in 5 seconds…", "5秒後に開きます…", "5 秒后打开…", "5초 후 열립니다…"],
+    "al.browser": ["The automatic pop-up works in the Android app. Here, the test shows the alert screen right away.", "自動表示はAndroidアプリで動作します。ここではテストで警報画面をすぐに表示します。", "自动弹出仅在 Android 应用中可用。此处测试会立即显示警报画面。", "자동 표시는 Android 앱에서 작동합니다. 여기서는 테스트로 경보 화면을 바로 표시합니다."],
+    "al.allon": ["All set. Contour will open when an official emergency alert arrives.", "設定完了。公式の緊急速報が届くとContourが開きます。", "设置完成。收到官方紧急警报时 Contour 会自动打开。", "설정 완료. 공식 긴급 경보가 오면 Contour가 열립니다."],
     "pg.info": ["Emergency information", "緊急時の情報", "紧急信息", "긴급 정보"],
     "pg.credits": ["Credits", "クレジット", "致谢", "출처"],
     "pg.mapcredit": ["Map data © OpenStreetMap contributors. Map rendering by Leaflet.", "地図データ © OpenStreetMap contributors。地図の表示は Leaflet。", "地图数据 © OpenStreetMap 贡献者。地图渲染：Leaflet。", "지도 데이터 © OpenStreetMap 기여자. 지도 렌더링: Leaflet."],
@@ -1589,12 +1711,12 @@ html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-
   const arrowSvg = deg => `<span class="arrow"><svg viewBox="0 0 12 12" style="transform:rotate(${deg.toFixed(0)}deg)"><path d="M6 1 10 10.5 6 8.4 2 10.5Z" fill="#178049"/></svg></span>`;
   const cardHTML = (p, i) => `
     <div class="card-body">
-      <div class="eyebrow"><span>${t(i === 0 ? "card.nearest" : "card.point")}</span><span class="num">${String(p.n).padStart(2, "0")}</span></div>
+      <div class="eyebrow"><span><span class="num">${String(p.n).padStart(2, "0")}</span>${t(i === 0 ? "card.nearest" : "card.point")}</span><button class="det" type="button" tabindex="-1">${t("card.det")}<svg viewBox="0 0 8 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m1.5 1.5 5 5-5 5"/></svg></button></div>
       <h3 class="name">${esc(pTitle(p))}</h3>
       <div class="jp">${esc(pSub(p))}</div>
       <div class="meta"><span class="dist">${arrowSvg(p.brg)}${fmtDist(p.m)}</span><span class="sep"></span><span>${t("card.walk", { n: p.walk })}</span></div>
       <div class="facts">${p.live ? t("card.live", { h: hazList(p) }) : t("card.facts", { n: p.cap.toLocaleString("en-US") })}</div>
-      <button class="cta" type="button" tabindex="-1">${t("card.cta")}</button>
+      <button class="cta" type="button" tabindex="-1"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="4.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 15 24 4l14 11" opacity=".4"/><path d="M10 28 24 17l14 11" opacity=".7"/><path d="M10 41 24 30l14 11"/></svg>${t("card.ar")}</button>
     </div>`;
   const hazList = p => { const h = p.haz.map(k => t("haz." + k)); return h.length > 3 ? h.slice(0, 3).join(" · ") + " +" + (h.length - 3) : h.join(" · "); };
   const makeCard = (p, i) => {
@@ -1602,7 +1724,7 @@ html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-
     el.className = "card"; el.dataset.i = i; el.tabIndex = 0;
     el.setAttribute("aria-label", `${pTitle(p)}, ${fmtDist(p.m)}, ${t("card.walk", { n: p.walk })}`);
     el.innerHTML = cardHTML(p, i);
-    el.querySelector(".cta").tabIndex = 0;
+    el.querySelector(".cta").tabIndex = 0; el.querySelector(".det").tabIndex = 0;
     carousel.insertBefore(el, carousel.querySelector(".empty-card"));
     return el;
   };
@@ -1801,7 +1923,9 @@ html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-
     // With the keyboard open the page is short; close the keyboard first so the sheet is sized for the full screen.
     const kb = document.activeElement === q;
     if (kb) q.blur();
-    if (e.target.closest(".cta") || i === sel) { if (i !== sel) select(i, { pan: false }); setTimeout(() => openSheet(i), kb ? 320 : 0); }
+    // Main button: straight into 3D AR toward this place. "Details" (top right), or tapping the selected card, opens the sheet.
+    if (e.target.closest(".cta")) { if (i !== sel) select(i, { pan: false }); setTimeout(() => openAR(POINTS[i]), kb ? 320 : 0); }
+    else if (e.target.closest(".det") || i === sel) { if (i !== sel) select(i, { pan: false }); setTimeout(() => openSheet(i), kb ? 320 : 0); }
     else select(i, { from: "card" });
   });
   carousel.addEventListener("keydown", e => {
@@ -2005,7 +2129,8 @@ html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-
   $("tRing").addEventListener("change", e => { ring.setStyle({ fillOpacity: e.target.checked ? 0.12 : 0 }); });
   document.addEventListener("keydown", e => {
     if (e.key !== "Escape") return;
-    if (!ar.hidden) closeAR();
+    if (!alertScreen.hidden) closeAlertScreen();
+    else if (!ar.hidden) closeAR();
     else if (!ask.hidden) closeAsk();
     else if (sheetState === "open") closeSheet();
     else if (!pick.hidden) closePick();
@@ -2055,7 +2180,7 @@ html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-
   });
 
   // ----- pages: the map is home; everything else opens over it from the menu
-  const mapUi = [$("walkPanel"), $("map"), mapBar, document.querySelector("header.top"), $("locateBtn"), $("arFab"), $("askFab"), carousel];
+  const mapUi = [$("walkPanel"), $("map"), mapBar, document.querySelector("header.top"), $("locateBtn"), $("askFab"), carousel];
   const drawer = $("drawer"), scrim = $("scrim");
   function setTab(name) {
     closeOverlays(); closeLang(); closeDrawer(); closePick();
@@ -2075,7 +2200,7 @@ html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-
   });
   drawer.querySelectorAll("[data-go]").forEach(b => b.addEventListener("click", () => {
     const go = b.dataset.go;
-    if (go === "info" || go === "about") { closeDrawer(); $("page-" + go).classList.add("on"); }
+    if (go === "info" || go === "about" || go === "alerts") { closeDrawer(); if (go === "alerts") renderAlertSetup(); $("page-" + go).classList.add("on"); }
     else if (go === "ask") { closeDrawer(); openAsk(); }
     else setTab(go);
   }));
@@ -2099,7 +2224,7 @@ html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-
     setTimeout(() => { if (!pick.classList.contains("on")) pick.hidden = true; }, 380);
   }
   // AR is a location feature: ask for GPS now, and the list re-sorts from the real position when it arrives.
-  $("arFab").addEventListener("click", () => { openPick(); if (live && hereSource !== "gps") useGps({ quiet: true }); });
+  // (The floating 3D AR button was removed: each card's main button opens 3D AR directly.)
   pickDim.addEventListener("click", closePick);
   $("pickList").addEventListener("click", e => {
     const b = e.target.closest("[data-i]"); if (!b) return;
@@ -2282,11 +2407,12 @@ html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-
     POINTS.forEach((p, i) => {
       if (!cards[i]) return;
       cards[i].innerHTML = cardHTML(p, i);
-      cards[i].querySelector(".cta").tabIndex = 0;
+      cards[i].querySelector(".cta").tabIndex = 0; cards[i].querySelector(".det").tabIndex = 0;
       cards[i].setAttribute("aria-label", `${pTitle(p)}, ${fmtDist(p.m)}, ${t("card.walk", { n: p.walk })}`);
     });
     if (arPoint) { $("arName").textContent = pTitle(arPoint); $("arJp").textContent = pSub(arPoint); }
     renderShelterOptions(); renderAtt(); renderPick(); renderAlerts();
+    if (typeof renderAlertScreen === "function") { renderAlertScreen(); renderAlertSetup(); }
   }
 
   // ----- live sites: rebuild markers/cards from a list (only while the detail sheet is closed)
@@ -2306,6 +2432,7 @@ html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-
     renderShelterOptions();
     renderPick();
     applySearch();
+    renderAlertScreen();
     const k = keepId ? POINTS.findIndex(p => p.id === keepId) : -1;
     if (POINTS.length && sel < 0) select(Math.max(0, k), { from: "init", pan: false });
     if (!POINTS.length) { route.setLatLngs([]); routeCasing.setLatLngs([]); }
@@ -2559,8 +2686,82 @@ html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-
   $("askQuick").addEventListener("click", e => { const b = e.target.closest("[data-q]"); if (b) sendAsk(t(b.dataset.q)); });
   askLog.addEventListener("click", e => { const b = e.target.closest("[data-site]"); if (b) showSite(b.dataset.site); });
 
+  // ----- emergency alert screen: the Android app calls window.contourAlert({kind, title, text}) when the
+  // phone's official emergency alert arrives (or from the test button). kind: eew | tsunami | special | evac | alert
+  const alertScreen = $("alertScreen");
+  const ALERT_HAZ = { eew: "eq", tsunami: "tsunami", special: "", evac: "", alert: "" };
+  let alertData = null;
+  // Nearest site designated for this kind of disaster, else simply the nearest one.
+  const alertSiteIndex = kind => { const h = ALERT_HAZ[kind]; const i = h ? POINTS.findIndex(p => p.haz.includes(h)) : -1; return i >= 0 ? i : (POINTS.length ? 0 : -1); };
+  function renderAlertScreen() {
+    if (!alertData || alertScreen.hidden) return;
+    const k = D["al.k." + alertData.kind] ? alertData.kind : "alert";
+    $("alKind").textContent = t("al.k." + k);
+    $("alDo").textContent = t("al.do." + k);
+    $("alOfficial").hidden = !(alertData.title || alertData.text);
+    $("alTitle").textContent = alertData.title; $("alText").textContent = alertData.text;
+    const i = alertSiteIndex(k), p = POINTS[i];
+    $("alSite").hidden = !p; $("alAr").hidden = !p;
+    if (p) {
+      const h = ALERT_HAZ[k];
+      $("alSiteLabel").textContent = h && p.haz.includes(h) ? t("al.nearest.h", { h: t("haz." + h) }) : t("al.nearest");
+      $("alName").textContent = pTitle(p); $("alSub").textContent = pSub(p);
+      $("alMeta").textContent = `${fmtDist(p.m)} · ${t("card.walk", { n: p.walk })}`;
+    }
+  }
+  function closeAlertScreen() { alertScreen.hidden = true; }
+  window.contourAlert = a => {
+    alertData = { kind: (a && a.kind) || "alert", title: (a && a.title) || "", text: (a && a.text) || "" };
+    // Clear whatever was open, back to the map underneath.
+    closeAR(); closeAsk(); closePick(); closeDrawer(); closeLang(); closeOverlays();
+    if (sheetState === "open") closeSheet();
+    document.querySelectorAll(".page").forEach(pg => pg.classList.remove("on"));
+    if (phone.dataset.tab !== "surround") setTab("surround");
+    if (q.value) { q.value = ""; applySearch(); }
+    alertScreen.hidden = false; alertScreen.scrollTop = 0;
+    renderAlertScreen();
+    // Use the real position when possible; the list re-sorts and the screen updates.
+    if (hereSource !== "gps") useGps({ quiet: true }).then(renderAlertScreen);
+    return true;
+  };
+  $("alAr").addEventListener("click", () => { const i = alertSiteIndex(alertData && alertData.kind); closeAlertScreen(); if (i >= 0) { select(i, { pan: false }); openAR(POINTS[i]); } });
+  $("alMap").addEventListener("click", () => { const i = alertSiteIndex(alertData && alertData.kind); closeAlertScreen(); if (i >= 0) { sel = -1; select(i, { from: "alert" }); } });
+  $("alClose").addEventListener("click", closeAlertScreen);
+
+  // ----- emergency pop-up setup page (permissions live in the Android app; see WebUiActivity)
+  const hasAlertBridge = () => !!(window.ContourBridge && typeof ContourBridge.alertSetupStatus === "function");
+  function alertStatus() { if (!hasAlertBridge()) return null; try { return JSON.parse(ContourBridge.alertSetupStatus()); } catch (_) { return null; } }
+  function renderAlertSetup() {
+    const st = alertStatus();
+    document.querySelectorAll("[data-setting]").forEach(row => {
+      const on = !!(st && st[row.dataset.setting]), b = row.querySelector("button");
+      row.classList.toggle("on", on); b.textContent = t(on ? "al.on" : "al.turnon"); b.disabled = !st || on;
+    });
+    $("alBrowser").hidden = !!st;
+    $("alAllOn").hidden = !(st && Object.values(st).every(Boolean));
+    $("alAppInfo").hidden = !st;
+    $("alTestNote").hidden = !st;
+  }
+  window.onAlertSetupChanged = renderAlertSetup;
+  document.querySelector(".al-steps").addEventListener("click", e => {
+    const row = e.target.closest("[data-setting]"); if (!row || !e.target.closest("button") || !hasAlertBridge()) return;
+    ContourBridge.openAlertSetting(row.dataset.setting);
+  });
+  $("alAppInfo").addEventListener("click", () => { if (hasAlertBridge()) ContourBridge.openAlertSetting("appInfo"); });
+  $("alTest").addEventListener("click", () => {
+    if (hasAlertBridge() && typeof ContourBridge.testAlert === "function") { ContourBridge.testAlert("eew", 5000); say(t("al.test.soon")); }
+    else window.contourAlert({ kind: "eew", title: "緊急地震速報（テスト表示）", text: "Contour test. 強い揺れに備えてください。" });
+  });
+  // In the app, open the setup page once on first launch if anything is still off.
+  setTimeout(() => {
+    const st = alertStatus(); if (!st || Object.values(st).every(Boolean) || !alertScreen.hidden) return;
+    try { if (localStorage.getItem("contour.alertSetupShown")) return; localStorage.setItem("contour.alertSetupShown", "1"); } catch (_) { return; }
+    renderAlertSetup(); $("page-alerts").classList.add("on");
+  }, 1500);
+
   // Android back button: close the top-most thing, otherwise go back to the map; false lets the app close.
   window.contourBack = () => {
+    if (!alertScreen.hidden) { closeAlertScreen(); return true; }
     if (!ar.hidden) { closeAR(); return true; }
     if (!ask.hidden) { closeAsk(); return true; }
     if (!pick.hidden) { closePick(); return true; }
