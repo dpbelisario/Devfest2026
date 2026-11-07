@@ -39,7 +39,8 @@ Top page, Area list, Surrounding (map with shelter cards and a detail sheet), At
 - A native container applies system-bar, display-cutout, and keyboard insets around the WebView.
   Keep this padding on the container: older WebViews can draw content under the system bars when
   padding is applied directly to the WebView, leaving visible header buttons outside their touch area.
-- Back button closes AR / sheet / menu / page first, then returns to the Top tab, then exits.
+- Back button / gesture closes AR / sheet / menu / page first, then returns to the map, then clears
+  the search, then leaves the app. It keeps working after the app has been sent to the background.
 - Links outside the app (Google Maps directions) open in the matching app.
 - Map tiles, Leaflet and fonts load from the internet.
 
@@ -76,6 +77,15 @@ See [live-data.md](live-data.md) for the API.
   answers from the same data and can highlight sites on the map or start AR toward one.
 - **Offline / API down.** The page falls back to the fictional demo points (marked "Demo") and
   says so in the status pill.
+- **Languages.** Every page (including Emergency information and About, which have their own
+  language menu) follows English / 日本語 / 中文 / 한국어. Official site names arrive in Japanese only;
+  in the Android app they are machine-translated on the device (ML Kit, `OfflineTranslator`) and
+  cached, with the Japanese name kept as the second line. In a plain browser they stay in Japanese.
+  Addresses stay in Japanese. Official site names around Nagoya University (434 places) have built-in
+  English / Chinese / Korean names; the device translator covers the rest. On Disaster info, JMA
+  warning names, statuses, bulletin types and the usual headline sentences are translated in the page,
+  with the original Japanese shown under each translated headline.
+- **Search** matches place names only (in any of the four languages), not addresses.
 
 ## Limits (this is a prototype)
 

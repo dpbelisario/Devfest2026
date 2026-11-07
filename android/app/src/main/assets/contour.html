@@ -57,15 +57,15 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .stage { height: 100%; display: flex; align-items: center; justify-content: center; overflow: hidden; background: radial-gradient(120% 80% at 50% 0%, #f1f2f4, var(--stage)); }
 .phone { position: relative; width: 100%; height: 100%; overflow: hidden; background: var(--mapbg); isolation: isolate; }
 
-/* Desktop: present the app inside an iPhone-sized frame */
-/* Always presented inside an iPhone frame, scaled to fit the window */
+/* Browser preview: present the app inside an Android phone frame (punch-hole camera, Android status
+   bar, gesture handle), scaled to fit the window. The Android app itself never shows this frame. */
 @media all {
-  .phone { flex: none; width: 393px; height: 852px; transform-origin: 50% 50%; border-radius: 54px; box-shadow: 0 0 0 11px #111214, 0 0 0 12px #2a2b2f, 0 40px 80px rgba(0,0,0,.25); }
+  .phone { flex: none; width: 393px; height: 852px; transform-origin: 50% 50%; border-radius: 36px; box-shadow: 0 0 0 9px #141517, 0 0 0 10px #303236, 0 40px 80px rgba(0,0,0,.25); }
   .phone { --top: 50px; --bot: 24px; }
-  .statusbar { display: flex; position: absolute; z-index: 60; inset: 0 0 auto; height: 50px; padding: 18px 34px 0 46px; justify-content: space-between; align-items: center; font: 600 16px/1 var(--f-body); color: var(--ink); pointer-events: none; }
-  .statusbar::after { content: ""; position: absolute; left: 50%; top: 11px; width: 122px; height: 35px; border-radius: 20px; background: #000; transform: translateX(-50%); }
-  .statusbar .sys { display: flex; gap: 6px; align-items: center; }
-  .home-ind { display: block; position: absolute; z-index: 70; left: 50%; bottom: 8px; width: 134px; height: 5px; border-radius: 3px; background: var(--ink); transform: translateX(-50%); pointer-events: none; }
+  .statusbar { display: flex; position: absolute; z-index: 60; inset: 0 0 auto; height: 40px; padding: 12px 22px 0 26px; justify-content: space-between; align-items: center; font: 500 14px/1 "Roboto", var(--f-body); letter-spacing: .01em; color: var(--ink); pointer-events: none; }
+  .statusbar::after { content: ""; position: absolute; left: 50%; top: 12px; width: 18px; height: 18px; border-radius: 50%; background: #0b0c0d; box-shadow: 0 0 0 2px rgba(255,255,255,.06); transform: translateX(-50%); }
+  .statusbar .sys { display: flex; gap: 5px; align-items: center; }
+  .home-ind { display: block; position: absolute; z-index: 70; left: 50%; bottom: 7px; width: 108px; height: 4px; border-radius: 2px; background: var(--ink); opacity: .55; transform: translateX(-50%); pointer-events: none; }
 }
 
 /* Map */
@@ -626,6 +626,12 @@ html.native .ar-x svg { stroke: var(--ink); }
 .ar-haz { margin-top: 6px; font: 400 12.5px/1.4 var(--f-body); opacity: .85; }
 /* Japanese titles: break at spaces, not in the middle of a word */
 html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-break: keep-all; overflow-wrap: anywhere; }
+/* Emergency information / About: language menu next to the close button */
+.ph-r { display: flex; align-items: center; gap: 12px; }
+.ph-r .lang-btn { padding: 8px 0; }
+[data-l][hidden] { display: none; }
+/* Disaster info: the original Japanese JMA text, under its translation */
+.dz .dz-orig { margin-top: -4px; font-size: 12.5px; color: var(--ink-3); }
 </style>
 
 <div class="stage">
@@ -633,9 +639,10 @@ html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-
     <div class="statusbar" aria-hidden="true">
       <span id="clock">9:41</span>
       <span class="sys">
-        <svg width="18" height="11" viewBox="0 0 18 11"><rect x="0" y="7" width="3" height="4" rx="1" fill="currentColor"/><rect x="5" y="5" width="3" height="6" rx="1" fill="currentColor"/><rect x="10" y="2.5" width="3" height="8.5" rx="1" fill="currentColor"/><rect x="15" y="0" width="3" height="11" rx="1" fill="currentColor"/></svg>
-        <svg width="16" height="11" viewBox="0 0 16 11"><path d="M8 2.2c2.3 0 4.4.9 6 2.4l1.1-1.1A10 10 0 0 0 8 .6 10 10 0 0 0 .9 3.5L2 4.6a8.4 8.4 0 0 1 6-2.4Zm0 3.2c1.4 0 2.7.5 3.7 1.4l1.1-1.1A7 7 0 0 0 8 3.8a7 7 0 0 0-4.8 1.9l1.1 1.1c1-.9 2.3-1.4 3.7-1.4Zm0 3.2c-.6 0-1.1.2-1.5.6L8 10.7l1.5-1.5c-.4-.4-.9-.6-1.5-.6Z" fill="currentColor"/></svg>
-        <svg width="26" height="12" viewBox="0 0 26 12"><rect x=".5" y=".5" width="22" height="11" rx="3.2" fill="none" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="19" height="8" rx="2" fill="currentColor"/><rect x="24" y="4" width="1.6" height="4" rx=".8" fill="currentColor" opacity=".5"/></svg>
+        <!-- Android-style icons: Wi-Fi, mobile signal, battery -->
+        <svg width="15" height="12" viewBox="0 0 16 12"><path d="M8 11.5 .3 3.4A11 11 0 0 1 8 .5a11 11 0 0 1 7.7 2.9Z" fill="currentColor"/></svg>
+        <svg width="12" height="12" viewBox="0 0 12 12"><path d="M11.5.5v11H.5Z" fill="currentColor"/></svg>
+        <svg width="8" height="14" viewBox="0 0 8 14"><rect x="2.5" y="0" width="3" height="1.6" rx=".5" fill="currentColor"/><rect x=".5" y="1.3" width="7" height="12.2" rx="1.4" fill="currentColor"/></svg>
       </span>
     </div>
 
@@ -717,8 +724,9 @@ html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-
     </div>
 
     <section class="page" id="page-info" aria-label="Emergency information">
-      <div class="page-head"><span>EMERGENCY INFORMATION</span><button class="sheet-close" style="position:static" data-close aria-label="Close"><svg viewBox="0 0 14 14" stroke="#141714" stroke-width="1.8" stroke-linecap="round"><path d="M2 2l10 10M12 2 2 12"/></svg></button></div>
+      <div class="page-head"><span data-i18n="pg.info">Emergency information</span><div class="ph-r" data-lang-slot><button class="sheet-close" style="position:static" data-close data-i18n-aria="walk.close" aria-label="Close"><svg viewBox="0 0 14 14" stroke="#141714" stroke-width="1.8" stroke-linecap="round"><path d="M2 2l10 10M12 2 2 12"/></svg></button></div></div>
       <div class="page-body">
+       <div data-l="en">
         <h2>If a disaster strikes</h2>
         <h3>Emergency numbers in Japan</h3>
         <div class="dial">
@@ -737,26 +745,107 @@ html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-
         <p>Follow the evacuation level announced by the city. Move early, before roads flood and wind picks up, and avoid rivers and underpasses.</p>
         <h3>Official sources</h3>
         <p>When online, Contour shows official designated emergency evacuation sites for Nagoya City (Geospatial Information Authority of Japan data) and the latest Japan Meteorological Agency warnings. Whether a site is open is not known: always check announcements from Nagoya City and the Japan Meteorological Agency.</p>
+       </div>
+       <div data-l="ja" hidden>
+        <h2>災害が起きたら</h2>
+        <h3>日本の緊急通報番号</h3>
+        <div class="dial">
+          <div><b>119</b><span>消防・救急<small>Fire &amp; ambulance</small></span></div>
+          <div><b>110</b><span>警察<small>Police</small></span></div>
+          <div><b>171</b><span>災害用伝言ダイヤル：家族への音声メッセージを録音・再生できます<small>Disaster message dial</small></span></div>
+        </div>
+        <h3>揺れを感じたら</h3>
+        <ol>
+          <li>揺れが収まるまで、丈夫な机の下で頭を守り、じっとしてください。</li>
+          <li>窓、棚、ブロック塀から離れてください。</li>
+          <li>揺れが収まったらガスを止め、ドアを開けて出口を確保してください。</li>
+          <li>避難場所へは歩いて向かいます。車やエレベーターは使わないでください。</li>
+        </ol>
+        <h3>台風・大雨</h3>
+        <p>市が発表する警戒レベルに従ってください。道路が冠水したり風が強くなったりする前に早めに避難し、川や地下道（アンダーパス）には近づかないでください。</p>
+        <h3>公式の情報源</h3>
+        <p>オンライン時、Contourは名古屋市の指定緊急避難場所（国土地理院のデータ）と気象庁の最新の警報を表示します。避難場所が開設されているかどうかは分かりません。必ず名古屋市と気象庁の発表を確認してください。</p>
+       </div>
+       <div data-l="zh" hidden>
+        <h2>发生灾害时</h2>
+        <h3>日本的紧急电话</h3>
+        <div class="dial">
+          <div><b>119</b><span>消防·急救<small>消防・救急</small></span></div>
+          <div><b>110</b><span>警察<small>警察</small></span></div>
+          <div><b>171</b><span>灾害留言电话：可为家人录制或收听语音留言<small>災害用伝言ダイヤル</small></span></div>
+        </div>
+        <h3>感到地震摇晃时</h3>
+        <ol>
+          <li>躲到结实的桌子下，护住头部，直到摇晃停止。</li>
+          <li>远离窗户、架子和砖砌围墙。</li>
+          <li>摇晃停止后，关闭燃气，打开房门，确保出口畅通。</li>
+          <li>步行前往避难场所。不要开车，也不要乘坐电梯。</li>
+        </ol>
+        <h3>台风和暴雨</h3>
+        <p>请遵循市政府发布的避难等级。在道路被淹、风力增强之前尽早撤离，远离河流和地下通道。</p>
+        <h3>官方信息来源</h3>
+        <p>联网时，Contour 显示名古屋市指定的紧急避难场所（日本国土地理院数据）以及日本气象厅的最新警报。无法得知避难场所是否已开放，请务必查看名古屋市和日本气象厅的通知。</p>
+       </div>
+       <div data-l="ko" hidden>
+        <h2>재난이 발생하면</h2>
+        <h3>일본의 긴급 전화번호</h3>
+        <div class="dial">
+          <div><b>119</b><span>소방·구급<small>消防・救急</small></span></div>
+          <div><b>110</b><span>경찰<small>警察</small></span></div>
+          <div><b>171</b><span>재해용 전언 다이얼: 가족에게 음성 메시지를 녹음하거나 들을 수 있습니다<small>災害用伝言ダイヤル</small></span></div>
+        </div>
+        <h3>흔들림이 느껴지면</h3>
+        <ol>
+          <li>흔들림이 멈출 때까지 튼튼한 책상 아래에서 머리를 보호하고 기다리세요.</li>
+          <li>창문, 선반, 블록 담에서 떨어지세요.</li>
+          <li>흔들림이 멈추면 가스를 잠그고 문을 열어 출구를 확보하세요.</li>
+          <li>대피 장소까지 걸어서 이동하세요. 자동차와 엘리베이터는 이용하지 마세요.</li>
+        </ol>
+        <h3>태풍과 폭우</h3>
+        <p>시에서 발표하는 대피 단계를 따르세요. 도로가 침수되고 바람이 강해지기 전에 일찍 이동하고, 하천과 지하차도는 피하세요.</p>
+        <h3>공식 정보</h3>
+        <p>온라인일 때 Contour는 나고야시의 지정 긴급 대피 장소(일본 국토지리원 데이터)와 일본 기상청의 최신 경보를 표시합니다. 대피 장소의 개설 여부는 알 수 없으니, 반드시 나고야시와 기상청의 발표를 확인하세요.</p>
+       </div>
       </div>
     </section>
 
     <section class="page" id="page-about" aria-label="About Contour">
-      <div class="page-head"><span>ABOUT CONTOUR</span><button class="sheet-close" style="position:static" data-close aria-label="Close"><svg viewBox="0 0 14 14" stroke="#141714" stroke-width="1.8" stroke-linecap="round"><path d="M2 2l10 10M12 2 2 12"/></svg></button></div>
+      <div class="page-head"><span data-i18n="menu.about">About Contour</span><div class="ph-r" data-lang-slot><button class="sheet-close" style="position:static" data-close data-i18n-aria="walk.close" aria-label="Close"><svg viewBox="0 0 14 14" stroke="#141714" stroke-width="1.8" stroke-linecap="round"><path d="M2 2l10 10M12 2 2 12"/></svg></button></div></div>
       <div class="page-body">
+       <div data-l="en">
         <h2>The nearest safe ground, in two taps</h2>
         <p>Contour shows the evacuation points closest to you, how far they are on foot, and a walking route preview inside the app. It is built for the first minutes after an earthquake, tsunami warning or typhoon, when people need one clear answer.</p>
         <h3>About this prototype</h3>
-        <p>Online, the map lists official designated emergency evacuation sites for Nagoya City from the Geospatial Information Authority of Japan (指定緊急避難場所), refreshed hourly, and Japan Meteorological Agency warnings. These are designations only: opening status, capacity and walking routes are not known, and distances are straight-line estimates. Offline, or when the data cannot be loaded, the app falls back to fictional demo points around Nagoya University, marked "Demo". Without GPS, your position is simulated at Nagoya University. The assistant uses Gemini and can make mistakes.</p>
-        <h3>Credits</h3>
+        <p>Online, the map lists official designated emergency evacuation sites for Nagoya City from the Geospatial Information Authority of Japan (指定緊急避難場所), refreshed hourly, and Japan Meteorological Agency warnings. These are designations only: opening status, capacity and walking routes are not known, and distances are straight-line estimates. Offline, or when the data cannot be loaded, the app falls back to fictional demo points around Nagoya University, marked "Demo". Without GPS, your position is simulated at Nagoya University. The assistant uses Gemini and can make mistakes. Official site names in English, Chinese and Korean are machine-translated on the device and may be inaccurate.</p>
+       </div>
+       <div data-l="ja" hidden>
+        <h2>いちばん近い安全な場所を、2タップで</h2>
+        <p>Contourは、近くの避難場所、徒歩でかかる距離、アプリ内での徒歩ルートのプレビューを表示します。地震、津波警報、台風の直後の数分間、ひとつの明確な答えが必要な時のために作られています。</p>
+        <h3>このプロトタイプについて</h3>
+        <p>オンライン時は、国土地理院の名古屋市の指定緊急避難場所（毎時更新）と気象庁の警報を表示します。これらは指定情報のみで、開設状況・収容人数・徒歩ルートは分からず、距離は直線距離の目安です。オフライン時やデータを読み込めない時は、名古屋大学周辺の架空のデモ地点（「デモ」と表示）を使います。GPSが使えない時は、現在地を名古屋大学と仮定します。アシスタントはGeminiを使っており、誤ることがあります。他の言語での施設名は端末上の機械翻訳で、正確でない場合があります。</p>
+       </div>
+       <div data-l="zh" hidden>
+        <h2>最近的安全地点，只需两次点击</h2>
+        <p>Contour 显示离您最近的避难场所、步行距离，以及应用内的步行路线预览。它专为地震、海啸警报或台风发生后的最初几分钟而设计，那时人们需要一个明确的答案。</p>
+        <h3>关于此原型</h3>
+        <p>联网时，地图列出日本国土地理院提供的名古屋市指定紧急避难场所（每小时更新）以及日本气象厅的警报。这些仅为指定信息：开放状态、容量和步行路线未知，距离为直线估算。离线或无法加载数据时，应用会改用名古屋大学周边的虚构演示地点（标有“演示”）。没有 GPS 时，您的位置将模拟为名古屋大学。助手使用 Gemini，可能会出错。官方场所名称的中文为设备上的机器翻译，可能不准确。</p>
+       </div>
+       <div data-l="ko" hidden>
+        <h2>가장 가까운 안전한 곳, 두 번의 탭으로</h2>
+        <p>Contour는 가장 가까운 대피 장소, 도보 거리, 앱 안에서 보는 도보 경로 미리보기를 보여 줍니다. 지진, 쓰나미 경보, 태풍 직후의 몇 분, 하나의 분명한 답이 필요한 순간을 위해 만들었습니다.</p>
+        <h3>이 프로토타입에 대해</h3>
+        <p>온라인일 때 지도에는 일본 국토지리원의 나고야시 지정 긴급 대피 장소(매시간 갱신)와 일본 기상청 경보가 표시됩니다. 이는 지정 정보일 뿐이며, 개설 여부·수용 인원·도보 경로는 알 수 없고 거리는 직선거리 추정치입니다. 오프라인이거나 데이터를 불러올 수 없으면 나고야대학교 주변의 가상 데모 지점("데모" 표시)을 사용합니다. GPS가 없으면 현재 위치를 나고야대학교로 가정합니다. 도우미는 Gemini를 사용하며 틀릴 수 있습니다. 공식 장소 이름의 한국어는 기기 내 기계 번역이라 정확하지 않을 수 있습니다.</p>
+       </div>
+        <h3 data-i18n="pg.credits">Credits</h3>
       <p><a href="https://routing.openstreetmap.de/about.html" target="_blank" rel="noopener">Routing: FOSSGIS / OSRM</a> · © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> · <a href="https://www.openstreetmap.org/fixthemap" target="_blank" rel="noopener" data-i18n="walk.fix">Fix the map</a></p>
-        <p>Map data © OpenStreetMap contributors. Map rendering by Leaflet.</p>
+        <p data-i18n="pg.mapcredit">Map data © OpenStreetMap contributors. Map rendering by Leaflet.</p>
       </div>
     </section>
 
     <!-- ===== Tab pages ===== -->
 
     <main class="view" id="v-area" data-view="area" data-title="title.area">
-      <div class="a-section">Prefectures | 都道府県</div>
+      <div class="a-section" data-i18n="area.h">Prefectures</div>
       <div class="view-body"><ul class="a-list" id="areaList"></ul></div>
     </main>
 
@@ -1144,6 +1233,10 @@ html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-
     "walk.uturn": ["Turn around", "折り返す", "掉头", "돌아서 이동"],
     "walk.roundabout": ["Follow the roundabout", "環状交差点を進む", "沿环岛前行", "회전교차로를 따라 이동"],
     "ask.shown": ["Shown on the map", "地図に表示しました", "已在地图上显示", "지도에 표시했습니다"],
+    "area.h": ["Prefectures", "都道府県", "都道府县", "도도부현"],
+    "pg.info": ["Emergency information", "緊急時の情報", "紧急信息", "긴급 정보"],
+    "pg.credits": ["Credits", "クレジット", "致谢", "출처"],
+    "pg.mapcredit": ["Map data © OpenStreetMap contributors. Map rendering by Leaflet.", "地図データ © OpenStreetMap contributors。地図の表示は Leaflet。", "地图数据 © OpenStreetMap 贡献者。地图渲染：Leaflet。", "지도 데이터 © OpenStreetMap 기여자. 지도 렌더링: Leaflet."],
   };
   let lang = "en";
   try { const s = localStorage.getItem("contour.lang"); if (LANGS[s]) lang = s; } catch (_) {}
@@ -1184,8 +1277,281 @@ html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-
     "Parking lot east": { ja: "東側駐車場", zh: "东侧停车场", ko: "동쪽 주차장" },
   };
   const lookup = (tbl, key) => (lang !== "en" && tbl[key] && tbl[key][lang]) || key;
-  const pTitle = p => (p.live ? p.name : lang === "ja" ? p.jp : lookup(NAMES, p.name));
-  const pSub = p => (p.live || lang === "zh" || lang === "ko" || lang === "en" ? p.jp : p.name);
+
+  // ----- official site names (the API sends Japanese only): built-in translations.
+  // Most names are "<place><type>" (植田 + 小学校). Each place has a kana reading, turned into English
+  // (Hepburn) and Korean (Japanese-to-Hangul rules) here; Chinese uses the simplified kanji.
+  // Irregular names (buildings, universities) are listed whole. Unofficial translations.
+  const KANA = {
+    "あ":["a","아"],"い":["i","이"],"う":["u","우"],"え":["e","에"],"お":["o","오"],
+    "か":["ka","가","카"],"き":["ki","기","키"],"く":["ku","구","쿠"],"け":["ke","게","케"],"こ":["ko","고","코"],
+    "が":["ga","가"],"ぎ":["gi","기"],"ぐ":["gu","구"],"げ":["ge","게"],"ご":["go","고"],
+    "さ":["sa","사"],"し":["shi","시"],"す":["su","스"],"せ":["se","세"],"そ":["so","소"],
+    "ざ":["za","자"],"じ":["ji","지"],"ず":["zu","즈"],"ぜ":["ze","제"],"ぞ":["zo","조"],
+    "た":["ta","다","타"],"ち":["chi","지","치"],"つ":["tsu","쓰"],"て":["te","데","테"],"と":["to","도","토"],
+    "だ":["da","다"],"ぢ":["ji","지"],"づ":["zu","즈"],"で":["de","데"],"ど":["do","도"],
+    "な":["na","나"],"に":["ni","니"],"ぬ":["nu","누"],"ね":["ne","네"],"の":["no","노"],
+    "は":["ha","하"],"ひ":["hi","히"],"ふ":["fu","후"],"へ":["he","헤"],"ほ":["ho","호"],
+    "ば":["ba","바"],"び":["bi","비"],"ぶ":["bu","부"],"べ":["be","베"],"ぼ":["bo","보"],
+    "ぱ":["pa","파"],"ぴ":["pi","피"],"ぷ":["pu","푸"],"ぺ":["pe","페"],"ぽ":["po","포"],
+    "ま":["ma","마"],"み":["mi","미"],"む":["mu","무"],"め":["me","메"],"も":["mo","모"],
+    "や":["ya","야"],"ゆ":["yu","유"],"よ":["yo","요"],
+    "ら":["ra","라"],"り":["ri","리"],"る":["ru","루"],"れ":["re","레"],"ろ":["ro","로"],"わ":["wa","와"],"を":["o","오"],
+    "きゃ":["kya","갸","캬"],"きゅ":["kyu","규","큐"],"きょ":["kyo","교","쿄"],"ぎゃ":["gya","갸"],"ぎゅ":["gyu","규"],"ぎょ":["gyo","교"],
+    "しゃ":["sha","샤"],"しゅ":["shu","슈"],"しょ":["sho","쇼"],"じゃ":["ja","자"],"じゅ":["ju","주"],"じょ":["jo","조"],
+    "ちゃ":["cha","자","차"],"ちゅ":["chu","주","추"],"ちょ":["cho","조","초"],"にゃ":["nya","냐"],"にゅ":["nyu","뉴"],"にょ":["nyo","뇨"],
+    "ひゃ":["hya","햐"],"ひゅ":["hyu","휴"],"ひょ":["hyo","효"],"びゃ":["bya","뱌"],"びゅ":["byu","뷰"],"びょ":["byo","뵤"],
+    "ぴゃ":["pya","퍄"],"ぴゅ":["pyu","퓨"],"ぴょ":["pyo","표"],"みゃ":["mya","먀"],"みゅ":["myu","뮤"],"みょ":["myo","묘"],
+    "りゃ":["rya","랴"],"りゅ":["ryu","류"],"りょ":["ryo","료"],
+  };
+  const batchim = (s, tail) => { const c = s.charCodeAt(s.length - 1) - 0xAC00; return c >= 0 && c < 11172 && c % 28 === 0 ? s.slice(0, -1) + String.fromCharCode(0xAC00 + c + tail) : s; };
+  // One word of kana -> [English, Korean]. Long vowels (おう, うう, おお) are dropped, as on road signs.
+  function kanaWord(w) {
+    let en = "", ko = "", last = "", dbl = false;
+    for (let i = 0; i < w.length; i++) {
+      const two = KANA[w.slice(i, i + 2)] && w.length > i + 1 ? w.slice(i, i + 2) : null, k = two || w[i];
+      if (two) i++;
+      if (k === "ん") { en += "n"; ko = batchim(ko, 4); last = "n"; continue; }
+      if (k === "っ") { dbl = true; ko = batchim(ko, 19); continue; }
+      const m = KANA[k]; if (!m) continue;
+      if ((k === "う" && /[ou]$/.test(last)) || (k === "お" && /o$/.test(last))) continue;
+      let r = m[0];
+      if (dbl) { r = (r.startsWith("ch") ? "t" : r[0]) + r; dbl = false; }
+      if (last === "n" && /^[bmp]/.test(r) && en.endsWith("n")) en = en.slice(0, -1) + "m";   // Tempaku, not Tenpaku
+      en += r; ko += (ko === "" ? m[1] : (m[2] || m[1])); last = r;
+    }
+    return [en.charAt(0).toUpperCase() + en.slice(1), ko];
+  }
+  const kanaName = reading => { const ws = reading.split(" ").map(kanaWord); return [ws.map(w => w[0]).join(" "), ws.map(w => w[1]).join(" ")]; };
+  // place: "reading" or "reading|simplified Chinese" (Chinese defaults to the Japanese kanji)
+  const STEMS = {
+    "あずま":"あずま|东","くさなぎ":"くさなぎ|草薙","しまだ":"しまだ|岛田","たかしま":"たかしま|高岛","みつば":"みつば|三叶",
+    "一社":"いっしゃ","三本松":"さんぼんまつ","上社":"かみやしろ","上野":"うえの","下市場":"しもいちば|下市场","中":"なか","中根":"なかね",
+    "丸の内":"まるのうち|丸之内","久屋大通":"ひさや おおどおり","久方":"ひさかた","井戸田":"いどた|井户田","今池":"いまいけ","伊勝":"いかつ|伊胜",
+    "伝馬":"てんま|传马","保呂":"ほろ","八事":"やごと","八事東":"やごと ひがし|八事东","八王子":"はちおうじ","六郷":"ろくごう|六乡",
+    "六郷北":"ろくごう きた|六乡北","内山":"うちやま","円上":"えんじょう|圆上","冨士":"ふじ|富士","前山":"まえやま","前津":"まえづ",
+    "北":"きた","北一社":"きた いっしゃ","北山":"きたやま","北陵":"ほくりょう","千代田橋":"ちよだばし|千代田桥","千早":"ちはや","千石":"せんごく",
+    "千種":"ちくさ|千种","千種台":"ちくさだい|千种台","南":"みなみ","南天白":"みなみ てんぱく","原":"はら","名北":"めいほく","名城":"めいじょう",
+    "名東":"めいとう|名东","向陽":"こうよう|向阳","吹上":"ふきあげ","呼続":"よびつぎ|呼续","城山":"しろやま","堀田":"ほった","大和":"やまと",
+    "大坪":"おおつぼ","大幸第二":"だいこう だいに","大杉":"おおすぎ","大針":"おおばり|大针","天子田":"あまこだ","天白":"てんぱく","天白川":"てんぱくがわ",
+    "天白渓下池":"てんぱくけい しもいけ|天白溪下池","守山":"もりやま","宮前":"みやまえ|宫前","宮前橋":"みやまえばし|宫前桥","宮根":"みやね|宫根",
+    "富士見台":"ふじみだい|富士见台","小幡あさひ":"おばた あさひ|小幡朝日","山吹":"やまぶき","山根":"やまね","山田":"やまだ","島田":"しまだ|岛田",
+    "川原":"かわな","川名":"かわな","工芸":"こうげい|工艺","平和":"へいわ","平和が丘":"へいわがおか|平和丘","平針":"ひらばり|平针",
+    "平針北":"ひらばり きた|平针北","平針南":"ひらばり みなみ|平针南","広路":"ひろじ|广路","建中寺":"けんちゅうじ","廻間":"はさま|回间",
+    "廿軒家":"にじゅっけんや|廿轩家","引山":"ひきやま","弥富":"やとみ","御劔":"みつるぎ|御剑","御器所":"ごきそ","御幸山":"みゆきやま",
+    "振甫":"しんぽ","新栄":"しんさかえ|新荣","新郊":"しんこう","新開":"しんかい|新开","旗屋":"はたや","旭丘":"あさひがおか","明が丘":"あけがおか|明丘",
+    "明倫":"めいりん|明伦","明和":"めいわ","明徳":"めいとく|明德","明豊":"めいほう|明丰","星ヶ丘":"ほしがおか|星丘","春岡":"はるおか|春冈",
+    "春日野":"かすがの","昭和":"しょうわ","木ケ崎":"きがさき|木崎","本地丘":"ほんじがおか","本郷":"ほんごう|本乡","杉村":"すぎむら","村雲":"むらくも|村云",
+    "東":"ひがし|东","東山":"ひがしやま|东山","東志賀":"ひがししが|东志贺","東星":"とうせい|东星","東桜":"ひがしさくら|东樱","東海":"とうかい|东海",
+    "東白壁":"ひがししらかべ|东白壁","東邦":"とうほう|东邦","松栄":"しょうえい|松荣","桜":"さくら|樱","桜丘":"さくらがおか|樱丘","桜台":"さくらだい|樱台",
+    "桜山":"さくらやま|樱山","桜田":"さくらだ|樱田","梅森坂":"うめもりざか","森孝":"もりたか","森孝東":"もりたか ひがし|森孝东","森孝西":"もりたか にし",
+    "植園":"うえぞの|植园","植田":"うえだ","植田北":"うえだ きた","植田南":"うえだ みなみ","植田東":"うえだ ひがし|植田东","極楽":"ごくらく|极乐",
+    "橘":"たちばな","汐路":"しおじ","津賀田":"つがた|津贺田","清水":"しみず","滝川":"たきかわ|泷川","牧の原":"まきのはら|牧之原","牧の池":"まきのいけ|牧之池",
+    "牧野ヶ池":"まきのがいけ|牧野池","猪子石":"いのこいし","猪子石原":"いのこいしはら","猪子石第一":"いのこいし だいいち","猪子石第二":"いのこいし だいに",
+    "猪高":"いだか","瑞穂":"みずほ|瑞穗","瑞穂ケ丘":"みずほがおか|瑞穗丘","田代":"たしろ","田光":"たこう","白山":"はくさん","白金":"しろがね",
+    "相生":"あいおい","相生山":"あいおいやま","矢田":"やだ","矢田川橋":"やだがわばし|矢田川桥","砂田橋":"すなだばし|砂田桥","神丘":"かみがおか",
+    "神宮東":"じんぐう ひがし|神宫东","穂波":"ほなみ|穗波","第一":"だいいち","筒井":"つつい","細口池":"ほそぐちいけ|细口池","老松":"おいまつ",
+    "自由ヶ丘":"じゆうがおか|自由丘","興正寺":"こうしょうじ|兴正寺","苗代":"なわしろ","若水":"わかみず","若葉":"わかば|若叶","茶屋ヶ坂":"ちゃやがさか|茶屋坂",
+    "荒池":"あらいけ","菊住":"きくずみ","菊里":"きくざと","萩山":"はぎやま","葉場":"はば|叶场","葵":"あおい","蓬来":"ほうらい","藤が丘":"ふじがおか|藤丘",
+    "藤森":"ふじもり","表山":"おもてやま","西一社":"にし いっしゃ","西山":"にしやま","西山中":"にしやまなか","西山台":"にしやまだい","見付":"みつけ|见付",
+    "豊が丘":"ゆたかがおか|丰丘","豊岡":"とよおか|丰冈","貴船":"きふね|贵船","野並":"のなみ|野并","金城":"きんじょう","陽明":"ようめい|阳明",
+    "隼人池":"はやといけ","飯田":"いいだ|饭田","香流":"かなれ","駒方":"こまがた|驹方","高坂":"こうさか","高田":"たかた","高蔵":"たかくら|高藏",
+    "高見":"たかみ|高见","高針":"たかばり|高针","高針台":"たかばりだい|高针台","鳥羽見":"とばみ|鸟羽见","鶴舞":"つるま|鹤舞",
+  };
+  // type: [English ("{}" = place), Chinese, Korean], longest first
+  const SUFFIXES = [
+    ["特別支援学校", "{} Special Needs School", "{}特别支援学校", "{} 특별지원학교"],
+    ["生涯学習センター", "{} Lifelong Learning Center", "{}终身学习中心", "{} 평생학습센터"],
+    ["コミュニティセンター", "{} Community Center", "{}社区中心", "{} 커뮤니티센터"],
+    ["スポーツセンター", "{} Sports Center", "{}体育中心", "{} 스포츠센터"],
+    ["中央公園", "{} Central Park", "{}中央公园", "{} 중앙공원"],
+    ["公園一帯", "{} Park area", "{}公园一带", "{} 공원 일대"],
+    ["緑地一帯", "{} Green Space area", "{}绿地一带", "{} 녹지 일대"],
+    ["高等学校", "{} High School", "{}高中", "{} 고등학교"],
+    ["小学校", "{} Elementary School", "{}小学", "{} 초등학교"],
+    ["中学校", "{} Junior High School", "{}中学", "{} 중학교"],
+    ["幼稚園", "{} Kindergarten", "{}幼儿园", "{} 유치원"],
+    ["保育園", "{} Nursery School", "{}保育园", "{} 어린이집"],
+    ["公園", "{} Park", "{}公园", "{} 공원"],
+    ["緑地", "{} Green Space", "{}绿地", "{} 녹지"],
+    ["会館", "{} Hall", "{}会馆", "{} 회관"],
+    ["周辺", "Area around {}", "{}周边", "{} 주변"],
+    ["荘", "{}-so", "{}庄", "{}장"],
+  ];
+  // whole names: [English, Chinese, Korean]
+  const FULLNAMES = {
+    "びいⅤ堀田": ["Bii V Hotta", "Bii V 堀田", "비이 V 홋타"],
+    "アクトピア神宮南": ["Actopia Jingu-minami", "Actopia 神宫南", "악토피아 진구미나미"],
+    "アプニール新瑞": ["Apnir Shinmizu", "Apnir 新瑞", "아프니르 신미즈"],
+    "イオンモール新瑞橋": ["AEON Mall Aratamabashi", "永旺梦乐城 新瑞桥", "이온몰 아라타마바시"],
+    "エレガンス笠原ビル": ["Elegance Kasahara Building", "Elegance 笠原大厦", "엘레강스 가사하라 빌딩"],
+    "エーデルハイム成田": ["Edelheim Narita", "Edelheim 成田", "에델하임 나리타"],
+    "カインズホーム名古屋堀田店": ["Cainz Home Nagoya Hotta", "Cainz Home 名古屋堀田店", "카인즈 홈 나고야 홋타점"],
+    "キャティア内田橋": ["Catier Uchidabashi", "Catier 内田桥", "캐티어 우치다바시"],
+    "グレース堀田": ["Grace Hotta", "Grace 堀田", "그레이스 홋타"],
+    "コーポ富士徳": ["Corpo Fujitoku", "Corpo 富士德", "코포 후지토쿠"],
+    "サンシャインミナミ": ["Sunshine Minami", "Sunshine Minami", "선샤인 미나미"],
+    "サンシャインミナミⅡ": ["Sunshine Minami II", "Sunshine Minami II", "선샤인 미나미 II"],
+    "サンハイツ大山": ["Sun Heights Oyama", "Sun Heights 大山", "선하이츠 오야마"],
+    "ストーク内田橋": ["Stork Uchidabashi", "Stork 内田桥", "스토크 우치다바시"],
+    "ダイアパレス外山ヒルズ": ["Dia Palace Toyama Hills", "Dia Palace 外山 Hills", "다이아 팰리스 도야마 힐스"],
+    "ドール大堀": ["Doll Ohori", "Doll 大堀", "돌 오호리"],
+    "ニューユウチク": ["New Yuchiku", "New Yuchiku", "뉴 유치쿠"],
+    "ハイツＥＬＥＮＣＩＡ": ["Heights ELENCIA", "Heights ELENCIA", "하이츠 ELENCIA"],
+    "バーデンハイム桃月": ["Badenheim Togetsu", "Badenheim 桃月", "바덴하임 도게쓰"],
+    "パロマ瑞穂アリーナ": ["Paloma Mizuho Arena", "帕洛玛瑞穗体育馆", "파로마 미즈호 아레나"],
+    "ピアハウス外山": ["Pia House Toyama", "Pia House 外山", "피아 하우스 도야마"],
+    "ファルコン熱田": ["Falcon Atsuta", "Falcon 热田", "팔콘 아쓰타"],
+    "モラリス豊": ["Moralis Yutaka", "Moralis 丰", "모랄리스 유타카"],
+    "リバーサイド成栄ガーデン": ["Riverside Seiei Garden", "Riverside 成荣 Garden", "리버사이드 세이에이 가든"],
+    "リバーサイド成栄（北）": ["Riverside Seiei (North)", "Riverside 成荣（北）", "리버사이드 세이에이 (북)"],
+    "リバーサイド新瑞": ["Riverside Shinmizu", "Riverside 新瑞", "리버사이드 신미즈"],
+    "リフィア桜テラス": ["Refia Sakura Terrace", "Refia 樱 Terrace", "리피아 사쿠라 테라스"],
+    "レジデンス内田橋": ["Residence Uchidabashi", "Residence 内田桥", "레지던스 우치다바시"],
+    "レールシティ熱田": ["Rail City Atsuta", "Rail City 热田", "레일 시티 아쓰타"],
+    "上下水道局伝馬町水処理センター": ["Waterworks Bureau Tenmacho Water Treatment Center", "上下水道局传马町水处理中心", "상하수도국 덴마초 수처리센터"],
+    "上下水道局西山水処理センター": ["Waterworks Bureau Nishiyama Water Treatment Center", "上下水道局西山水处理中心", "상하수도국 니시야마 수처리센터"],
+    "中京大学": ["Chukyo University", "中京大学", "주쿄대학교"],
+    "介護老人福祉施設　グレイスフル熱田": ["Graceful Atsuta (nursing home)", "护理养老设施 Graceful 热田", "노인복지시설 그레이스풀 아쓰타"],
+    "児童福祉センター": ["Child Welfare Center", "儿童福利中心", "아동복지센터"],
+    "医療法人幸世会介護老人保健施設セントラル堀田": ["Central Hotta (elderly care facility)", "老人保健设施 Central 堀田", "노인보건시설 센트럴 홋타"],
+    "南山大学": ["Nanzan University", "南山大学", "난잔대학교"],
+    "南豊住宅１棟": ["Nanpo Housing, Building 1", "南丰住宅1栋", "난포 주택 1동"],
+    "南豊東住宅１棟": ["Nanpo-higashi Housing, Building 1", "南丰东住宅1栋", "난포히가시 주택 1동"],
+    "南豊東住宅２棟": ["Nanpo-higashi Housing, Building 2", "南丰东住宅2栋", "난포히가시 주택 2동"],
+    "南豊東住宅３棟": ["Nanpo-higashi Housing, Building 3", "南丰东住宅3栋", "난포히가시 주택 3동"],
+    "南豊第二住宅１棟": ["Nanpo Daini Housing, Building 1", "南丰第二住宅1栋", "난포 제2주택 1동"],
+    "南豊第二住宅２棟": ["Nanpo Daini Housing, Building 2", "南丰第二住宅2栋", "난포 제2주택 2동"],
+    "名古屋工業大学体育館": ["Nagoya Institute of Technology Gymnasium", "名古屋工业大学体育馆", "나고야공업대학 체육관"],
+    "名古屋市中文化センター": ["Nagoya City Naka Cultural Center", "名古屋市中文化中心", "나고야시 나카 문화센터"],
+    "名古屋市女性会館・名古屋市男女平等参画推進センター（イーブルなごや）": ["E-ble Nagoya (Women's Hall / Gender Equality Center)", "名古屋市女性会馆・男女平等参与推进中心（E-ble Nagoya）", "이블 나고야 (여성회관·남녀평등참여추진센터)"],
+    "名古屋市教育館": ["Nagoya City Education Hall", "名古屋市教育馆", "나고야시 교육관"],
+    "名古屋市昭和文化小劇場": ["Nagoya City Showa Cultural Theater", "名古屋市昭和文化小剧场", "나고야시 쇼와 문화 소극장"],
+    "名古屋市立大学　北千種キャンパス": ["Nagoya City University, Kita-Chikusa Campus", "名古屋市立大学 北千种校区", "나고야시립대학 기타치쿠사 캠퍼스"],
+    "名古屋市立大学滝子（山の畑）キャンパス　体育館": ["Nagoya City University Takiko (Yamanohata) Campus Gymnasium", "名古屋市立大学泷子（山之畑）校区 体育馆", "나고야시립대학 다키코(야마노하타) 캠퍼스 체육관"],
+    "名古屋市立大学田辺通キャンパス　カフェテリア": ["Nagoya City University Tanabe-dori Campus Cafeteria", "名古屋市立大学田边通校区 食堂", "나고야시립대학 다나베도리 캠퍼스 카페테리아"],
+    "名古屋市立大学薬学部": ["Nagoya City University, Faculty of Pharmacy", "名古屋市立大学药学部", "나고야시립대학 약학부"],
+    "名古屋市総合リハビリテーションセンター": ["Nagoya City Rehabilitation Center", "名古屋市综合康复中心", "나고야시 종합재활센터"],
+    "名古屋市青少年交流プラザ": ["Nagoya City Youth Exchange Plaza", "名古屋市青少年交流广场", "나고야시 청소년교류플라자"],
+    "名古屋拘置所": ["Nagoya Detention House", "名古屋看守所", "나고야 구치소"],
+    "名城大学　ナゴヤドーム前キャンパス": ["Meijo University, Nagoya Dome-mae Campus", "名城大学 名古屋巨蛋前校区", "메이조대학 나고야돔마에 캠퍼스"],
+    "名城大学（天白校舎）": ["Meijo University (Tempaku Campus)", "名城大学（天白校区）", "메이조대학 (덴파쿠 캠퍼스)"],
+    "名鉄交通株式会社南ビル": ["Meitetsu Kotsu South Building", "名铁交通南大楼", "메이테쓰 교통 남쪽 빌딩"],
+    "学校法人電波学園メディアセンター": ["Denpa Gakuen Media Center", "电波学园媒体中心", "덴파 학원 미디어센터"],
+    "山田ビル": ["Yamada Building", "山田大厦", "야마다 빌딩"],
+    "岡谷鋼機名古屋公会堂": ["Okaya Koki Nagoya Civic Auditorium", "冈谷钢机名古屋公会堂", "오카야 고키 나고야 공회당"],
+    "御幸山特別緑地保全地区": ["Miyukiyama Special Green Conservation Area", "御幸山特别绿地保护区", "미유키야마 특별녹지보전지구"],
+    "徳川園": ["Tokugawa Garden", "德川园", "도쿠가와엔"],
+    "愛知工業大学名電高等学校　瑞若スポーツセンター体育館": ["Meiden High School, Zuijaku Sports Center Gymnasium", "爱知工业大学名电高中 瑞若体育中心体育馆", "메이덴 고등학교 즈이자쿠 스포츠센터 체육관"],
+    "愛知淑徳学園": ["Aichi Shukutoku Gakuen", "爱知淑德学园", "아이치 슈쿠토쿠 학원"],
+    "明治屋ビルディング": ["Meidi-ya Building", "明治屋大厦", "메이지야 빌딩"],
+    "月日教おうかんみち教会本部": ["Tsukihikyo Okanmichi Church Headquarters", "月日教おうかんみち教会本部", "쓰키히쿄 오칸미치 교회 본부"],
+    "東海工業専門学校": ["Tokai Technical College", "东海工业专门学校", "도카이 공업전문학교"],
+    "浜新開荘１棟": ["Hamashinkai-so, Building 1", "滨新开庄1栋", "하마신카이장 1동"],
+    "瀬木学園体育館": ["Segi Gakuen Gymnasium", "濑木学园体育馆", "세기 학원 체육관"],
+    "熱田区役所等複合施設南館": ["Atsuta Ward Office Complex, South Wing", "热田区政府综合设施南馆", "아쓰타 구청 복합시설 남관"],
+    "熱田消防署本署": ["Atsuta Fire Station", "热田消防署本署", "아쓰타 소방서 본서"],
+    "熱田神宮": ["Atsuta Shrine", "热田神宫", "아쓰타 신궁"],
+    "牛巻団地２号棟": ["Ushimaki Housing Complex, Building 2", "牛卷住宅区2号楼", "우시마키 단지 2호동"],
+    "特別養護老人ホーム　オーネスト神穂": ["Honest Jinbo (nursing home)", "特别养护老人院 Honest 神穗", "특별양호노인홈 어니스트 진보"],
+    "瑞穂アーバンホテル": ["Mizuho Urban Hotel", "瑞穗都市酒店", "미즈호 어반 호텔"],
+    "県立名古屋聾学校": ["Aichi Prefectural Nagoya School for the Deaf", "爱知县立名古屋聋校", "아이치현립 나고야 농학교"],
+    "県立瑞陵高等学校　体育館": ["Aichi Prefectural Zuiryo High School Gymnasium", "爱知县立瑞陵高中 体育馆", "아이치현립 즈이료 고등학교 체육관"],
+    "県立瑞陵高等学校周辺": ["Area around Aichi Prefectural Zuiryo High School", "爱知县立瑞陵高中周边", "아이치현립 즈이료 고등학교 주변"],
+    "県立愛知商業高等学校": ["Aichi Prefectural Aichi Commercial High School", "爱知县立爱知商业高中", "아이치현립 아이치 상업고등학교"],
+    "若宮大通": ["Wakamiya Odori", "若宫大通", "와카미야 오도리"],
+    "須原ビル": ["Suhara Building", "须原大厦", "스하라 빌딩"],
+    "ＳＴＡＴＩＯＮ　Ａｉ": ["STATION Ai", "STATION Ai", "STATION Ai"],
+    "ＴＨコーポ大堀": ["TH Corpo Ohori", "TH Corpo 大堀", "TH 코포 오호리"],
+    "名古屋中学校・高等学校": ["Nagoya Junior & Senior High School", "名古屋初中・高中", "나고야 중·고등학교"],
+    "名古屋商業高等学校": ["Nagoya Commercial High School", "名古屋商业高中", "나고야 상업고등학교"],
+    "名古屋国際中学校・高等学校": ["Nagoya International Junior & Senior High School", "名古屋国际初中・高中", "나고야 국제 중·고등학교"],
+    "大森中央公園・小原橋緑地一帯": ["Omori Central Park & Oharabashi Green Space area", "大森中央公园・小原桥绿地一带", "오모리 중앙공원·오하라바시 녹지 일대"],
+    "愛知教育大学附属名古屋中学校": ["Aichi University of Education Nagoya Junior High School", "爱知教育大学附属名古屋中学", "아이치교육대학 부속 나고야 중학교"],
+    "日本ガイシみずほ会館": ["NGK Mizuho Hall", "日本碍子瑞穗会馆", "니혼가이시 미즈호 회관"],
+    "美容あいち会館": ["Biyo Aichi Hall", "美容爱知会馆", "비요 아이치 회관"],
+    "金城学院中学校": ["Kinjo Gakuin Junior High School", "金城学院中学", "긴조 학원 중학교"],
+    "金城学院高等学校": ["Kinjo Gakuin High School", "金城学院高中", "긴조 학원 고등학교"],
+    "至学館高等学校": ["Shigakkan High School", "至学馆高中", "시가칸 고등학교"],
+    "矢田中学校周辺": ["Area around Yada Junior High School", "矢田中学周边", "야다 중학교 주변"],
+    "労働会館": ["Labor Hall", "劳动会馆", "노동회관"],
+  };
+  const LI = { en: 0, zh: 1, ko: 2 };
+  const PREF = ["Aichi Prefectural ", "爱知县立", "아이치현립 "];
+  // Japanese official name -> name in language l (en / zh / ko), or null when it isn't covered.
+  function officialName(jp, l) {
+    const li = LI[l]; if (li === undefined || !jp) return null;
+    if (FULLNAMES[jp]) return FULLNAMES[jp][li];
+    let rest = jp, pre = "";
+    if (rest.startsWith("県立")) { rest = rest.slice(2); pre = PREF[li]; }
+    for (const [suf, ...tpl] of SUFFIXES) {
+      if (!rest.endsWith(suf)) continue;
+      const stem = STEMS[rest.slice(0, -suf.length)]; if (!stem) return null;
+      const [reading, zh] = stem.split("|"), [en, ko] = kanaName(reading);
+      const place = li === 0 ? en : li === 2 ? ko : (zh || rest.slice(0, -suf.length));
+      return pre + tpl[li].replace("{}", place);
+    }
+    return null;
+  }
+  // Official (live) site names come from the API in Japanese only. In the Android app they are
+  // machine-translated on the device (ML Kit through ContourBridge) and cached on the device.
+  // In a plain browser, or until a translation arrives, the Japanese name is shown.
+  const TR_KEY = "contour.names";
+  let TR = {};
+  try { TR = JSON.parse(localStorage.getItem(TR_KEY) || "{}") || {}; } catch (_) { TR = {}; }
+  const trPending = new Set();
+  let trSeq = 0, trSaveT = 0, trRenderT = 0;
+  const hasBridge = () => !!(window.ContourBridge && typeof ContourBridge.translateText === "function");
+  // Browsers: Chrome's built-in on-device Translator (desktop Chrome 138+). One translator per language,
+  // created on first use; a failed create (e.g. model download needs a tap) is retried on the next render.
+  const browserTr = {};
+  function browserTranslate(text, l) {
+    if (!("Translator" in self)) return Promise.reject(new Error("no translator"));
+    if (!browserTr[l]) {
+      browserTr[l] = Translator.availability({ sourceLanguage: "ja", targetLanguage: l })
+        .then(a => { if (a === "unavailable") throw new Error("unavailable"); return Translator.create({ sourceLanguage: "ja", targetLanguage: l }); })
+        .catch(e => { delete browserTr[l]; throw e; });
+    }
+    return browserTr[l].then(tr => tr.translate(text));
+  }
+  function gotTr(name, l, res) {
+    if (!res || !res.trim()) return;
+    (TR[l] = TR[l] || {})[name] = res.trim();
+    clearTimeout(trSaveT); trSaveT = setTimeout(() => { try { localStorage.setItem(TR_KEY, JSON.stringify(TR)); } catch (_) {} }, 500);
+    clearTimeout(trRenderT); trRenderT = setTimeout(() => renderNames(), 150);
+  }
+  function requestTr(name, l) {
+    const key = l + "|" + name;
+    if (trPending.has(key)) return;
+    if (!hasBridge()) {
+      if (!("Translator" in self)) return;
+      trPending.add(key);
+      browserTranslate(name, l).then(res => gotTr(name, l, res), () => {}).finally(() => trPending.delete(key));
+      return;
+    }
+    trPending.add(key);
+    const cb = "__contourTr" + (++trSeq);
+    window[cb] = (err, res) => { delete window[cb]; trPending.delete(key); if (!err) gotTr(name, l, res); };
+    // Source is fixed to Japanese: kanji-only names (e.g. 伊勝小学校) would otherwise be detected as Chinese.
+    try { ContourBridge.translateText(name, "ja", l, cb); } catch (_) { trPending.delete(key); delete window[cb]; }
+  }
+  function liveName(name, l = lang) {
+    if (l === "ja" || !name) return name;
+    const built = officialName(name, l);
+    if (built) return built;
+    const hit = TR[l] && TR[l][name];
+    if (hit) return hit;
+    requestTr(name, l);
+    return name;
+  }
+  const pTitle = p => (p.live ? liveName(p.name) : lang === "ja" ? p.jp : lookup(NAMES, p.name));
+  // Second line: the Japanese name when the title is a translation (signs on site are in Japanese), else the address.
+  const pSub = p => (p.live ? (pTitle(p) !== p.name ? p.name : p.jp) : lang === "ja" ? p.name : p.jp);
+  // Every name a place is known by, in all four languages, for search.
+  const allNames = p => p.live
+    ? [p.name, ...Object.keys(LANGS).map(l => officialName(p.name, l) || (TR[l] && TR[l][p.name]))]
+    : [p.name, p.jp, ...Object.values(NAMES[p.name] || {})];
+  const normName = s => (s || "").toLowerCase().replace(/[（(]\s*(デモ|demo|演示|데모)\s*[)）]/g, "").replace(/\s+/g, " ").trim();
 
   // ----- map
   const BOUNDS = L.latLngBounds([USER[0] - 0.013, USER[1] - 0.017], [USER[0] + 0.013, USER[1] + 0.017]);
@@ -1432,7 +1798,10 @@ html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-
     if (dragMoved) return;
     const card = e.target.closest(".card"); if (!card || card === emptyCard) return;
     const i = +card.dataset.i;
-    if (e.target.closest(".cta") || i === sel) { if (i !== sel) select(i, { pan: false }); openSheet(i); }
+    // With the keyboard open the page is short; close the keyboard first so the sheet is sized for the full screen.
+    const kb = document.activeElement === q;
+    if (kb) q.blur();
+    if (e.target.closest(".cta") || i === sel) { if (i !== sel) select(i, { pan: false }); setTimeout(() => openSheet(i), kb ? 320 : 0); }
     else select(i, { from: "card" });
   });
   carousel.addEventListener("keydown", e => {
@@ -1456,7 +1825,7 @@ html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-
   const motion = s => reduced ? { easing: "linear", duration: 1 } : s;
 
   // ----- sheet
-  let sheetState = "closed", sheetIdx = -1, sheetGeom = null, prevView = null, sheetAnim = null;
+  let sheetState = "closed", sheetIdx = -1, sheetGeom = null, prevView = null, sheetAnim = null, closeAfterOpen = false;
   const rel = el => { const a = el.getBoundingClientRect(), b = phone.getBoundingClientRect(); return { left: (a.left - b.left) / S, top: (a.top - b.top) / S, width: a.width / S, height: a.height / S }; };
   function fillDetail(p) {
     $("dNum").textContent = String(p.n).padStart(2, "0");
@@ -1477,7 +1846,7 @@ html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-
   function openSheet(i) {
     if (sheetState !== "closed") return;
     const p = POINTS[i], card = cards[i];
-    sheetIdx = i; sheetState = "opening";
+    sheetIdx = i; sheetState = "opening"; closeAfterOpen = false;
     closeOverlays();
     fillDetail(p);
     const from = rel(card);
@@ -1505,13 +1874,25 @@ html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-
     ], { duration: m.duration, easing: m.easing, fill: "forwards" });
     sheetAnim.onfinish = () => {
       Object.assign(sheet.style, { left: "0px", top: sheetGeom.top + "px", width: W + "px", height: sheetH + 80 + "px", borderRadius: "16px 16px 0 0" });
-      sheetAnim.cancel(); sheetAnim = null; sheetState = "open"; $("closeBtn").focus({ preventScroll: true });
+      sheetAnim.cancel(); sheetAnim = null; sheetState = "open"; relayoutSheet(); $("closeBtn").focus({ preventScroll: true });
+      if (closeAfterOpen) { closeAfterOpen = false; closeSheet(); }
     };
     // map zooms toward the point, placed in the visible band above the sheet
     prevView = { c: map.getCenter(), z: map.getZoom() };
     const z = Math.max(17, Math.min(17.5, map.getZoom() + 1));
     const target = map.unproject(map.project(p.ll, z).add([0, sheetH / 2 - 40]), z);
     map.flyTo(target, z, { duration: reduced ? 0 : 0.9, easeLinearity: 0.2 });
+  }
+  // Re-fit the open sheet to the current screen (keyboard closed, rotation, text length after a language change).
+  function relayoutSheet() {
+    if (sheetState !== "open") return;
+    const W = phone.clientWidth, H = phone.clientHeight;
+    detail.style.width = W + "px"; detail.style.height = "auto";
+    const sheetH = Math.min(detail.scrollHeight, H - 110);
+    detail.style.height = sheetH + "px";
+    sheet.style.touchAction = detail.scrollHeight > sheetH + 1 ? "pan-y" : "none";
+    sheetGeom = { top: H - sheetH, h: sheetH };
+    Object.assign(sheet.style, { left: "0px", top: sheetGeom.top + "px", width: W + "px", height: sheetH + 80 + "px" });
   }
   function closeSheet(fromDragY = 0) {
     if (sheetState !== "open" && sheetState !== "dragging") return;
@@ -1580,11 +1961,12 @@ html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-
   const q = $("q");
   function setEmptyName() { $("emptyName").textContent = POINTS.length ? t("empty.n", { q: q.value.trim() }) : t("live.none"); }
   function applySearch() {
-    const term = q.value.trim().toLowerCase();
-    $("clearQ").hidden = !term;
+    const term = normName(q.value);
+    $("clearQ").hidden = !q.value.trim();
     let firstMatch = -1, count = 0;
     POINTS.forEach((p, i) => {
-      const hit = !term || p.name.toLowerCase().includes(term) || pTitle(p).toLowerCase().includes(term) || p.jp.includes(q.value.trim()) || p.loc.toLowerCase().includes(term) || lookup(LOCS, p.loc).toLowerCase().includes(term);
+      // Names only (any language), not addresses: "Nagoya" must not match every place in Nagoya.
+      const hit = !term || [pTitle(p), ...allNames(p)].some(s => s && normName(s).includes(term));
       cards[i].classList.toggle("hide", !hit);
       const el = markers[i].getElement(); if (el) el.classList.toggle("marker-hidden", !hit);
       if (hit) { count++; if (firstMatch < 0) firstMatch = i; }
@@ -1650,16 +2032,26 @@ html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-
     head.className = "pg-head"; head.innerHTML = `<h2 data-i18n="${v.dataset.title}"></h2>`;
     v.prepend(bar); bar.after(head);
   });
+  // Emergency information and About get the same language menu, next to their close button.
+  document.querySelectorAll("[data-lang-slot]").forEach(slot => slot.insertAdjacentHTML("afterbegin",
+    `<button class="lang-btn" type="button" aria-haspopup="menu" aria-expanded="false" aria-label="Language">${globeSvg}<span data-lang-label></span>${caretSvg}</button>`));
   const mapBar = makeBar("menu"); mapBar.classList.add("map-bar");
   document.querySelector("header.top").before(mapBar);
 
   // ----- area list (English | Japanese, as in the reference)
   const PREFS = "Hokkaido|北海道;Aomori Prefecture|青森県;Iwate Prefecture|岩手県;Miyagi Prefecture|宮城県;Akita Prefecture|秋田県;Yamagata Prefecture|山形県;Fukushima Prefecture|福島県;Ibaraki Prefecture|茨城県;Tochigi Prefecture|栃木県;Gunma Prefecture|群馬県;Saitama Prefecture|埼玉県;Chiba Prefecture|千葉県;Tokyo Metropolitan area|東京都;Kanagawa Prefecture|神奈川県;Niigata Prefecture|新潟県;Toyama Prefecture|富山県;Ishikawa Prefecture|石川県;Fukui Prefecture|福井県;Yamanashi Prefecture|山梨県;Nagano Prefecture|長野県;Gifu Prefecture|岐阜県;Shizuoka Prefecture|静岡県;Aichi Prefecture|愛知県;Mie Prefecture|三重県;Shiga Prefecture|滋賀県;Kyoto Prefecture|京都府;Osaka Prefecture|大阪府;Hyogo Prefecture|兵庫県;Nara Prefecture|奈良県;Wakayama Prefecture|和歌山県;Tottori Prefecture|鳥取県;Shimane Prefecture|島根県;Okayama Prefecture|岡山県;Hiroshima Prefecture|広島県;Yamaguchi Prefecture|山口県;Tokushima Prefecture|徳島県;Kagawa Prefecture|香川県;Ehime Prefecture|愛媛県;Kochi Prefecture|高知県;Fukuoka Prefecture|福岡県;Saga Prefecture|佐賀県;Nagasaki Prefecture|長崎県;Kumamoto Prefecture|熊本県;Oita Prefecture|大分県;Miyazaki Prefecture|宮崎県;Kagoshima Prefecture|鹿児島県;Okinawa Prefecture|沖縄県".split(";").map(s => s.split("|"));
-  $("areaList").innerHTML = PREFS.map(([en, ja], i) => `<li><button type="button" data-pref="${en}"><span class="a-en">${en}</span><span class="a-ja">${ja}</span><svg viewBox="0 0 8 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m1.500 1.500 5 5-5 5"/></svg></button></li>`).join("");
+  const PREFS_ZH = "北海道 青森县 岩手县 宫城县 秋田县 山形县 福岛县 茨城县 栃木县 群马县 埼玉县 千叶县 东京都 神奈川县 新潟县 富山县 石川县 福井县 山梨县 长野县 岐阜县 静冈县 爱知县 三重县 滋贺县 京都府 大阪府 兵库县 奈良县 和歌山县 鸟取县 岛根县 冈山县 广岛县 山口县 德岛县 香川县 爱媛县 高知县 福冈县 佐贺县 长崎县 熊本县 大分县 宫崎县 鹿儿岛县 冲绳县".split(" ");
+  const PREFS_KO = "홋카이도 아오모리현 이와테현 미야기현 아키타현 야마가타현 후쿠시마현 이바라키현 도치기현 군마현 사이타마현 지바현 도쿄도 가나가와현 니가타현 도야마현 이시카와현 후쿠이현 야마나시현 나가노현 기후현 시즈오카현 아이치현 미에현 시가현 교토부 오사카부 효고현 나라현 와카야마현 돗토리현 시마네현 오카야마현 히로시마현 야마구치현 도쿠시마현 가가와현 에히메현 고치현 후쿠오카현 사가현 나가사키현 구마모토현 오이타현 미야자키현 가고시마현 오키나와현".split(" ");
+  // Name in the chosen language; the small second label is the Japanese name (English when Japanese is chosen).
+  const prefName = i => ({ en: PREFS[i][0], ja: PREFS[i][1], zh: PREFS_ZH[i], ko: PREFS_KO[i] })[lang];
+  function renderAreas() {
+    $("areaList").innerHTML = PREFS.map(([en, ja], i) => `<li><button type="button" data-pref="${i}"><span class="a-en">${prefName(i)}</span><span class="a-ja">${lang === "ja" ? en : ja}</span><svg viewBox="0 0 8 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m1.500 1.500 5 5-5 5"/></svg></button></li>`).join("");
+  }
   $("areaList").addEventListener("click", e => {
     const b = e.target.closest("[data-pref]"); if (!b) return;
-    if (b.dataset.pref.startsWith("Aichi")) setTab("surround");   // the demo map is around Nagoya (Aichi)
-    else say(t("area.na", { n: b.dataset.pref.replace(/ (Prefecture|Metropolitan area)$/, "") }));
+    const i = +b.dataset.pref;
+    if (PREFS[i][0].startsWith("Aichi")) setTab("surround");   // the demo map is around Nagoya (Aichi)
+    else say(t("area.na", { n: lang === "en" ? PREFS[i][0].replace(/ (Prefecture|Metropolitan area)$/, "") : prefName(i) }));
   });
 
   // ----- pages: the map is home; everything else opens over it from the menu
@@ -1797,7 +2189,9 @@ html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-
   const saveAtt = () => { try { localStorage.setItem(ATT_KEY, JSON.stringify(att)); } catch (_) {} };
   function renderShelterOptions() { const cur = $("attShelter").value; $("attShelter").innerHTML = POINTS.map(p => `<option value="${esc(p.name)}">${esc(pTitle(p))}</option>`).join(""); if (cur) $("attShelter").value = cur; }
   renderShelterOptions();
-  const shelterLabel = name => { const p = POINTS.find(x => x.name === name); return p ? pTitle(p) : name; };
+  // Entries keep the source name (English for demo points, Japanese for official sites); show it in the chosen language
+  // even when that place is no longer in the current list.
+  const shelterLabel = name => { const p = POINTS.find(x => x.name === name) || DEMO.find(x => x.name === name); return p ? pTitle(p) : liveName(name); };
   function setAttMode(m) {
     attMode = m;
     document.querySelectorAll(".seg button").forEach(b => { const on = b.dataset.mode === m; b.classList.toggle("on", on); b.setAttribute("aria-selected", String(on)); });
@@ -1874,15 +2268,25 @@ html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-
     document.querySelectorAll("[data-i18n-aria]").forEach(el => el.setAttribute("aria-label", t(el.dataset.i18nAria)));
     document.querySelectorAll(".lang-btn").forEach(el => el.setAttribute("aria-label", t("lang")));
     document.querySelectorAll("[data-lang-label]").forEach(el => { el.textContent = LANGS[lang].label; });
-    renderStatus(); renderHz(); renderAlerts(); renderAskQuick(); renderWalking();
-    if (sheetState === "open" && POINTS[sheetIdx]) fillDetail(POINTS[sheetIdx]);
+    document.querySelectorAll("[data-l]").forEach(el => { el.hidden = el.dataset.l !== lang; });
+    renderStatus(); renderHz(); renderAlerts(); renderAskQuick(); renderAreas();
+    renderNames();
+    setEmptyName(); renderDate(); renderLangPop();
+    gatherLayer.eachLayer(m => m.setPopupContent(gatherPopup(m._g, m._ll)));
+  }
+  // Everything that shows a place name: cards, detail sheet, 3D AR, AR picker, attendance sheet, walking panel.
+  // Also runs when a machine translation of an official site name arrives.
+  function renderNames() {
+    renderWalking();
+    if (sheetState === "open" && POINTS[sheetIdx]) { fillDetail(POINTS[sheetIdx]); relayoutSheet(); }
     POINTS.forEach((p, i) => {
+      if (!cards[i]) return;
       cards[i].innerHTML = cardHTML(p, i);
       cards[i].querySelector(".cta").tabIndex = 0;
       cards[i].setAttribute("aria-label", `${pTitle(p)}, ${fmtDist(p.m)}, ${t("card.walk", { n: p.walk })}`);
     });
-    setEmptyName(); renderDate(); renderLangPop(); renderShelterOptions(); renderAtt(); renderPick();
-    gatherLayer.eachLayer(m => m.setPopupContent(gatherPopup(m._g, m._ll)));
+    if (arPoint) { $("arName").textContent = pTitle(arPoint); $("arJp").textContent = pSub(arPoint); }
+    renderShelterOptions(); renderAtt(); renderPick(); renderAlerts();
   }
 
   // ----- live sites: rebuild markers/cards from a list (only while the detail sheet is closed)
@@ -1895,6 +2299,8 @@ html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-
     if (sheetState !== "closed" || walkingPoint) return false;
     markers.forEach(m => m.remove()); cards.forEach(c => c.remove());
     POINTS = placePoints(list);
+    // Translate official names into every language up front, so search works in any of them.
+    POINTS.forEach(p => { if (p.live) Object.keys(LANGS).forEach(l => liveName(p.name, l)); });
     markers = POINTS.map(makeMarker); cards = POINTS.map(makeCard);
     sel = -1;
     renderShelterOptions();
@@ -1977,8 +2383,65 @@ html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-
   // ----- JMA alerts (Disaster info page + chip on the map)
   let alerts = null, alertsState = "idle";
   const KIND_EN = { "02": "Snowstorm warning", "03": "Heavy rain warning", "04": "Flood warning", "05": "Storm warning", "06": "Heavy snow warning", "07": "High wave warning", "08": "Storm surge warning", "10": "Heavy rain advisory", "12": "Heavy snow advisory", "13": "Snowstorm advisory", "14": "Thunderstorm advisory", "15": "Gale advisory", "16": "High wave advisory", "17": "Snowmelt advisory", "18": "Flood advisory", "19": "Storm surge advisory", "20": "Dense fog advisory", "21": "Dry air advisory", "22": "Avalanche advisory", "23": "Low temperature advisory", "24": "Frost advisory", "25": "Ice accretion advisory", "26": "Snow accretion advisory", "32": "Snowstorm emergency warning", "33": "Heavy rain emergency warning", "35": "Storm emergency warning", "36": "Heavy snow emergency warning", "37": "High wave emergency warning", "38": "Storm surge emergency warning" };
-  const BULLETIN = { VXSE51: ["Seismic intensity report", "震度速報"], VXSE52: ["Earthquake epicenter report", "震源に関する情報"], VXSE53: ["Earthquake information", "震源・震度に関する情報"], VTSE41: ["Tsunami warning / advisory", "津波警報・注意報"], VTSE51: ["Tsunami information", "津波情報"], VTSE52: ["Offshore tsunami information", "沖合の津波観測に関する情報"], VFVO50: ["Volcanic warning", "噴火警報・予報"], VFVO56: ["Eruption notice", "噴火速報"] };
-  const kindName = k => lang === "ja" ? k.name : (lang === "en" && KIND_EN[k.code] ? `${KIND_EN[k.code]} (${k.name})` : k.name);
+  // [en, ja, zh, ko]
+  const BULLETIN = { VXSE51: ["Seismic intensity report", "震度速報", "震度速报", "진도 속보"], VXSE52: ["Earthquake epicenter report", "震源に関する情報", "震源信息", "진원 정보"], VXSE53: ["Earthquake information", "震源・震度に関する情報", "震源・震度信息", "진원·진도 정보"], VTSE41: ["Tsunami warning / advisory", "津波警報・注意報", "海啸警报・注意报", "쓰나미 경보·주의보"], VTSE51: ["Tsunami information", "津波情報", "海啸信息", "쓰나미 정보"], VTSE52: ["Offshore tsunami information", "沖合の津波観測に関する情報", "近海海啸观测信息", "앞바다 쓰나미 관측 정보"], VFVO50: ["Volcanic warning", "噴火警報・予報", "火山喷发警报・预报", "분화 경보·예보"], VFVO56: ["Eruption notice", "噴火速報", "火山喷发速报", "분화 속보"] };
+  // JMA data is Japanese only. Warning names, statuses, bulletin types and the usual headline sentences
+  // are translated here; anything else goes to the device translator (if any) and otherwise stays Japanese.
+  const L3 = () => ({ en: 0, zh: 1, ko: 2 })[lang];
+  const KIND_ZK = { "02": ["暴风雪警报", "폭풍설 경보"], "03": ["暴雨警报", "호우 경보"], "04": ["洪水警报", "홍수 경보"], "05": ["暴风警报", "폭풍 경보"], "06": ["大雪警报", "대설 경보"], "07": ["巨浪警报", "파랑 경보"], "08": ["风暴潮警报", "폭풍해일 경보"], "10": ["暴雨注意报", "호우 주의보"], "12": ["大雪注意报", "대설 주의보"], "13": ["风雪注意报", "풍설 주의보"], "14": ["雷电注意报", "뇌우 주의보"], "15": ["强风注意报", "강풍 주의보"], "16": ["波浪注意报", "파랑 주의보"], "17": ["融雪注意报", "융설 주의보"], "18": ["洪水注意报", "홍수 주의보"], "19": ["风暴潮注意报", "폭풍해일 주의보"], "20": ["浓雾注意报", "짙은 안개 주의보"], "21": ["干燥注意报", "건조 주의보"], "22": ["雪崩注意报", "눈사태 주의보"], "23": ["低温注意报", "저온 주의보"], "24": ["霜冻注意报", "서리 주의보"], "25": ["积冰注意报", "착빙 주의보"], "26": ["积雪注意报", "착설 주의보"], "32": ["暴风雪特别警报", "폭풍설 특별경보"], "33": ["暴雨特别警报", "호우 특별경보"], "35": ["暴风特别警报", "폭풍 특별경보"], "36": ["大雪特别警报", "대설 특별경보"], "37": ["巨浪特别警报", "파랑 특별경보"], "38": ["风暴潮特别警报", "폭풍해일 특별경보"] };
+  const kindName = k => {
+    if (lang === "ja") return k.name;
+    const i = L3(), built = i === 0 ? KIND_EN[k.code] : KIND_ZK[k.code] && KIND_ZK[k.code][i - 1];
+    return built || liveName(k.name);
+  };
+  const JMA_STATUS = { "発表": ["Issued", "发布", "발표"], "継続": ["Continuing", "持续", "계속"], "解除": ["Lifted", "解除", "해제"], "訂正": ["Corrected", "更正", "정정"], "取消": ["Cancelled", "取消", "취소"],
+    "特別警報から警報": ["Lowered to warning", "由特别警报降为警报", "특별경보에서 경보로"], "警報から注意報": ["Lowered to advisory", "由警报降为注意报", "경보에서 주의보로"],
+    "注意報から警報": ["Raised to warning", "由注意报升为警报", "주의보에서 경보로"], "警報から特別警報": ["Raised to emergency warning", "由警报升为特别警报", "경보에서 특별경보로"],
+    "注意報から特別警報": ["Raised to emergency warning", "由注意报升为特别警报", "주의보에서 특별경보로"], "発表警報・注意報はなし": ["None in effect", "无生效的警报・注意报", "발효 중인 경보·주의보 없음"] };
+  const jmaWord = s => (lang === "ja" || !s) ? s : (JMA_STATUS[s] ? JMA_STATUS[s][L3()] : liveName(s));
+  const JMA_AREA = { "愛知県": ["Aichi Prefecture", "爱知县", "아이치현"], "東部": ["the east", "东部", "동부"], "西部": ["the west", "西部", "서부"], "北部": ["the north", "北部", "북부"], "南部": ["the south", "南部", "남부"],
+    "尾張東部": ["eastern Owari", "尾张东部", "오와리 동부"], "尾張西部": ["western Owari", "尾张西部", "오와리 서부"], "西三河": ["Nishi-Mikawa", "西三河", "니시미카와"], "東三河": ["Higashi-Mikawa", "东三河", "히가시미카와"],
+    "名古屋市": ["Nagoya City", "名古屋市", "나고야시"], "沿岸": ["coastal areas", "沿岸", "연안"], "伊勢湾": ["Ise Bay", "伊势湾", "이세만"], "三河湾": ["Mikawa Bay", "三河湾", "미카와만"], "海上": ["at sea", "海上", "해상"] };
+  const JMA_PH = { "強風": ["strong winds", "强风", "강풍"], "暴風": ["storm winds", "暴风", "폭풍"], "高波": ["high waves", "大浪", "높은 파도"], "大雨": ["heavy rain", "暴雨", "호우"], "土砂災害": ["landslides", "泥石流灾害", "토사 재해"],
+    "低い土地の浸水": ["flooding of low-lying land", "低洼地区进水", "저지대 침수"], "河川の増水": ["rising rivers", "河水上涨", "하천 증수"], "河川の増水や氾濫": ["rising and overflowing rivers", "河水上涨和泛滥", "하천 증수와 범람"], "氾濫": ["river overflow", "河流泛滥", "범람"],
+    "洪水": ["floods", "洪水", "홍수"], "高潮": ["storm surge", "风暴潮", "폭풍해일"], "落雷": ["lightning", "雷击", "낙뢰"], "雷": ["thunderstorms", "雷电", "뇌우"], "突風": ["gusts", "阵风", "돌풍"], "竜巻などの激しい突風": ["tornadoes and other violent gusts", "龙卷风等强烈阵风", "회오리바람 등 격렬한 돌풍"],
+    "竜巻": ["tornadoes", "龙卷风", "회오리바람"], "ひょう": ["hail", "冰雹", "우박"], "急な強い雨": ["sudden heavy rain", "突发强降雨", "갑작스러운 강한 비"], "濃霧": ["dense fog", "浓雾", "짙은 안개"], "濃霧による視程障害": ["poor visibility from dense fog", "浓雾导致的能见度低", "짙은 안개로 인한 시정 장애"],
+    "空気の乾燥": ["dry air", "空气干燥", "공기 건조"], "乾燥": ["dry air", "干燥", "건조"], "火の取り扱い": ["handling fire", "用火", "불 취급"], "大雪": ["heavy snow", "大雪", "대설"], "着雪": ["snow accretion", "积雪", "착설"], "なだれ": ["avalanches", "雪崩", "눈사태"],
+    "路面の凍結": ["icy roads", "路面结冰", "노면 결빙"], "霜": ["frost", "霜冻", "서리"], "低温": ["low temperatures", "低温", "저온"], "融雪": ["snowmelt", "融雪", "융설"], "うねりを伴った高波": ["high waves with swell", "伴有涌浪的大浪", "너울을 동반한 높은 파도"] };
+  const JMA_ISSUE = { "大津波警報": ["Major tsunami warning", "大海啸警报", "대쓰나미 경보"], "津波警報": ["Tsunami warning", "海啸警报", "쓰나미 경보"], "津波注意報": ["Tsunami advisory", "海啸注意报", "쓰나미 주의보"],
+    "津波警報・注意報": ["Tsunami warnings and advisories", "海啸警报・注意报", "쓰나미 경보·주의보"], "大津波警報・津波警報・津波注意報": ["Tsunami warnings and advisories", "海啸警报・注意报", "쓰나미 경보·주의보"],
+    "津波予報（若干の海面変動）": ["Tsunami forecast (slight sea-level change)", "海啸预报（海面轻微变化）", "쓰나미 예보 (약간의 해수면 변동)"], "津波予報": ["Tsunami forecast", "海啸预报", "쓰나미 예보"],
+    "噴火警報": ["Volcanic warning", "火山喷发警报", "분화 경보"], "噴火速報": ["Eruption notice", "火山喷发速报", "분화 속보"] };
+  const zen2han = s => s.replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0));
+  const joinList = (xs, i) => i === 0 ? (xs.length > 1 ? xs.slice(0, -1).join(", ") + " and " + xs[xs.length - 1] : xs[0]) : xs.join(i === 1 ? "、" : ", ");
+  function jmaSentence(s, i) {
+    let m = s.match(/^(\d+)日(\d+)時(\d+)分ころ、地震がありました$/);
+    if (m) { const d = +m[1], hm = m[2].padStart(2, "0") + ":" + m[3].padStart(2, "0"), th = d % 10 === 1 && d !== 11 ? "st" : d % 10 === 2 && d !== 12 ? "nd" : d % 10 === 3 && d !== 13 ? "rd" : "th"; return [`Earthquake at about ${hm} JST on the ${d}${th}.`, `${d}日${hm}左右发生地震。`, `${d}일 ${hm}경 지진이 있었습니다.`][i]; }
+    if (/^現在、?発表している警報・?注意報はありません$/.test(s)) return ["No warnings or advisories are in effect.", "目前没有生效的警报或注意报。", "현재 발효 중인 경보·주의보는 없습니다."][i];
+    m = s.match(/^(.+?)を(発表|解除)しました$/);
+    if (m && JMA_ISSUE[m[1]]) { const x = JMA_ISSUE[m[1]][i], on = m[2] === "発表"; return [on ? `${x} issued.` : `${x} lifted.`, on ? `已发布${x}。` : `已解除${x}。`, on ? `${x} 발표.` : `${x} 해제.`][i]; }
+    m = s.match(/^(?:(.+?)では、)?(.+?)に(注意|警戒)してください$/);
+    if (!m) return null;
+    const areas = m[1] ? m[1].split(/、|や|及び/) : [], phs = m[2].split(/、|や|及び/);
+    if (areas.some(a => !JMA_AREA[a]) || phs.some(p => !JMA_PH[p])) {
+      if (!JMA_PH[m[2]] || areas.some(a => !JMA_AREA[a])) return null;
+      phs.length = 0; phs.push(m[2]);
+    }
+    const a = areas.length ? joinList(areas.map(x => JMA_AREA[x][i]), i) : "", p = joinList(phs.map(x => JMA_PH[x][i]), i), alert = m[3] === "警戒";
+    if (i === 0) { const v = alert ? "be on alert for" : "watch out for"; return a ? `In ${a}, ${v} ${p}.` : `${v[0].toUpperCase() + v.slice(1)} ${p}.`; }
+    if (i === 1) return `${a}请${alert ? "警惕" : "注意"}${p}。`;
+    return `${a ? a + "에서는 " : ""}${p}에 ${alert ? "경계" : "주의"}하세요.`;
+  }
+  // Whole JMA text in the chosen language, or null (the caller then shows the Japanese).
+  function jmaText(s) {
+    if (lang === "ja" || !s) return null;
+    const i = L3(), parts = zen2han(s).split("。").map(x => x.trim()).filter(Boolean);
+    const out = parts.map(x => jmaSentence(x, i));
+    if (out.every(Boolean)) return out.join(i === 0 ? " " : i === 2 ? " " : "");
+    const mt = liveName(s);
+    return mt !== s ? mt : null;
+  }
+  const jmaHtml = (s, cls) => { const tr = jmaText(s); return tr ? `<p class="${cls}">${esc(tr)}</p><p class="${cls} dz-orig" lang="ja">${esc(s)}</p>` : `<p class="${cls}" lang="ja">${esc(s)}</p>`; };
   const fmtTime = iso => { const d = new Date(iso); return isNaN(d) ? iso : d.toLocaleString(LANGS[lang].loc, { timeZone: "Asia/Tokyo", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) + " JST"; };
   async function loadAlerts() {
     if (alertsState === "loading") return;
@@ -2006,14 +2469,14 @@ html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-
       if (!w.nagoya) html += `<p class="dz-empty">${t("dz.cancel")}</p>`;
       else {
         const kinds = w.nagoya.kinds.filter(k => k.name);
-        html += kinds.length ? `<ul>${kinds.sort((a, b) => b.inEffect - a.inEffect).map(k => `<li><span class="k">${esc(kindName(k))}</span><span class="s ${k.inEffect ? "on " + k.level : ""}">${k.inEffect ? t("st.on") : esc(k.status)}</span></li>`).join("")}</ul>` : `<p class="dz-empty">${t("dz.none")}</p>`;
+        html += kinds.length ? `<ul>${kinds.sort((a, b) => b.inEffect - a.inEffect).map(k => `<li><span class="k">${esc(kindName(k))}</span><span class="s ${k.inEffect ? "on " + k.level : ""}">${k.inEffect ? t("st.on") : esc(jmaWord(k.status))}</span></li>`).join("")}</ul>` : `<p class="dz-empty">${t("dz.none")}</p>`;
         if (kinds.length && !kinds.some(k => k.inEffect)) html += `<p class="dz-meta">${t("dz.none")}</p>`;
       }
-      if (w.headline) html += `<p class="dz-head" lang="ja">${esc(w.headline)}</p>`;
+      if (w.headline) html += jmaHtml(w.headline, "dz-head");
       html += `<p class="dz-meta">${t("dz.at", { t: fmtTime(w.reportDateTime) })} · <a href="${esc(w.sourceUrl)}" target="_blank" rel="noopener">JMA XML</a></p>`;
     }
     html += `<h3>${t("dz.quake")}</h3>`;
-    html += alerts.bulletins.length ? `<ul>${alerts.bulletins.map(b => { const n = BULLETIN[b.bulletinType] || [b.bulletinType, b.bulletinType]; return `<li><span class="k">${esc(lang === "ja" ? n[1] : n[0])}<small lang="ja">${esc(b.headline)}</small><small>${t("dz.at", { t: fmtTime(b.reportDateTime) })}${b.aichiMentioned ? " · " + t("dz.aichi") : ""}</small></span><span class="s${b.aichiMentioned ? " on warning" : ""}">${esc(b.infoType)}</span></li>`; }).join("")}</ul>` : `<p class="dz-empty">${t("dz.noquake")}</p>`;
+    html += alerts.bulletins.length ? `<ul>${alerts.bulletins.map(b => { const n = BULLETIN[b.bulletinType] || [b.bulletinType, b.bulletinType, b.bulletinType, b.bulletinType], bn = n[{ en: 0, ja: 1, zh: 2, ko: 3 }[lang]] || n[0], hl = jmaText(b.headline); return `<li><span class="k">${esc(bn)}${hl ? `<small>${esc(hl)}</small>` : `<small lang="ja">${esc(b.headline)}</small>`}<small>${t("dz.at", { t: fmtTime(b.reportDateTime) })}${b.aichiMentioned ? " · " + t("dz.aichi") : ""}</small></span><span class="s${b.aichiMentioned ? " on warning" : ""}">${esc(jmaWord(b.infoType))}</span></li>`; }).join("")}</ul>` : `<p class="dz-empty">${t("dz.noquake")}</p>`;
     html += `<p class="dz-meta">${t("dz.checked", { t: fmtTime(alerts.checkedAt) })}</p>`;
     html += `<a class="btn outline dz-btn" href="https://www.jma.go.jp/bosai/warning/#area_type=class20s&area_code=2310000" target="_blank" rel="noopener">${t("dz.jma")}</a>`;
     html += `<button class="dz-btn" type="button" id="dzRefresh">${t("dz.refresh")}</button>`;
@@ -2101,13 +2564,18 @@ html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-
     if (!ar.hidden) { closeAR(); return true; }
     if (!ask.hidden) { closeAsk(); return true; }
     if (!pick.hidden) { closePick(); return true; }
-    if (sheetState === "open") { closeSheet(); return true; }
+    if (sheetState === "open" || sheetState === "dragging") { closeSheet(); return true; }
+    if (sheetState === "opening") { closeAfterOpen = true; return true; }   // close as soon as it has opened
+    if (sheetState === "closing") return true;
     if (langpop.classList.contains("on")) { closeLang(); return true; }
     if (drawer.classList.contains("on")) { closeDrawer(); return true; }
     if (pop.classList.contains("on")) { closeOverlays(); return true; }
     const pg = document.querySelector(".page.on"); if (pg) { pg.classList.remove("on"); return true; }
     if (phone.dataset.tab !== "surround") { setTab("surround"); return true; }
     if (walkingPoint) { closeWalking(); return true; }
+    // Search: back closes the keyboard first (Android does that), then clears the search.
+    if (document.activeElement === q) { q.blur(); return true; }
+    if (q.value) { q.value = ""; applySearch(); return true; }
     return false;
   };
 
@@ -2269,6 +2737,6 @@ html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-
     phone.style.transform = `scale(${S})`;
   }
   fit();
-  window.addEventListener("resize", () => { fit(); map.invalidateSize(); });
+  window.addEventListener("resize", () => { fit(); map.invalidateSize(); relayoutSheet(); });
 })();
 </script>
