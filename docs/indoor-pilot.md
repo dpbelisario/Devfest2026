@@ -1,8 +1,9 @@
 # Indoor room directions: Engineering Building II pilot
 
 Contour uses the supplied Student/Evacuation design. In **Student → Ask**, ask
-“How do I get to room 221 in Engineering Building II?” Select a room or landmark
-you recognize, then open **3D AR**. Chat and the camera overlay use the same ordered
+“How do I get to room 221?” The first demo assumes the Engineering Building II
+office on 3F as the start; no building, floor, checkpoint or alignment questions
+are required. Open **3D AR**. Chat and the camera overlay use the same ordered
 route steps. There is no separate classroom dashboard.
 
 ## Try the prototype
@@ -11,23 +12,23 @@ Use Node 24. From the repository root run `npm ci` and `npm run dev`, then open
 `http://localhost:8080/app/`.
 
 1. Select **Student**, open **Ask**, and ask the question above.
-2. Select **Mechanical Engineering Office · Middle wing 3F** as your starting
-   landmark. Room 221 remains the destination, on middle-wing 2F.
+2. Directions appear immediately using **Mechanical Engineering Office · Middle
+   wing 3F** as the hardcoded start. Room 221 is on middle-wing 2F.
 3. Read the directions: face the corridor landmark, continue to the north-wing
    stairs, go down to 2F, then follow the corridor to room 221.
-4. Open **3D AR**. Face the named landmark and tap **Align here**. With a phone
-   compass, the camera arrow rotates relative to that alignment. Without compass
-   data, it is explicitly a step illustration. Stairs have an up/down overlay.
-5. Tap **Next landmark** only when you reach it. After stairs, align again. The
+4. Open **3D AR**. This demo assumes the phone faces the named corridor at the
+   start and after stairs. With a compass, the first reading supplies that assumed
+   alignment; without one, arrows are illustrations. Stairs have an up/down overlay.
+5. Tap **Next landmark** only when you reach it. The
    final action is **Confirm room door**, requiring a door-sign check.
-6. Use **I'm elsewhere** if you lose your place. It clears the route and asks for
-   a new recognizable checkpoint. Closing AR or hiding the page stops its camera.
+6. Closing AR or hiding the page stops its camera. Ask for room 221 again to
+   restart the fixed demo. Other mapped-room requests retain manual start selection.
 
-GPS can suggest Engineering II and asks whether you are inside. GPS never chooses
-your indoor floor, room, or facing direction. A room/landmark supplies the start.
-New questions require the backend; a failed request clears the previous route and
-offers a visible retry message. The bundled APK calls the existing public host,
-which must first receive this backend change. Camera access needs HTTPS or localhost.
+The room-221 answer and structured route are embedded from the canonical graph at
+build time. They work without a backend, GPS or credentials, including when opening
+the single HTML file locally. No sensor or camera establishes the demo's start.
+Other room requests use the backend and ask for a known checkpoint. Camera access
+needs HTTPS or localhost; use the local server for camera testing.
 
 ## What the prototype knows
 
@@ -55,8 +56,9 @@ These ordinary classroom previews are not emergency evacuation routes.
 ## Catalog and API
 
 `backend/data/indoor.json` is canonical. `backend/scripts/sync-indoor.mjs` embeds
-it in the shared HTML asset during `dev` and `build`; run it before an Android-only
-build if you change the catalog. Do not edit its embedded copy manually.
+it and the room-221 demo in the shared HTML asset during `dev` and `build`; run
+`npx tsx backend/scripts/sync-indoor.mjs` before an Android-only build if you change
+the catalog. Do not edit the embedded copies manually.
 
 - `GET /api/indoor/catalog`: versioned nodes, edges and provenance.
 - `GET /api/indoor/rooms?q=221`: normalized room lookup.
