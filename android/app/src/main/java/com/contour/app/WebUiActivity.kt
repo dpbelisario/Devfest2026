@@ -144,6 +144,13 @@ class WebUiActivity : ComponentActivity() {
             }
         }
 
+    // Indoor navigation: pressure readings go to the page on the UI thread.
+    private val indoor by lazy {
+        com.contour.app.indoor.IndoorSensors(this) { hPa ->
+            if (::web.isInitialized) web.post { web.evaluateJavascript("window.contourIndoor && window.contourIndoor({p:$hPa})", null) }
+        }
+    }
+
     class ContourBridge(
         private val activity: WebUiActivity,
         private val speechInput: com.contour.app.speech.SpeechInput,
@@ -192,6 +199,15 @@ class WebUiActivity : ComponentActivity() {
                 com.contour.app.alert.EmergencyPopup.showTest(ctx, k, "緊急地震速報（テスト）", "強い揺れに備えてください。（Contourのテストです）")
             }, delayMs.coerceIn(0, 60_000).toLong())
         }
+
+        // ----- Indoor navigation (demo): barometer readings for floor changes
+
+        /** Sends air pressure (hPa) to window.contourIndoor about 4 times a second. Returns "baro" or "none". */
+        @android.webkit.JavascriptInterface
+        fun startIndoor(): String = if (activity.indoor.start()) "baro" else "none"
+
+        @android.webkit.JavascriptInterface
+        fun stopIndoor() = activity.indoor.stop()
 
         @android.webkit.JavascriptInterface
         fun stopListening() {
@@ -408,6 +424,7 @@ class WebUiActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         web.onResume()
+        indoor.resume()
         notifyAlertSetup()   // back from a settings screen: refresh the setup page
     }
 
@@ -421,12 +438,14 @@ class WebUiActivity : ComponentActivity() {
     }
 
     override fun onPause() {
+        indoor.pause()
         web.onPause()
         super.onPause()
     }
 
     override fun onDestroy() {
         web.removeCallbacks(hostedTimeout)
+        indoor.stop()
         speechInput.release()
         translator.close()
         web.destroy()

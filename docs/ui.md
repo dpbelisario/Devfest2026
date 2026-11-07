@@ -20,7 +20,8 @@ preview) is still in the app but is no longer the launcher; start it with
 
 Top page, Area list, Surrounding (map with shelter cards and a detail sheet), Attendance sheet
 (register / confirm survivor information, saved on the device only), Disaster info placeholder,
-3D AR directions (camera + compass arrows), and English / 日本語 / 中文 / 한국어.
+3D AR directions (camera + compass arrows), indoor navigation in a fictional building
+([indoor-nav.md](indoor-nav.md)), and English / 日本語 / 中文 / 한국어.
 
 ## Design rules
 

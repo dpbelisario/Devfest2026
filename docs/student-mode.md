@@ -10,6 +10,7 @@ the test alert, always switches to Evacuation.
 | Card button | 3D AR directions + Details | same |
 | Details | Photo, floors, type, hours, what's inside | Capacity, type, location, rated for |
 | Ask Contour | Offline: finds the building in the question, answers with direction, distance, nearby building, hours, a photo, **3D AR directions** and **Show on map** | Gemini via the backend |
+| Indoor navigation (demo) | Details → "find a classroom", or a prompt within 10 m of the building during 3D AR | Before 3D AR: "Are you inside a building?" Yes → to the nearest exit, then 3D AR |
 | Menu | Building list, Ask Contour, About, Speech & Translation | Area list, Attendance, Disaster info, Ask, Know-how, Emergency pop-up, About, Test alert, Speech & Translation |
 
 All texts are in English, 日本語, 中文 and 한국어.
