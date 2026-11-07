@@ -32,8 +32,20 @@ APKs installed from outside the Play Store (Firebase App Distribution) get Andro
 setting** block for notification access. Fix: App info → ⋮ → **Allow restricted settings**, then turn
 it on again. The setup page explains this and has an **Open app info** button.
 
-**Test the pop-up** on the setup page fires a simulated alert after 5 seconds: go to the home screen or
-lock the phone and watch Contour open.
+**Test alert** (menu, below About Contour) or **Test the pop-up** (setup page) first asks **Yes / No**.
+On Yes, lock the phone: about 8 seconds later the screen wakes, a test alert notification
+(緊急地震速報（テスト）) appears on the lock screen with strong vibration and a test siren (generated in
+`alert/TestSiren.kt`, alarm volume), and about 3.5 seconds later Contour pops up through the real pop-up
+path.
+
+The official message on the alert screen is translated into the app language for the usual 緊急速報
+wording (earthquake area, 強い揺れに備えてください, tsunami and evacuation sentences, (気象庁)), with
+the Japanese original underneath; other text goes to the device translator or stays Japanese.
+Contour may show over the lock screen only for an alert: once it leaves the screen, the normal lock
+applies again. Only the test
+makes its own sound; a real alert is already loud from the phone's emergency-alert app. The screen is labelled "TEST · not a real emergency". If a setting is
+still off, the menu item opens the setup page instead. In a browser, the test shows the alert screen at
+once.
 
 ## Testing with adb (debug builds)
 
