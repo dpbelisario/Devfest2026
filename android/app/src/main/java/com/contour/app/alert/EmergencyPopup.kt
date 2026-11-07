@@ -42,25 +42,20 @@ object EmergencyPopup {
             .putExtra(EXTRA_TITLE, title)
             .putExtra(EXTRA_TEXT, text)
 
-    /**
-     * [test]: the user's own test from the app. A real alert already sounds and vibrates (the phone's
-     * emergency-alert app does that), so only the test makes its own siren and vibration.
-     */
-    fun show(context: Context, kind: AlertKind, title: String, text: String, test: Boolean = false) {
+    /** A real alert: the phone's emergency-alert app already sounds and vibrates, so Contour only pops up. */
+    fun show(context: Context, kind: AlertKind, title: String, text: String) {
         val intent = alertIntent(context, kind, title, text)
-        if (test) { vibrateAlarm(context); TestSiren.play() }
         postNotification(context, intent, title, text)
         if (Settings.canDrawOverlays(context)) startOverOtherApps(context, intent)
     }
 
     /**
      * The user's test, played like a real alert: the screen wakes, a test "official alert" notification
-     * appears (lock screen or banner) with vibration and siren, and ~3.5 s later Contour pops up.
+     * appears (lock screen or banner) with a short vibration, and ~3.5 s later Contour pops up. No sound.
      */
     fun showTest(context: Context, kind: AlertKind, title: String, text: String) {
         wakeScreen(context)
         vibrateAlarm(context)
-        TestSiren.play()
         postTestOfficialAlert(context, kind, title, text)
         Handler(Looper.getMainLooper()).postDelayed({
             val intent = alertIntent(context, kind, title, text)
@@ -78,8 +73,8 @@ object EmergencyPopup {
         if (nm.getNotificationChannel(TEST_CHANNEL) == null) {
             nm.createNotificationChannel(NotificationChannel(TEST_CHANNEL, "Test alert", NotificationManager.IMPORTANCE_HIGH).apply {
                 description = "The test alert from Contour's menu"
-                setSound(null, null)          // the test siren plays separately
-                enableVibration(false)        // and so does the vibration
+                setSound(null, null)          // the test is silent
+                enableVibration(false)        // the vibration is played separately
                 lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
             })
         }
@@ -112,15 +107,16 @@ object EmergencyPopup {
         } catch (_: Exception) { }
     }
 
-    /** Strong, alarm-style vibration (like an emergency alert) for the test. */
+    private fun vibrator(context: Context) = if (Build.VERSION.SDK_INT >= 31)
+        context.getSystemService(android.os.VibratorManager::class.java)?.defaultVibrator
+    else @Suppress("DEPRECATION") context.getSystemService(android.os.Vibrator::class.java)
+
+    /** Strong, alarm-style vibration for the test: three pulses, ~3.4 s, ending about when Contour pops up. */
     private fun vibrateAlarm(context: Context) {
-        val pattern = longArrayOf(0, 900, 250, 900, 250, 900, 250, 900, 250, 900)
-        val vibrator = if (Build.VERSION.SDK_INT >= 31)
-            context.getSystemService(android.os.VibratorManager::class.java)?.defaultVibrator
-        else @Suppress("DEPRECATION") context.getSystemService(android.os.Vibrator::class.java)
+        val pattern = longArrayOf(0, 900, 250, 900, 250, 900)   // played once, no repeat
         val attrs = android.media.AudioAttributes.Builder().setUsage(android.media.AudioAttributes.USAGE_ALARM).build()
         try {
-            @Suppress("DEPRECATION") vibrator?.vibrate(android.os.VibrationEffect.createWaveform(pattern, -1), attrs)
+            @Suppress("DEPRECATION") vibrator(context)?.vibrate(android.os.VibrationEffect.createWaveform(pattern, -1), attrs)
         } catch (_: Exception) { }
     }
 
