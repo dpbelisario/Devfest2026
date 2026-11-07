@@ -3,7 +3,7 @@ const assert = require("node:assert/strict");
 const { readFileSync } = require("node:fs");
 const vm = require("node:vm");
 const source = readFileSync(
-  require("node:path").join(__dirname, "../Contour/bridge.js"),
+  require("node:path").join(__dirname, "../Contour/Resources/bridge.js"),
   "utf8",
 );
 function page() {

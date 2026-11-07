@@ -63,14 +63,10 @@ final class ContourViewController: UIViewController, WKNavigationDelegate, WKUID
         web.loadFileURL(bundledURL, allowingReadAccessTo: bundledURL.deletingLastPathComponent())
     }
 
-    static func sameOrigin(_ left: URL, _ right: URL) -> Bool {
-        left.scheme == "https" && right.scheme == "https" && left.host == right.host && (left.port ?? 443) == (right.port ?? 443)
-    }
-
     private func isOurs(_ url: URL?) -> Bool {
         guard let url else { return false }
         if url.isFileURL { return url.standardizedFileURL == bundledURL.standardizedFileURL }
-        return hostedURL.map { Self.sameOrigin(url, $0) } ?? false
+        return hostedURL.map { WebOrigin.sameOrigin(url, $0) } ?? false
     }
 
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,

@@ -21,9 +21,9 @@ final class ContourTests: XCTestCase {
 
     func testOriginTrustRejectsOtherHostsSchemesAndPorts() {
         let origin = URL(string: "https://example.com/app/")!
-        XCTAssertTrue(ContourViewController.sameOrigin(origin, URL(string: "https://example.com:443/other")!))
+        XCTAssertTrue(WebOrigin.sameOrigin(origin, URL(string: "https://example.com:443/other")!))
         for url in ["http://example.com", "https://example.com:444", "https://example.com.evil.test", "file:///app.html"] {
-            XCTAssertFalse(ContourViewController.sameOrigin(origin, URL(string: url)!))
+            XCTAssertFalse(WebOrigin.sameOrigin(origin, URL(string: url)!))
         }
     }
 
