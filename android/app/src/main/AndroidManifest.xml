@@ -4,6 +4,9 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
+    <uses-permission android:name="android.permission.NEARBY_WIFI_DEVICES" />
+    <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
     <!-- Emergency pop-up: open Contour when an official emergency alert arrives (see docs/emergency-popup.md).
          Each is switched on by the user from the in-app setup page. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
@@ -20,6 +23,8 @@
     </queries>
     <application android:label="@string/app_name" android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher" android:theme="@style/Theme.Contour" android:allowBackup="false" android:usesCleartextTraffic="false">
         <meta-data android:name="com.google.ar.core" android:value="optional" />
+        <meta-data android:name="com.indooratlas.android.sdk.API_KEY" android:value="${indoorAtlasApiKey}" />
+        <meta-data android:name="com.indooratlas.android.sdk.API_SECRET" android:value="${indoorAtlasApiSecret}" />
         <!-- The Contour UI (WebView, see docs/ui.md) is what the app opens. -->
         <activity
             android:name=".WebUiActivity"
