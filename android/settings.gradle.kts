@@ -5,3 +5,4 @@ dependencyResolutionManagement {
 }
 rootProject.name = "Contour"
 include(":app")
+include(":shared")

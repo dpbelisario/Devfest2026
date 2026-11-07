@@ -6,7 +6,12 @@ enum class AlertKind(val id: String) {
     TSUNAMI("tsunami"),
     EMERGENCY_WARNING("special"),
     EVACUATION("evac"),
-    OTHER_EMERGENCY("alert"),
+    OTHER_EMERGENCY("alert");
+
+    companion object {
+        /** Reject unknown wire values instead of interpreting them as an earthquake. */
+        fun fromId(id: String): AlertKind? = entries.firstOrNull { it.id == id }
+    }
 }
 
 /**

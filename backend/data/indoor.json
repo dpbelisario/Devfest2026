@@ -1,0 +1,1329 @@
+{
+  "version": 1,
+  "buildings": [
+    {
+      "id": "nu-ilas-a",
+      "name": "Liberal Arts and Sciences Building A",
+      "nameJa": "全学教育棟A館",
+      "campus": "Nagoya University · Higashiyama",
+      "source": {
+        "url": "https://office.ilas.nagoya-u.ac.jp/files/kyomu/map/ILAS_A_building_map.pdf",
+        "title": "Nagoya University ILAS lecture-room plan (2024-04-01)",
+        "reviewedAt": "2026-11-07"
+      },
+      "floors": [1, 2, 3],
+      "nodes": [
+        {
+          "id": "a-f1-hall-0",
+          "label": "1F corridor by A11",
+          "floor": 1,
+          "kind": "corridor",
+          "x": 16,
+          "y": 50
+        },
+        {
+          "id": "a-f1-hall-1",
+          "label": "1F corridor by A11",
+          "floor": 1,
+          "kind": "corridor",
+          "x": 32,
+          "y": 50
+        },
+        {
+          "id": "a-f1-hall-2",
+          "label": "1F corridor by A13",
+          "floor": 1,
+          "kind": "corridor",
+          "x": 52,
+          "y": 50
+        },
+        {
+          "id": "a-f1-hall-3",
+          "label": "1F corridor by A14",
+          "floor": 1,
+          "kind": "corridor",
+          "x": 70,
+          "y": 50
+        },
+        {
+          "id": "a-f1-hall-4",
+          "label": "1F corridor by A15",
+          "floor": 1,
+          "kind": "corridor",
+          "x": 88,
+          "y": 50
+        },
+        {
+          "id": "a11",
+          "label": "A11",
+          "floor": 1,
+          "kind": "room",
+          "x": 25,
+          "y": 78
+        },
+        {
+          "id": "a12",
+          "label": "A12",
+          "floor": 1,
+          "kind": "room",
+          "x": 25,
+          "y": 23
+        },
+        {
+          "id": "a13",
+          "label": "A13",
+          "floor": 1,
+          "kind": "room",
+          "x": 52,
+          "y": 23
+        },
+        {
+          "id": "a14",
+          "label": "A14",
+          "floor": 1,
+          "kind": "room",
+          "x": 70,
+          "y": 23
+        },
+        {
+          "id": "a15",
+          "label": "A15",
+          "floor": 1,
+          "kind": "room",
+          "x": 88,
+          "y": 78
+        },
+        {
+          "id": "a-f1-stairs-left",
+          "label": "Stairs by A11",
+          "floor": 1,
+          "kind": "stairs",
+          "x": 6,
+          "y": 50
+        },
+        {
+          "id": "a-f1-stairs-right",
+          "label": "Stairs by A14",
+          "floor": 1,
+          "kind": "stairs",
+          "x": 96,
+          "y": 35
+        },
+        {
+          "id": "a-f1-lift",
+          "label": "Lift",
+          "floor": 1,
+          "kind": "lift",
+          "x": 76,
+          "y": 68
+        },
+        {
+          "id": "a-f2-hall-0",
+          "label": "2F corridor by A22",
+          "floor": 2,
+          "kind": "corridor",
+          "x": 16,
+          "y": 50
+        },
+        {
+          "id": "a-f2-hall-1",
+          "label": "2F corridor by A23",
+          "floor": 2,
+          "kind": "corridor",
+          "x": 32,
+          "y": 50
+        },
+        {
+          "id": "a-f2-hall-2",
+          "label": "2F corridor by A25",
+          "floor": 2,
+          "kind": "corridor",
+          "x": 52,
+          "y": 50
+        },
+        {
+          "id": "a-f2-hall-3",
+          "label": "2F corridor by A26",
+          "floor": 2,
+          "kind": "corridor",
+          "x": 70,
+          "y": 50
+        },
+        {
+          "id": "a-f2-hall-4",
+          "label": "2F corridor by A28",
+          "floor": 2,
+          "kind": "corridor",
+          "x": 88,
+          "y": 50
+        },
+        {
+          "id": "a21",
+          "label": "A21",
+          "floor": 2,
+          "kind": "room",
+          "x": 25,
+          "y": 78
+        },
+        {
+          "id": "a22",
+          "label": "A22",
+          "floor": 2,
+          "kind": "room",
+          "x": 16,
+          "y": 23
+        },
+        {
+          "id": "a23",
+          "label": "A23",
+          "floor": 2,
+          "kind": "room",
+          "x": 32,
+          "y": 23
+        },
+        {
+          "id": "a24",
+          "label": "A24",
+          "floor": 2,
+          "kind": "room",
+          "x": 43,
+          "y": 23
+        },
+        {
+          "id": "a25",
+          "label": "A25",
+          "floor": 2,
+          "kind": "room",
+          "x": 54,
+          "y": 23
+        },
+        {
+          "id": "a26",
+          "label": "A26",
+          "floor": 2,
+          "kind": "room",
+          "x": 65,
+          "y": 23
+        },
+        {
+          "id": "a27",
+          "label": "A27",
+          "floor": 2,
+          "kind": "room",
+          "x": 78,
+          "y": 23
+        },
+        {
+          "id": "a28",
+          "label": "A28",
+          "floor": 2,
+          "kind": "room",
+          "x": 88,
+          "y": 78
+        },
+        {
+          "id": "a-f2-stairs-left",
+          "label": "Stairs by A21",
+          "floor": 2,
+          "kind": "stairs",
+          "x": 6,
+          "y": 50
+        },
+        {
+          "id": "a-f2-stairs-right",
+          "label": "Stairs by A27",
+          "floor": 2,
+          "kind": "stairs",
+          "x": 96,
+          "y": 35
+        },
+        {
+          "id": "a-f2-lift",
+          "label": "Lift",
+          "floor": 2,
+          "kind": "lift",
+          "x": 76,
+          "y": 68
+        },
+        {
+          "id": "a-f3-hall-0",
+          "label": "3F corridor by A31",
+          "floor": 3,
+          "kind": "corridor",
+          "x": 16,
+          "y": 50
+        },
+        {
+          "id": "a-f3-hall-1",
+          "label": "3F corridor by A31",
+          "floor": 3,
+          "kind": "corridor",
+          "x": 32,
+          "y": 50
+        },
+        {
+          "id": "a-f3-hall-2",
+          "label": "3F corridor by A32",
+          "floor": 3,
+          "kind": "corridor",
+          "x": 52,
+          "y": 50
+        },
+        {
+          "id": "a-f3-hall-3",
+          "label": "3F corridor by A33",
+          "floor": 3,
+          "kind": "corridor",
+          "x": 70,
+          "y": 50
+        },
+        {
+          "id": "a-f3-hall-4",
+          "label": "3F corridor by A34",
+          "floor": 3,
+          "kind": "corridor",
+          "x": 88,
+          "y": 50
+        },
+        {
+          "id": "a31",
+          "label": "A31",
+          "floor": 3,
+          "kind": "room",
+          "x": 25,
+          "y": 78
+        },
+        {
+          "id": "a32",
+          "label": "A32",
+          "floor": 3,
+          "kind": "room",
+          "x": 52,
+          "y": 23
+        },
+        {
+          "id": "a33",
+          "label": "A33",
+          "floor": 3,
+          "kind": "room",
+          "x": 70,
+          "y": 23
+        },
+        {
+          "id": "a34",
+          "label": "A34",
+          "floor": 3,
+          "kind": "room",
+          "x": 88,
+          "y": 78
+        },
+        {
+          "id": "a-f3-stairs-left",
+          "label": "Stairs by A31",
+          "floor": 3,
+          "kind": "stairs",
+          "x": 6,
+          "y": 50
+        },
+        {
+          "id": "a-f3-stairs-right",
+          "label": "Stairs by A33",
+          "floor": 3,
+          "kind": "stairs",
+          "x": 96,
+          "y": 35
+        },
+        {
+          "id": "a-f3-lift",
+          "label": "Lift",
+          "floor": 3,
+          "kind": "lift",
+          "x": 76,
+          "y": 68
+        }
+      ],
+      "edges": [
+        {
+          "from": "a-f1-hall-0",
+          "to": "a-f1-hall-1",
+          "kind": "corridor",
+          "cost": 1,
+          "surveyed": false
+        },
+        {
+          "from": "a-f1-hall-1",
+          "to": "a-f1-hall-2",
+          "kind": "corridor",
+          "cost": 1,
+          "surveyed": false
+        },
+        {
+          "from": "a-f1-hall-2",
+          "to": "a-f1-hall-3",
+          "kind": "corridor",
+          "cost": 1,
+          "surveyed": false
+        },
+        {
+          "from": "a-f1-hall-3",
+          "to": "a-f1-hall-4",
+          "kind": "corridor",
+          "cost": 1,
+          "surveyed": false
+        },
+        {
+          "from": "a11",
+          "to": "a-f1-hall-1",
+          "kind": "corridor",
+          "cost": 1,
+          "surveyed": false
+        },
+        {
+          "from": "a12",
+          "to": "a-f1-hall-1",
+          "kind": "corridor",
+          "cost": 1,
+          "surveyed": false
+        },
+        {
+          "from": "a13",
+          "to": "a-f1-hall-2",
+          "kind": "corridor",
+          "cost": 1,
+          "surveyed": false
+        },
+        {
+          "from": "a14",
+          "to": "a-f1-hall-3",
+          "kind": "corridor",
+          "cost": 1,
+          "surveyed": false
+        },
+        {
+          "from": "a15",
+          "to": "a-f1-hall-4",
+          "kind": "corridor",
+          "cost": 1,
+          "surveyed": false
+        },
+        {
+          "from": "a-f1-stairs-left",
+          "to": "a-f1-hall-0",
+          "kind": "corridor",
+          "cost": 1,
+          "surveyed": false
+        },
+        {
+          "from": "a-f1-stairs-right",
+          "to": "a-f1-hall-4",
+          "kind": "corridor",
+          "cost": 1,
+          "surveyed": false
+        },
+        {
+          "from": "a-f1-lift",
+          "to": "a-f1-hall-3",
+          "kind": "corridor",
+          "cost": 1,
+          "surveyed": false
+        },
+        {
+          "from": "a-f2-hall-0",
+          "to": "a-f2-hall-1",
+          "kind": "corridor",
+          "cost": 1,
+          "surveyed": false
+        },
+        {
+          "from": "a-f2-hall-1",
+          "to": "a-f2-hall-2",
+          "kind": "corridor",
+          "cost": 1,
+          "surveyed": false
+        },
+        {
+          "from": "a-f2-hall-2",
+          "to": "a-f2-hall-3",
+          "kind": "corridor",
+          "cost": 1,
+          "surveyed": false
+        },
+        {
+          "from": "a-f2-hall-3",
+          "to": "a-f2-hall-4",
+          "kind": "corridor",
+          "cost": 1,
+          "surveyed": false
+        },
+        {
+          "from": "a21",
+          "to": "a-f2-hall-1",
+          "kind": "corridor",
+          "cost": 1,
+          "surveyed": false
+        },
+        {
+          "from": "a22",
+          "to": "a-f2-hall-0",
+          "kind": "corridor",
+          "cost": 1,
+          "surveyed": false
+        },
+        {
+          "from": "a23",
+          "to": "a-f2-hall-1",
+          "kind": "corridor",
+          "cost": 1,
+          "surveyed": false
+        },
+        {
+          "from": "a24",
+          "to": "a-f2-hall-2",
+          "kind": "corridor",
+          "cost": 1,
+          "surveyed": false
+        },
+        {
+          "from": "a25",
+          "to": "a-f2-hall-2",
+          "kind": "corridor",
+          "cost": 1,
+          "surveyed": false
+        },
+        {
+          "from": "a26",
+          "to": "a-f2-hall-3",
+          "kind": "corridor",
+          "cost": 1,
+          "surveyed": false
+        },
+        {
+          "from": "a27",
+          "to": "a-f2-hall-3",
+          "kind": "corridor",
+          "cost": 1,
+          "surveyed": false
+        },
+        {
+          "from": "a28",
+          "to": "a-f2-hall-4",
+          "kind": "corridor",
+          "cost": 1,
+          "surveyed": false
+        },
+        {
+          "from": "a-f2-stairs-left",
+          "to": "a-f2-hall-0",
+          "kind": "corridor",
+          "cost": 1,
+          "surveyed": false
+        },
+        {
+          "from": "a-f1-stairs-left",
+          "to": "a-f2-stairs-left",
+          "kind": "stairs",
+          "cost": 4,
+          "surveyed": false
+        },
+        {
+          "from": "a-f2-stairs-right",
+          "to": "a-f2-hall-4",
+          "kind": "corridor",
+          "cost": 1,
+          "surveyed": false
+        },
+        {
+          "from": "a-f1-stairs-right",
+          "to": "a-f2-stairs-right",
+          "kind": "stairs",
+          "cost": 4,
+          "surveyed": false
+        },
+        {
+          "from": "a-f2-lift",
+          "to": "a-f2-hall-3",
+          "kind": "corridor",
+          "cost": 1,
+          "surveyed": false
+        },
+        {
+          "from": "a-f1-lift",
+          "to": "a-f2-lift",
+          "kind": "lift",
+          "cost": 6,
+          "surveyed": false
+        },
+        {
+          "from": "a-f3-hall-0",
+          "to": "a-f3-hall-1",
+          "kind": "corridor",
+          "cost": 1,
+          "surveyed": false
+        },
+        {
+          "from": "a-f3-hall-1",
+          "to": "a-f3-hall-2",
+          "kind": "corridor",
+          "cost": 1,
+          "surveyed": false
+        },
+        {
+          "from": "a-f3-hall-2",
+          "to": "a-f3-hall-3",
+          "kind": "corridor",
+          "cost": 1,
+          "surveyed": false
+        },
+        {
+          "from": "a-f3-hall-3",
+          "to": "a-f3-hall-4",
+          "kind": "corridor",
+          "cost": 1,
+          "surveyed": false
+        },
+        {
+          "from": "a31",
+          "to": "a-f3-hall-1",
+          "kind": "corridor",
+          "cost": 1,
+          "surveyed": false
+        },
+        {
+          "from": "a32",
+          "to": "a-f3-hall-2",
+          "kind": "corridor",
+          "cost": 1,
+          "surveyed": false
+        },
+        {
+          "from": "a33",
+          "to": "a-f3-hall-3",
+          "kind": "corridor",
+          "cost": 1,
+          "surveyed": false
+        },
+        {
+          "from": "a34",
+          "to": "a-f3-hall-4",
+          "kind": "corridor",
+          "cost": 1,
+          "surveyed": false
+        },
+        {
+          "from": "a-f3-stairs-left",
+          "to": "a-f3-hall-0",
+          "kind": "corridor",
+          "cost": 1,
+          "surveyed": false
+        },
+        {
+          "from": "a-f2-stairs-left",
+          "to": "a-f3-stairs-left",
+          "kind": "stairs",
+          "cost": 4,
+          "surveyed": false
+        },
+        {
+          "from": "a-f3-stairs-right",
+          "to": "a-f3-hall-4",
+          "kind": "corridor",
+          "cost": 1,
+          "surveyed": false
+        },
+        {
+          "from": "a-f2-stairs-right",
+          "to": "a-f3-stairs-right",
+          "kind": "stairs",
+          "cost": 4,
+          "surveyed": false
+        },
+        {
+          "from": "a-f3-lift",
+          "to": "a-f3-hall-3",
+          "kind": "corridor",
+          "cost": 1,
+          "surveyed": false
+        },
+        {
+          "from": "a-f2-lift",
+          "to": "a-f3-lift",
+          "kind": "lift",
+          "cost": 6,
+          "surveyed": false
+        }
+      ],
+      "aliases": [
+        "ILAS A",
+        "Liberal Arts and Sciences Building A",
+        "全学教育棟A館"
+      ]
+    },
+    {
+      "id": "nu-eng2",
+      "name": "Engineering Building II",
+      "nameJa": "工学部2号館",
+      "campus": "Nagoya University · Higashiyama",
+      "aliases": [
+        "Engineering Building II",
+        "Engineering Building 2",
+        "Engineering II",
+        "Engineering 2",
+        "School of Engineering Building 2",
+        "工学部2号館",
+        "工学部２号館",
+        "工学2号館"
+      ],
+      "location": {
+        "latitude": 35.15583615,
+        "longitude": 136.9646781,
+        "source": "https://www.nagoya-u.ac.jp/extra/map/a_js/map_data.csv"
+      },
+      "source": {
+        "url": "https://www.engg.nagoya-u.ac.jp/current/doc/binran/binran_2026.pdf#page=36",
+        "title": "Nagoya University Engineering student handbook 2026, printed page 30",
+        "reviewedAt": "2026-11-07"
+      },
+      "floors": [1, 2, 3, 4],
+      "nodes": [
+        {
+          "id": "eng2-f1-north-hall",
+          "label": "North-wing junction · 1F",
+          "labelJa": "北館の接続廊下（1階）",
+          "aliases": [],
+          "floor": 1,
+          "kind": "corridor",
+          "x": 52,
+          "y": 20
+        },
+        {
+          "id": "eng2-f1-north-stairs",
+          "label": "North-wing central stairs · 1F",
+          "labelJa": "北館中央の階段（1階）",
+          "aliases": ["north stairs 1F"],
+          "floor": 1,
+          "kind": "stairs",
+          "x": 44,
+          "y": 20
+        },
+        {
+          "id": "eng2-f1-north-lift",
+          "label": "North-wing lift · 1F",
+          "labelJa": "北館のエレベーター（1階）",
+          "aliases": [],
+          "floor": 1,
+          "kind": "lift",
+          "x": 60,
+          "y": 25
+        },
+        {
+          "id": "eng2-f1-middle-north",
+          "label": "Middle-wing corridor · 1F",
+          "labelJa": "中棟の廊下（1階）",
+          "aliases": [],
+          "floor": 1,
+          "kind": "corridor",
+          "x": 52,
+          "y": 40
+        },
+        {
+          "id": "eng2-f2-north-hall",
+          "label": "North-wing junction · 2F",
+          "labelJa": "北館の接続廊下（2階）",
+          "aliases": [],
+          "floor": 2,
+          "kind": "corridor",
+          "x": 52,
+          "y": 20
+        },
+        {
+          "id": "eng2-f2-north-stairs",
+          "label": "North-wing central stairs · 2F",
+          "labelJa": "北館中央の階段（2階）",
+          "aliases": ["north stairs 2F"],
+          "floor": 2,
+          "kind": "stairs",
+          "x": 44,
+          "y": 20
+        },
+        {
+          "id": "eng2-f2-north-lift",
+          "label": "North-wing lift · 2F",
+          "labelJa": "北館のエレベーター（2階）",
+          "aliases": [],
+          "floor": 2,
+          "kind": "lift",
+          "x": 60,
+          "y": 25
+        },
+        {
+          "id": "eng2-f2-south-hall",
+          "label": "South-wing junction · 2F",
+          "labelJa": "南館の接続廊下（2階）",
+          "aliases": [],
+          "floor": 2,
+          "kind": "corridor",
+          "x": 52,
+          "y": 80
+        },
+        {
+          "id": "eng2-f2-south-stairs",
+          "label": "South-wing central stairs · 2F",
+          "labelJa": "南館中央の階段（2階）",
+          "aliases": ["south stairs 2F"],
+          "floor": 2,
+          "kind": "stairs",
+          "x": 44,
+          "y": 80
+        },
+        {
+          "id": "eng2-f2-south-lift",
+          "label": "South-wing lift · 2F",
+          "labelJa": "南館のエレベーター（2階）",
+          "aliases": [],
+          "floor": 2,
+          "kind": "lift",
+          "x": 60,
+          "y": 75
+        },
+        {
+          "id": "eng2-f2-middle-north",
+          "label": "Middle-wing corridor · 2F",
+          "labelJa": "中棟の廊下（2階）",
+          "aliases": [],
+          "floor": 2,
+          "kind": "corridor",
+          "x": 52,
+          "y": 40
+        },
+        {
+          "id": "eng2-f2-middle-south",
+          "label": "Middle-wing corridor toward south wing · 2F",
+          "labelJa": "南館に向かう中棟の廊下（2階）",
+          "aliases": [],
+          "floor": 2,
+          "kind": "corridor",
+          "x": 52,
+          "y": 60
+        },
+        {
+          "id": "eng2-f3-north-hall",
+          "label": "North-wing junction · 3F",
+          "labelJa": "北館の接続廊下（3階）",
+          "aliases": [],
+          "floor": 3,
+          "kind": "corridor",
+          "x": 52,
+          "y": 20
+        },
+        {
+          "id": "eng2-f3-north-stairs",
+          "label": "North-wing central stairs · 3F",
+          "labelJa": "北館中央の階段（3階）",
+          "aliases": ["north stairs 3F"],
+          "floor": 3,
+          "kind": "stairs",
+          "x": 44,
+          "y": 20
+        },
+        {
+          "id": "eng2-f3-north-lift",
+          "label": "North-wing lift · 3F",
+          "labelJa": "北館のエレベーター（3階）",
+          "aliases": [],
+          "floor": 3,
+          "kind": "lift",
+          "x": 60,
+          "y": 25
+        },
+        {
+          "id": "eng2-f3-south-hall",
+          "label": "South-wing junction · 3F",
+          "labelJa": "南館の接続廊下（3階）",
+          "aliases": [],
+          "floor": 3,
+          "kind": "corridor",
+          "x": 52,
+          "y": 80
+        },
+        {
+          "id": "eng2-f3-south-stairs",
+          "label": "South-wing central stairs · 3F",
+          "labelJa": "南館中央の階段（3階）",
+          "aliases": ["south stairs 3F"],
+          "floor": 3,
+          "kind": "stairs",
+          "x": 44,
+          "y": 80
+        },
+        {
+          "id": "eng2-f3-south-lift",
+          "label": "South-wing lift · 3F",
+          "labelJa": "南館のエレベーター（3階）",
+          "aliases": [],
+          "floor": 3,
+          "kind": "lift",
+          "x": 60,
+          "y": 75
+        },
+        {
+          "id": "eng2-f3-middle-north",
+          "label": "Middle-wing corridor · 3F",
+          "labelJa": "中棟の廊下（3階）",
+          "aliases": [],
+          "floor": 3,
+          "kind": "corridor",
+          "x": 52,
+          "y": 40
+        },
+        {
+          "id": "eng2-f3-middle-south",
+          "label": "Middle-wing corridor toward south wing · 3F",
+          "labelJa": "南館に向かう中棟の廊下（3階）",
+          "aliases": [],
+          "floor": 3,
+          "kind": "corridor",
+          "x": 52,
+          "y": 60
+        },
+        {
+          "id": "eng2-f4-north-hall",
+          "label": "North-wing junction · 4F",
+          "labelJa": "北館の接続廊下（4階）",
+          "aliases": [],
+          "floor": 4,
+          "kind": "corridor",
+          "x": 52,
+          "y": 20
+        },
+        {
+          "id": "eng2-f4-north-stairs",
+          "label": "North-wing central stairs · 4F",
+          "labelJa": "北館中央の階段（4階）",
+          "aliases": ["north stairs 4F"],
+          "floor": 4,
+          "kind": "stairs",
+          "x": 44,
+          "y": 20
+        },
+        {
+          "id": "eng2-f4-north-lift",
+          "label": "North-wing lift · 4F",
+          "labelJa": "北館のエレベーター（4階）",
+          "aliases": [],
+          "floor": 4,
+          "kind": "lift",
+          "x": 60,
+          "y": 25
+        },
+        {
+          "id": "eng2-f4-south-hall",
+          "label": "South-wing junction · 4F",
+          "labelJa": "南館の接続廊下（4階）",
+          "aliases": [],
+          "floor": 4,
+          "kind": "corridor",
+          "x": 52,
+          "y": 80
+        },
+        {
+          "id": "eng2-f4-south-stairs",
+          "label": "South-wing central stairs · 4F",
+          "labelJa": "南館中央の階段（4階）",
+          "aliases": ["south stairs 4F"],
+          "floor": 4,
+          "kind": "stairs",
+          "x": 44,
+          "y": 80
+        },
+        {
+          "id": "eng2-f4-south-lift",
+          "label": "South-wing lift · 4F",
+          "labelJa": "南館のエレベーター（4階）",
+          "aliases": [],
+          "floor": 4,
+          "kind": "lift",
+          "x": 60,
+          "y": 75
+        },
+        {
+          "id": "eng2-221",
+          "label": "Room 221",
+          "labelJa": "221講義室",
+          "aliases": ["221"],
+          "floor": 2,
+          "kind": "room",
+          "x": 44,
+          "y": 40
+        },
+        {
+          "id": "eng2-222",
+          "label": "Room 222",
+          "labelJa": "222講義室",
+          "aliases": ["222"],
+          "floor": 2,
+          "kind": "room",
+          "x": 44,
+          "y": 60
+        },
+        {
+          "id": "eng2-231",
+          "label": "Room 231",
+          "labelJa": "231講義室",
+          "aliases": ["231"],
+          "floor": 3,
+          "kind": "room",
+          "x": 18,
+          "y": 90
+        },
+        {
+          "id": "eng2-232",
+          "label": "Room 232",
+          "labelJa": "232講義室",
+          "aliases": ["232"],
+          "floor": 3,
+          "kind": "room",
+          "x": 18,
+          "y": 72
+        },
+        {
+          "id": "eng2-241",
+          "label": "Room 241",
+          "labelJa": "241講義室",
+          "aliases": ["241"],
+          "floor": 4,
+          "kind": "room",
+          "x": 18,
+          "y": 88
+        },
+        {
+          "id": "eng2-242",
+          "label": "Room 242",
+          "labelJa": "242講義室",
+          "aliases": ["242"],
+          "floor": 4,
+          "kind": "room",
+          "x": 88,
+          "y": 28
+        },
+        {
+          "id": "eng2-243",
+          "label": "Room 243",
+          "labelJa": "243講義室",
+          "aliases": ["243"],
+          "floor": 4,
+          "kind": "room",
+          "x": 88,
+          "y": 10
+        },
+        {
+          "id": "eng2-office-3",
+          "label": "Mechanical Engineering Office · Middle wing 3F",
+          "labelJa": "機械・航空宇宙系事務室（中棟3階）",
+          "aliases": [
+            "office",
+            "mechanical office",
+            "mechanical engineering office",
+            "middle wing office",
+            "事務室"
+          ],
+          "floor": 3,
+          "kind": "landmark",
+          "x": 44,
+          "y": 40
+        },
+        {
+          "id": "eng2-library-1",
+          "label": "Mechanical Engineering Library · Middle wing 1F",
+          "labelJa": "機械・航空宇宙図書室（中棟1階）",
+          "aliases": ["mechanical library", "engineering library", "図書室"],
+          "floor": 1,
+          "kind": "landmark",
+          "x": 58,
+          "y": 40
+        }
+      ],
+      "edges": [
+        {
+          "from": "eng2-f1-north-stairs",
+          "to": "eng2-f1-north-hall",
+          "kind": "corridor",
+          "cost": 1,
+          "surveyed": false
+        },
+        {
+          "from": "eng2-f1-north-lift",
+          "to": "eng2-f1-north-hall",
+          "kind": "corridor",
+          "cost": 1,
+          "surveyed": false
+        },
+        {
+          "from": "eng2-f1-north-hall",
+          "to": "eng2-f1-middle-north",
+          "kind": "corridor",
+          "cost": 2,
+          "surveyed": false
+        },
+        {
+          "from": "eng2-f2-north-stairs",
+          "to": "eng2-f2-north-hall",
+          "kind": "corridor",
+          "cost": 1,
+          "surveyed": false
+        },
+        {
+          "from": "eng2-f1-north-stairs",
+          "to": "eng2-f2-north-stairs",
+          "kind": "stairs",
+          "cost": 4,
+          "surveyed": false
+        },
+        {
+          "from": "eng2-f2-north-lift",
+          "to": "eng2-f2-north-hall",
+          "kind": "corridor",
+          "cost": 1,
+          "surveyed": false
+        },
+        {
+          "from": "eng2-f1-north-lift",
+          "to": "eng2-f2-north-lift",
+          "kind": "lift",
+          "cost": 6,
+          "surveyed": false
+        },
+        {
+          "from": "eng2-f2-south-stairs",
+          "to": "eng2-f2-south-hall",
+          "kind": "corridor",
+          "cost": 1,
+          "surveyed": false
+        },
+        {
+          "from": "eng2-f2-south-lift",
+          "to": "eng2-f2-south-hall",
+          "kind": "corridor",
+          "cost": 1,
+          "surveyed": false
+        },
+        {
+          "from": "eng2-f2-north-hall",
+          "to": "eng2-f2-middle-north",
+          "kind": "corridor",
+          "cost": 2,
+          "surveyed": false
+        },
+        {
+          "from": "eng2-f2-middle-north",
+          "to": "eng2-f2-middle-south",
+          "kind": "corridor",
+          "cost": 2,
+          "surveyed": false
+        },
+        {
+          "from": "eng2-f2-middle-south",
+          "to": "eng2-f2-south-hall",
+          "kind": "corridor",
+          "cost": 2,
+          "surveyed": false
+        },
+        {
+          "from": "eng2-f3-north-stairs",
+          "to": "eng2-f3-north-hall",
+          "kind": "corridor",
+          "cost": 1,
+          "surveyed": false
+        },
+        {
+          "from": "eng2-f2-north-stairs",
+          "to": "eng2-f3-north-stairs",
+          "kind": "stairs",
+          "cost": 4,
+          "surveyed": false
+        },
+        {
+          "from": "eng2-f3-north-lift",
+          "to": "eng2-f3-north-hall",
+          "kind": "corridor",
+          "cost": 1,
+          "surveyed": false
+        },
+        {
+          "from": "eng2-f2-north-lift",
+          "to": "eng2-f3-north-lift",
+          "kind": "lift",
+          "cost": 6,
+          "surveyed": false
+        },
+        {
+          "from": "eng2-f3-south-stairs",
+          "to": "eng2-f3-south-hall",
+          "kind": "corridor",
+          "cost": 1,
+          "surveyed": false
+        },
+        {
+          "from": "eng2-f2-south-stairs",
+          "to": "eng2-f3-south-stairs",
+          "kind": "stairs",
+          "cost": 4,
+          "surveyed": false
+        },
+        {
+          "from": "eng2-f3-south-lift",
+          "to": "eng2-f3-south-hall",
+          "kind": "corridor",
+          "cost": 1,
+          "surveyed": false
+        },
+        {
+          "from": "eng2-f2-south-lift",
+          "to": "eng2-f3-south-lift",
+          "kind": "lift",
+          "cost": 6,
+          "surveyed": false
+        },
+        {
+          "from": "eng2-f3-north-hall",
+          "to": "eng2-f3-middle-north",
+          "kind": "corridor",
+          "cost": 2,
+          "surveyed": false
+        },
+        {
+          "from": "eng2-f3-middle-north",
+          "to": "eng2-f3-middle-south",
+          "kind": "corridor",
+          "cost": 2,
+          "surveyed": false
+        },
+        {
+          "from": "eng2-f3-middle-south",
+          "to": "eng2-f3-south-hall",
+          "kind": "corridor",
+          "cost": 2,
+          "surveyed": false
+        },
+        {
+          "from": "eng2-f4-north-stairs",
+          "to": "eng2-f4-north-hall",
+          "kind": "corridor",
+          "cost": 1,
+          "surveyed": false
+        },
+        {
+          "from": "eng2-f3-north-stairs",
+          "to": "eng2-f4-north-stairs",
+          "kind": "stairs",
+          "cost": 4,
+          "surveyed": false
+        },
+        {
+          "from": "eng2-f4-north-lift",
+          "to": "eng2-f4-north-hall",
+          "kind": "corridor",
+          "cost": 1,
+          "surveyed": false
+        },
+        {
+          "from": "eng2-f3-north-lift",
+          "to": "eng2-f4-north-lift",
+          "kind": "lift",
+          "cost": 6,
+          "surveyed": false
+        },
+        {
+          "from": "eng2-f4-south-stairs",
+          "to": "eng2-f4-south-hall",
+          "kind": "corridor",
+          "cost": 1,
+          "surveyed": false
+        },
+        {
+          "from": "eng2-f3-south-stairs",
+          "to": "eng2-f4-south-stairs",
+          "kind": "stairs",
+          "cost": 4,
+          "surveyed": false
+        },
+        {
+          "from": "eng2-f4-south-lift",
+          "to": "eng2-f4-south-hall",
+          "kind": "corridor",
+          "cost": 1,
+          "surveyed": false
+        },
+        {
+          "from": "eng2-f3-south-lift",
+          "to": "eng2-f4-south-lift",
+          "kind": "lift",
+          "cost": 6,
+          "surveyed": false
+        },
+        {
+          "from": "eng2-221",
+          "to": "eng2-f2-middle-north",
+          "kind": "corridor",
+          "cost": 2,
+          "surveyed": false
+        },
+        {
+          "from": "eng2-222",
+          "to": "eng2-f2-middle-south",
+          "kind": "corridor",
+          "cost": 2,
+          "surveyed": false
+        },
+        {
+          "from": "eng2-231",
+          "to": "eng2-f3-south-hall",
+          "kind": "corridor",
+          "cost": 2,
+          "surveyed": false
+        },
+        {
+          "from": "eng2-232",
+          "to": "eng2-f3-south-hall",
+          "kind": "corridor",
+          "cost": 2,
+          "surveyed": false
+        },
+        {
+          "from": "eng2-241",
+          "to": "eng2-f4-south-hall",
+          "kind": "corridor",
+          "cost": 2,
+          "surveyed": false
+        },
+        {
+          "from": "eng2-242",
+          "to": "eng2-f4-north-hall",
+          "kind": "corridor",
+          "cost": 2,
+          "surveyed": false
+        },
+        {
+          "from": "eng2-243",
+          "to": "eng2-f4-north-hall",
+          "kind": "corridor",
+          "cost": 2,
+          "surveyed": false
+        },
+        {
+          "from": "eng2-office-3",
+          "to": "eng2-f3-middle-north",
+          "kind": "corridor",
+          "cost": 1,
+          "surveyed": false
+        },
+        {
+          "from": "eng2-library-1",
+          "to": "eng2-f1-middle-north",
+          "kind": "corridor",
+          "cost": 1,
+          "surveyed": false
+        }
+      ]
+    }
+  ]
+}
