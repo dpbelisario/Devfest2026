@@ -642,6 +642,7 @@ html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-
 .al-top { flex: none; padding: calc(var(--top) + 22px) 22px 22px; background: #b3261e; color: #fff; }
 .al-eyebrow { display: flex; align-items: center; gap: 8px; font: 600 13px/1 var(--f-body); letter-spacing: .04em; opacity: .92; }
 .al-eyebrow svg { width: 18px; height: 18px; }
+.alert-screen.test .al-eyebrow { display: inline-flex; padding: 6px 10px; border-radius: 6px; background: #fff; color: #b3261e; opacity: 1; }
 .al-top h2 { margin: 12px 0 10px; font: 700 34px/1.05 var(--f-display); }
 .al-do { margin: 0; font: 500 16px/1.5 var(--f-body); }
 .al-body { flex: 1; display: flex; flex-direction: column; gap: 14px; padding: 18px 18px calc(var(--bot) + 18px); }
@@ -650,6 +651,9 @@ html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-
 .al-official small { color: #8c2e22; }
 .al-official b { display: block; font: 600 15px/1.4 var(--f-jp, var(--f-body)); }
 .al-official p { margin: 4px 0 0; font: 400 14px/1.5 var(--f-jp, var(--f-body)); white-space: pre-wrap; }
+.al-orig { margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(140,46,34,.18); }
+.al-orig small { margin-bottom: 3px !important; }
+.al-orig span { display: block; font: 400 13px/1.5 var(--f-jp, var(--f-body)); color: #8c2e22; white-space: pre-wrap; }
 .al-site { padding: 14px; border-radius: 12px; border: 1px solid var(--wash-line, #d6d7da); }
 .al-name { font: 700 22px/1.2 var(--f-display); color: var(--ink); }
 .al-sub { margin-top: 2px; font: 400 13px/1.3 var(--f-jp, var(--f-body)); color: var(--ink-3); }
@@ -659,6 +663,18 @@ html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-
 .al-row { display: flex; gap: 10px; }
 .al-row button { flex: 1; height: 48px; border-radius: 10px; border: 1px solid var(--wash-line, #d6d7da); background: var(--paper, #fff); color: var(--ink); font: 500 15px/1 var(--f-body); }
 .al-note { margin: 0; font: 400 12.5px/1.45 var(--f-body); color: var(--ink-3); }
+/* Test alert: Yes / No box */
+.ta-dim { position: absolute; z-index: 104; inset: 0; background: rgba(20,23,20,.45); }
+.ta-dim[hidden], .ta-box[hidden] { display: none; }
+.ta-box { position: absolute; z-index: 105; left: 20px; right: 20px; top: 50%; transform: translateY(-50%); padding: 22px 20px 18px; border-radius: 16px; background: var(--paper, #fff); box-shadow: 0 20px 50px rgba(20,22,28,.25); text-align: center; }
+.ta-ico { width: 48px; height: 48px; margin: 0 auto 10px; border-radius: 50%; display: grid; place-items: center; background: #fbeceb; color: #b3261e; }
+.ta-ico svg { width: 26px; height: 26px; }
+.ta-box h2 { margin: 0 0 8px; font: 700 24px/1.15 var(--f-display); color: var(--ink); }
+.ta-box p { margin: 0 0 18px; font: 400 14.5px/1.55 var(--f-body); color: var(--ink-2); }
+.ta-btns { display: flex; gap: 10px; }
+.ta-btns button { flex: 1; height: 48px; border-radius: 10px; font: 600 15px/1 var(--f-body); }
+#taNo { border: 1px solid var(--wash-line, #d6d7da); background: var(--paper, #fff); color: var(--ink); }
+#taYes { background: #b3261e; color: #fff; }
 /* Emergency pop-up setup page */
 .page .al-steps { list-style: none; padding: 0; margin: 16px 0 10px; display: grid; gap: 10px; counter-reset: al; }
 .al-steps li { display: flex; align-items: center; gap: 12px; padding: 12px 12px 12px 14px; border-radius: 10px; border: 1px solid var(--wash-line, #d6d7da); max-width: none; }
@@ -1034,12 +1050,13 @@ html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-
     <!-- Emergency alert screen: opened by the phone's official alert (Android app), or by the test button -->
     <section class="alert-screen" id="alertScreen" hidden role="alertdialog" aria-modal="true" aria-labelledby="alKind">
       <div class="al-top">
-        <div class="al-eyebrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2 20h20Z"/><path d="M12 10v4.5M12 17.2v.3"/></svg><span data-i18n="al.eyebrow">Emergency alert</span></div>
+        <div class="al-eyebrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2 20h20Z"/><path d="M12 10v4.5M12 17.2v.3"/></svg><span id="alEyebrow">Emergency alert</span></div>
         <h2 id="alKind"></h2>
         <p class="al-do" id="alDo"></p>
       </div>
       <div class="al-body">
-        <div class="al-official" id="alOfficial"><small data-i18n="al.official"></small><b id="alTitle" lang="ja"></b><p id="alText" lang="ja"></p></div>
+        <div class="al-official" id="alOfficial"><small data-i18n="al.official"></small><b id="alTitle"></b><p id="alText"></p>
+          <div class="al-orig" id="alOrig"><small data-i18n="al.orig"></small><span lang="ja" id="alOrigText"></span></div></div>
         <div class="al-site" id="alSite">
           <small id="alSiteLabel"></small>
           <div class="al-name" id="alName"></div>
@@ -1050,6 +1067,15 @@ html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-
         <div class="al-row"><button type="button" id="alMap" data-i18n="al.map">Open map</button><button type="button" id="alClose" data-i18n="al.close">Close</button></div>
         <p class="al-note" data-i18n="al.note"></p>
       </div>
+    </section>
+
+    <!-- Test alert: ask first (Yes / No) -->
+    <div class="ta-dim" id="taDim" hidden></div>
+    <section class="ta-box" id="taBox" hidden role="alertdialog" aria-modal="true" aria-labelledby="taTitle">
+      <div class="ta-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2 20h20Z"/><path d="M12 10v4.5M12 17.2v.3"/></svg></div>
+      <h2 id="taTitle" data-i18n="ta.title">Send a test alert?</h2>
+      <p id="taBody"></p>
+      <div class="ta-btns"><button type="button" id="taNo" data-i18n="ta.no">No</button><button type="button" id="taYes" data-i18n="ta.yes">Yes, send test</button></div>
     </section>
 
     <!-- Hamburger menu: everything that is not the map -->
@@ -1064,6 +1090,7 @@ html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-
         <li><button type="button" data-go="info"><svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2.400" stroke-linecap="round" stroke-linejoin="round"><path d="M14 5c-4.400 0-7.500 3.100-7.500 7 0 2.500 1.300 4 2.500 5.500.8 1 1.300 1.800 1.300 3.100h7.400c0-1.300.5-2.100 1.300-3.100 1.200-1.500 2.500-3 2.500-5.500 0-3.900-3.100-7-7.500-7Z"/><path d="M11 23h6"/></svg><span data-i18n="menu.know">Know-how on disasters</span></button></li>
         <li><button type="button" data-go="alerts"><svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2.400" stroke-linecap="round" stroke-linejoin="round"><path d="M7 19.5V13a7 7 0 0 1 14 0v6.5l1.8 2.5H5.2Z"/><path d="M11.5 24.5a2.6 2.6 0 0 0 5 0"/><path d="M4 9.5a10.5 10.5 0 0 1 3-5M24 9.5a10.5 10.5 0 0 0-3-5"/></svg><span data-i18n="menu.alerts">Emergency pop-up</span></button></li>
         <li><button type="button" data-go="about"><svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2.400" stroke-linecap="round"><circle cx="14" cy="14" r="10"/><path d="M14 13v6"/><circle cx="14" cy="9" r=".8" fill="currentColor"/></svg><span data-i18n="menu.about">About Contour</span></button></li>
+        <li><button type="button" data-go="testalert"><svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2.400" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4 3 23h22Z"/><path d="M14 11v5.5M14 19.6v.3"/></svg><span data-i18n="menu.test">Test alert</span></button></li>
         <li><button type="button" data-go="speech"><svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2.400" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg><span data-i18n="menu.speech">Speech &amp; Translation</span></button></li>
       </ul>
       <p class="drawer-note" data-i18n="top.notice">Demo data. Follow instructions from local authorities.</p>
@@ -1321,6 +1348,9 @@ html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-
     "area.h": ["Prefectures", "都道府県", "都道府县", "도도부현"],
     "menu.alerts": ["Emergency pop-up", "緊急時の自動表示", "紧急自动弹出", "긴급 자동 표시"],
     "al.eyebrow": ["Emergency alert", "緊急速報", "紧急警报", "긴급 경보"],
+    "al.eyebrow.test": ["TEST · not a real emergency", "テスト・実際の災害ではありません", "测试 · 并非真实紧急情况", "테스트 · 실제 상황이 아닙니다"],
+    "menu.test": ["Test alert", "テスト警報", "测试警报", "테스트 경보"],
+    "al.needsetup": ["Turn on all settings first, then test again.", "先にすべての設定をオンにしてから、もう一度テストしてください。", "请先开启所有设置，然后再测试。", "먼저 모든 설정을 켠 후 다시 테스트하세요."],
     "al.k.eew": ["Earthquake Early Warning", "緊急地震速報", "紧急地震速报", "긴급 지진 속보"],
     "al.k.tsunami": ["Tsunami warning", "津波警報", "海啸警报", "쓰나미 경보"],
     "al.k.special": ["Emergency warning", "特別警報", "特别警报", "특별경보"],
@@ -1331,7 +1361,8 @@ html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-
     "al.do.special": ["A rare and dangerous situation. Act now to protect your life.", "数十年に一度の危険な状況です。命を守る行動をとってください。", "这是数十年一遇的危险情况，请立即采取保护生命的行动。", "수십 년에 한 번 있는 위험한 상황입니다. 즉시 생명을 지키는 행동을 하세요."],
     "al.do.evac": ["The city has ordered evacuation. If it is safe to move, go to an evacuation site now.", "市から避難指示が出ています。安全に移動できるなら、今すぐ避難場所へ向かってください。", "市政府已发布避难指示。如能安全移动，请立即前往避难场所。", "시에서 대피 지시를 내렸습니다. 안전하게 이동할 수 있다면 지금 대피 장소로 가세요."],
     "al.do.alert": ["Read the official message and follow its instructions.", "公式のメッセージを確認し、指示に従ってください。", "请阅读官方信息并遵循指示。", "공식 메시지를 확인하고 지시를 따르세요."],
-    "al.official": ["Official message", "公式メッセージ", "官方信息（日语）", "공식 메시지 (일본어)"],
+    "al.official": ["Official message", "公式メッセージ", "官方信息", "공식 메시지"],
+    "al.orig": ["Original message", "原文", "原始信息", "원문 메시지"],
     "al.nearest": ["Nearest evacuation site", "最寄りの避難場所", "最近的避难场所", "가장 가까운 대피 장소"],
     "al.nearest.h": ["Nearest site designated for {h}", "{h}に対応する最寄りの避難場所", "最近的{h}指定避难场所", "{h} 대응 가장 가까운 대피 장소"],
     "al.map": ["Open map", "地図を開く", "打开地图", "지도 열기"],
@@ -1352,8 +1383,13 @@ html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-
     "al.restricted": ["If Android says “Restricted setting”, open App info, tap ⋮ (top right), choose “Allow restricted settings”, then try again.", "「制限付き設定」と表示されたら、アプリ情報を開き、右上の⋮から「制限付き設定を許可」を選んで、もう一度お試しください。", "如果 Android 提示“受限制的设置”，请打开应用信息，点右上角 ⋮，选择“允许受限制的设置”，然后重试。", "“제한된 설정”이라고 표시되면 앱 정보를 열고 오른쪽 위 ⋮에서 “제한된 설정 허용”을 선택한 뒤 다시 시도하세요."],
     "al.appinfo": ["Open app info", "アプリ情報を開く", "打开应用信息", "앱 정보 열기"],
     "al.test": ["Test the pop-up", "表示をテスト", "测试弹出", "표시 테스트"],
-    "al.test.d": ["Tap, then go to the home screen or lock the phone. Contour opens by itself in 5 seconds.", "タップしたら、ホーム画面に戻るか画面をロックしてください。5秒後にContourが自動で開きます。", "点按后返回主屏幕或锁屏，5 秒后 Contour 会自动打开。", "누른 후 홈 화면으로 가거나 화면을 잠그세요. 5초 후 Contour가 자동으로 열립니다."],
-    "al.test.soon": ["Opening in 5 seconds…", "5秒後に開きます…", "5 秒后打开…", "5초 후 열립니다…"],
+    "al.test.d": ["Sends a test alert: lock your phone, and about 8 seconds later it vibrates, sounds a test siren and Contour opens by itself.", "テスト警報を送ります。画面をロックすると、約8秒後に振動とテスト用サイレンが鳴り、Contourが自動で開きます。", "发送测试警报：锁屏后约 8 秒，手机会振动并响起测试警笛，Contour 自动打开。", "테스트 경보를 보냅니다. 화면을 잠그면 약 8초 후 진동과 테스트 사이렌이 울리고 Contour가 자동으로 열립니다."],
+    "ta.title": ["Send a test alert?", "テスト警報を送りますか？", "发送测试警报吗？", "테스트 경보를 보낼까요?"],
+    "ta.body": ["After you tap Yes, lock your phone (press the power button). In about 8 seconds it will vibrate and sound a test siren, then Contour opens by itself. This is only a test.", "「はい」を押したら、電源ボタンで画面をロックしてください。約8秒後にスマホが振動してテスト用のサイレンが鳴り、Contourが自動で開きます。これはテストです。", "点“是”后，请按电源键锁屏。约 8 秒后手机会振动并响起测试警笛，然后 Contour 会自动打开。这只是测试。", "“예”를 누른 후 전원 버튼으로 화면을 잠그세요. 약 8초 후 휴대폰이 진동하고 테스트 사이렌이 울린 뒤 Contour가 자동으로 열립니다. 테스트일 뿐입니다."],
+    "ta.body.browser": ["This plays a short test siren and shows the alert screen. In the Android app, the test also works with your phone locked.", "短いテスト用サイレンを鳴らし、警報画面を表示します。Androidアプリでは、画面ロック中でもテストできます。", "将播放一段测试警笛并显示警报画面。在 Android 应用中，锁屏时也能测试。", "짧은 테스트 사이렌을 울리고 경보 화면을 표시합니다. Android 앱에서는 화면이 잠겨 있어도 테스트할 수 있습니다."],
+    "ta.yes": ["Yes, send test", "はい、送る", "是，发送", "예, 보내기"],
+    "ta.no": ["No", "いいえ", "否", "아니요"],
+    "ta.lock": ["Lock your phone now. Test alert in 8 seconds.", "今すぐ画面をロックしてください。8秒後にテスト警報が届きます。", "请立即锁屏，8 秒后收到测试警报。", "지금 화면을 잠그세요. 8초 후 테스트 경보가 옵니다."],
     "al.browser": ["The automatic pop-up works in the Android app. Here, the test shows the alert screen right away.", "自動表示はAndroidアプリで動作します。ここではテストで警報画面をすぐに表示します。", "自动弹出仅在 Android 应用中可用。此处测试会立即显示警报画面。", "자동 표시는 Android 앱에서 작동합니다. 여기서는 테스트로 경보 화면을 바로 표시합니다."],
     "al.allon": ["All set. Contour will open when an official emergency alert arrives.", "設定完了。公式の緊急速報が届くとContourが開きます。", "设置完成。收到官方紧急警报时 Contour 会自动打开。", "설정 완료. 공식 긴급 경보가 오면 Contour가 열립니다."],
     "pg.info": ["Emergency information", "緊急時の情報", "紧急信息", "긴급 정보"],
@@ -2123,7 +2159,7 @@ html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-
   document.querySelectorAll("[data-close]").forEach(b => b.addEventListener("click", () => b.closest(".page").classList.remove("on")));
 
   const toast = $("toast"); let toastT;
-  function say(msg) { toast.textContent = msg; toast.classList.add("on"); clearTimeout(toastT); toastT = setTimeout(() => toast.classList.remove("on"), 1800); }
+  function say(msg, ms = 1800) { toast.textContent = msg; toast.classList.add("on"); clearTimeout(toastT); toastT = setTimeout(() => toast.classList.remove("on"), ms); }
   $("tGather").addEventListener("change", e => { e.target.checked ? gatherLayer.addTo(map) : map.removeLayer(gatherLayer); say(t("lay.gather") + " · " + t(e.target.checked ? "on" : "off")); });
   $("tRoute").addEventListener("change", e => { route.setStyle({ opacity: e.target.checked ? 1 : 0 }); routeCasing.setStyle({ opacity: e.target.checked ? 0.9 : 0 }); say(t("lay.route") + " · " + t(e.target.checked ? "on" : "off")); });
   $("tRing").addEventListener("change", e => { ring.setStyle({ fillOpacity: e.target.checked ? 0.12 : 0 }); });
@@ -2202,6 +2238,7 @@ html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-
     const go = b.dataset.go;
     if (go === "info" || go === "about" || go === "alerts") { closeDrawer(); if (go === "alerts") renderAlertSetup(); $("page-" + go).classList.add("on"); }
     else if (go === "ask") { closeDrawer(); openAsk(); }
+    else if (go === "testalert") { closeDrawer(); runTestAlert(); }
     else setTab(go);
   }));
 
@@ -2696,10 +2733,17 @@ html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-
   function renderAlertScreen() {
     if (!alertData || alertScreen.hidden) return;
     const k = D["al.k." + alertData.kind] ? alertData.kind : "alert";
+    $("alEyebrow").textContent = t(alertData.test ? "al.eyebrow.test" : "al.eyebrow");
+    alertScreen.classList.toggle("test", !!alertData.test);
     $("alKind").textContent = t("al.k." + k);
     $("alDo").textContent = t("al.do." + k);
+    // Official message in the chosen language, with the Japanese original underneath (as on Disaster info).
     $("alOfficial").hidden = !(alertData.title || alertData.text);
-    $("alTitle").textContent = alertData.title; $("alText").textContent = alertData.text;
+    const trTitle = alertMsg(alertData.title), trText = alertMsg(alertData.text), translated = !!(trTitle || trText);
+    $("alTitle").textContent = trTitle || alertData.title; $("alText").textContent = trText || alertData.text;
+    $("alTitle").lang = trTitle ? lang : "ja"; $("alText").lang = trText ? lang : "ja";
+    $("alOrig").hidden = !translated;
+    $("alOrigText").textContent = [trTitle && alertData.title, trText && alertData.text].filter(Boolean).join("\n");
     const i = alertSiteIndex(k), p = POINTS[i];
     $("alSite").hidden = !p; $("alAr").hidden = !p;
     if (p) {
@@ -2710,8 +2754,69 @@ html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-
     }
   }
   function closeAlertScreen() { alertScreen.hidden = true; }
+
+  // Official alert text (Japanese) -> chosen language, or null (then the Japanese is shown as is).
+  // Covers the usual 緊急速報 wording; anything else goes to the device translator, if there is one.
+  const ALERT_WORDS = {   // whole titles / sentences: [en, zh, ko]
+    "緊急地震速報": ["Earthquake Early Warning", "紧急地震速报", "긴급 지진 속보"],
+    "緊急速報": ["Emergency alert", "紧急警报", "긴급 경보"],
+    "津波警報": ["Tsunami warning", "海啸警报", "쓰나미 경보"], "大津波警報": ["Major tsunami warning", "大海啸警报", "대쓰나미 경보"],
+    "津波注意報": ["Tsunami advisory", "海啸注意报", "쓰나미 주의보"], "特別警報": ["Emergency warning", "特别警报", "특별경보"],
+    "避難指示": ["Evacuation order", "避难指示", "대피 지시"], "緊急安全確保": ["Emergency safety measures", "紧急确保安全", "긴급 안전 확보"],
+    "強い揺れに備えてください": ["Prepare for strong shaking.", "请做好应对强烈摇晃的准备。", "강한 흔들림에 대비하세요."],
+    "強い揺れに備えて下さい": ["Prepare for strong shaking.", "请做好应对强烈摇晃的准备。", "강한 흔들림에 대비하세요."],
+    "海岸から離れてください": ["Move away from the coast.", "请远离海岸。", "해안에서 멀리 떨어지세요."],
+    "海岸付近の方は高台に避難してください": ["If you are near the coast, evacuate to high ground.", "海岸附近的人请到高地避难。", "해안 근처에 계신 분은 높은 곳으로 대피하세요."],
+    "高台に避難してください": ["Evacuate to high ground.", "请到高地避难。", "높은 곳으로 대피하세요."],
+    "直ちに避難してください": ["Evacuate immediately.", "请立即避难。", "즉시 대피하세요."],
+    "命を守る行動をとってください": ["Take action to protect your life.", "请采取保护生命的行动。", "생명을 지키는 행동을 하세요."],
+    "落ち着いて行動してください": ["Stay calm and act carefully.", "请冷静行动。", "침착하게 행동하세요."],
+    "津波警報が発表されました": ["A tsunami warning has been issued.", "已发布海啸警报。", "쓰나미 경보가 발표되었습니다."],
+    "大津波警報が発表されました": ["A major tsunami warning has been issued.", "已发布大海啸警报。", "대쓰나미 경보가 발표되었습니다."],
+    "避難指示を発令しました": ["An evacuation order has been issued.", "已发布避难指示。", "대피 지시가 발령되었습니다."],
+    "緊急安全確保を発令しました": ["Emergency safety measures have been ordered.", "已发布紧急确保安全指示。", "긴급 안전 확보가 발령되었습니다."],
+  };
+  const ALERT_TAGS = {    // text in brackets: (気象庁), (テスト), ...
+    "気象庁": ["Japan Meteorological Agency", "日本气象厅", "일본 기상청"], "テスト": ["test", "测试", "테스트"],
+    "Contourのテストです": ["This is a Contour test", "这是 Contour 测试", "Contour 테스트입니다"],
+    "名古屋市": ["Nagoya City", "名古屋市", "나고야시"],
+  };
+  // Quake areas such as 愛知県西部: prefecture (Area list names) + part. Anything else stays Japanese.
+  const AREA_PART = { "東部": ["eastern", "东部", "동부"], "西部": ["western", "西部", "서부"], "南部": ["southern", "南部", "남부"], "北部": ["northern", "北部", "북부"], "中部": ["central", "中部", "중부"],
+    "北東部": ["northeastern", "东北部", "북동부"], "北西部": ["northwestern", "西北部", "북서부"], "南東部": ["southeastern", "东南部", "남동부"], "南西部": ["southwestern", "西南部", "남서부"] };
+  function alertPlace(p, i) {
+    const k = PREFS.findIndex(([, ja]) => p.startsWith(ja)); if (k < 0) return p;
+    const rest = p.slice(PREFS[k][1].length), part = AREA_PART[rest];
+    if (rest && !part) return p;
+    const name = [PREFS[k][0], PREFS_ZH[k], PREFS_KO[k]][i];
+    if (!part) return name;
+    return i === 0 ? `${part[0]} ${name}` : i === 1 ? name + part[1] : `${name} ${part[2]}`;
+  }
+  function alertPart(s, i) {
+    s = s.trim(); if (!s) return "";
+    let tag = "", m = s.match(/^(.*?)[（(]([^（）()]+)[）)]$/);
+    if (m) { if (!ALERT_TAGS[m[2]]) return null; tag = ALERT_TAGS[m[2]][i]; s = m[1].trim(); }
+    let core;
+    if (!s) core = "";
+    else if (ALERT_WORDS[s]) core = ALERT_WORDS[s][i];
+    else if ((m = s.match(/^(.+?)で地震発生$/))) { const pl = alertPlace(m[1], i); core = [`Earthquake in ${pl}.`, `${pl}发生地震。`, `${pl}에서 지진 발생.`][i]; }
+    else core = jmaSentence(s, i);
+    if (core === null || core === undefined) return null;
+    if (!tag) return core;
+    return i === 1 ? `${core}（${tag}）` : `${core ? core + " " : ""}(${tag})`;
+  }
+  function alertMsg(s) {
+    if (lang === "ja" || !s) return null;
+    const i = L3(), parts = zen2han(s).split("。").map(x => x.trim()).filter(Boolean);
+    const out = parts.map(x => alertPart(x, i));
+    if (out.every(x => x !== null)) return out.join(i === 1 ? "" : " ").trim() || null;
+    const mt = liveName(s);
+    return mt !== s ? mt : null;
+  }
   window.contourAlert = a => {
     alertData = { kind: (a && a.kind) || "alert", title: (a && a.title) || "", text: (a && a.text) || "" };
+    // Test alerts (menu "Test alert"; the app's test title contains テスト) are labelled as tests.
+    alertData.test = !!(a && a.test) || /（テスト）|テスト表示|Contourのテスト|Contour test/.test(alertData.title + " " + alertData.text);
     // Clear whatever was open, back to the map underneath.
     closeAR(); closeAsk(); closePick(); closeDrawer(); closeLang(); closeOverlays();
     if (sheetState === "open") closeSheet();
@@ -2748,10 +2853,37 @@ html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-
     ContourBridge.openAlertSetting(row.dataset.setting);
   });
   $("alAppInfo").addEventListener("click", () => { if (hasAlertBridge()) ContourBridge.openAlertSetting("appInfo"); });
-  $("alTest").addEventListener("click", () => {
-    if (hasAlertBridge() && typeof ContourBridge.testAlert === "function") { ContourBridge.testAlert("eew", 5000); say(t("al.test.soon")); }
-    else window.contourAlert({ kind: "eew", title: "緊急地震速報（テスト表示）", text: "Contour test. 強い揺れに備えてください。" });
+  // Test alert (menu "Test alert" and the setup page): a fake earthquake early warning.
+  // In the app it goes through the real pop-up path after 5 s, so users can check their own phone.
+  // First a Yes / No box; on Yes the app waits 8 s (time to lock the phone), then vibrates, sounds a
+  // test siren and pops up exactly like a real alert. In a browser the alert screen shows at once.
+  const TEST_DELAY = 8000;
+  const appCanTest = () => { const st = alertStatus(); return st && typeof ContourBridge.testAlert === "function" ? st : null; };
+  function runTestAlert() {
+    const st = appCanTest();
+    if (st && !Object.values(st).every(Boolean)) { renderAlertSetup(); $("page-alerts").classList.add("on"); say(t("al.needsetup"), 4000); return; }
+    $("taBody").textContent = t(st ? "ta.body" : "ta.body.browser");
+    $("taDim").hidden = false; $("taBox").hidden = false; $("taYes").focus({ preventScroll: true });
+  }
+  function closeTestBox() { $("taDim").hidden = true; $("taBox").hidden = true; }
+  // Browser preview of the siren: same rising and falling tone as the app, for 3 seconds.
+  function browserSiren() {
+    try {
+      const ac = new (window.AudioContext || window.webkitAudioContext)(), o = ac.createOscillator(), g = ac.createGain(), now = ac.currentTime;
+      o.type = "sine"; g.gain.value = 0.25; o.connect(g).connect(ac.destination);
+      for (let i = 0; i < 2; i++) { o.frequency.setValueAtTime(650, now + i * 1.5); o.frequency.linearRampToValueAtTime(1350, now + i * 1.5 + 0.75); o.frequency.linearRampToValueAtTime(650, now + i * 1.5 + 1.5); }
+      o.start(now); o.stop(now + 3);
+    } catch (_) { }
+    try { navigator.vibrate && navigator.vibrate([900, 250, 900, 250, 900]); } catch (_) { }
+  }
+  $("taNo").addEventListener("click", closeTestBox);
+  $("taDim").addEventListener("click", closeTestBox);
+  $("taYes").addEventListener("click", () => {
+    closeTestBox();
+    if (appCanTest()) { ContourBridge.testAlert("eew", TEST_DELAY); say(t("ta.lock"), 6000); }
+    else { browserSiren(); window.contourAlert({ kind: "eew", title: "緊急地震速報（テスト）", text: "強い揺れに備えてください。（Contourのテストです）", test: true }); }
   });
+  $("alTest").addEventListener("click", runTestAlert);
   // In the app, open the setup page once on first launch if anything is still off.
   setTimeout(() => {
     const st = alertStatus(); if (!st || Object.values(st).every(Boolean) || !alertScreen.hidden) return;
@@ -2761,6 +2893,7 @@ html[lang="ja"] .name, html[lang="ja"] .d-name, html[lang="ja"] .ar-name { word-
 
   // Android back button: close the top-most thing, otherwise go back to the map; false lets the app close.
   window.contourBack = () => {
+    if (!$("taBox").hidden) { closeTestBox(); return true; }
     if (!alertScreen.hidden) { closeAlertScreen(); return true; }
     if (!ar.hidden) { closeAR(); return true; }
     if (!ask.hidden) { closeAsk(); return true; }

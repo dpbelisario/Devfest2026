@@ -42,10 +42,86 @@ object EmergencyPopup {
             .putExtra(EXTRA_TITLE, title)
             .putExtra(EXTRA_TEXT, text)
 
-    fun show(context: Context, kind: AlertKind, title: String, text: String) {
+    /**
+     * [test]: the user's own test from the app. A real alert already sounds and vibrates (the phone's
+     * emergency-alert app does that), so only the test makes its own siren and vibration.
+     */
+    fun show(context: Context, kind: AlertKind, title: String, text: String, test: Boolean = false) {
         val intent = alertIntent(context, kind, title, text)
+        if (test) { vibrateAlarm(context); TestSiren.play() }
         postNotification(context, intent, title, text)
         if (Settings.canDrawOverlays(context)) startOverOtherApps(context, intent)
+    }
+
+    /**
+     * The user's test, played like a real alert: the screen wakes, a test "official alert" notification
+     * appears (lock screen or banner) with vibration and siren, and ~3.5 s later Contour pops up.
+     */
+    fun showTest(context: Context, kind: AlertKind, title: String, text: String) {
+        wakeScreen(context)
+        vibrateAlarm(context)
+        TestSiren.play()
+        postTestOfficialAlert(context, kind, title, text)
+        Handler(Looper.getMainLooper()).postDelayed({
+            val intent = alertIntent(context, kind, title, text)
+            postNotification(context, intent, title, text)
+            if (Settings.canDrawOverlays(context)) startOverOtherApps(context, intent)
+        }, 3_500)
+    }
+
+    private const val TEST_CHANNEL = "emergency_test_alert"
+    private const val TEST_NOTIFICATION_ID = 7111
+
+    /** Stands in for the phone's official alert notification during a test (clearly marked as a test). */
+    private fun postTestOfficialAlert(context: Context, kind: AlertKind, title: String, text: String) {
+        val nm = context.getSystemService(NotificationManager::class.java) ?: return
+        if (nm.getNotificationChannel(TEST_CHANNEL) == null) {
+            nm.createNotificationChannel(NotificationChannel(TEST_CHANNEL, "Test alert", NotificationManager.IMPORTANCE_HIGH).apply {
+                description = "The test alert from Contour's menu"
+                setSound(null, null)          // the test siren plays separately
+                enableVibration(false)        // and so does the vibration
+                lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
+            })
+        }
+        if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) return
+        val pi = PendingIntent.getActivity(context, TEST_NOTIFICATION_ID, alertIntent(context, kind, title, text),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+        val n = NotificationCompat.Builder(context, TEST_CHANNEL)
+            .setSmallIcon(android.R.drawable.stat_sys_warning)
+            .setColor(0xFFB3261E.toInt())
+            .setContentTitle(title)
+            .setContentText(text)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(text))
+            .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setContentIntent(pi)
+            .setAutoCancel(true)
+            .setTimeoutAfter(10 * 60 * 1000L)
+            .build()
+        try { nm.notify(TEST_NOTIFICATION_ID, n) } catch (_: SecurityException) { }
+    }
+
+    /** Turns the screen on for a few seconds so the test notification can be seen, like a real alert. */
+    private fun wakeScreen(context: Context) {
+        val pm = context.getSystemService(android.os.PowerManager::class.java) ?: return
+        try {
+            @Suppress("DEPRECATION")
+            pm.newWakeLock(android.os.PowerManager.SCREEN_BRIGHT_WAKE_LOCK or android.os.PowerManager.ACQUIRE_CAUSES_WAKEUP, "contour:testalert")
+                .acquire(8_000)
+        } catch (_: Exception) { }
+    }
+
+    /** Strong, alarm-style vibration (like an emergency alert) for the test. */
+    private fun vibrateAlarm(context: Context) {
+        val pattern = longArrayOf(0, 900, 250, 900, 250, 900, 250, 900, 250, 900)
+        val vibrator = if (Build.VERSION.SDK_INT >= 31)
+            context.getSystemService(android.os.VibratorManager::class.java)?.defaultVibrator
+        else @Suppress("DEPRECATION") context.getSystemService(android.os.Vibrator::class.java)
+        val attrs = android.media.AudioAttributes.Builder().setUsage(android.media.AudioAttributes.USAGE_ALARM).build()
+        try {
+            @Suppress("DEPRECATION") vibrator?.vibrate(android.os.VibrationEffect.createWaveform(pattern, -1), attrs)
+        } catch (_: Exception) { }
     }
 
     private fun postNotification(context: Context, intent: Intent, title: String, text: String) {
