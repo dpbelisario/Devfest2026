@@ -2444,6 +2444,7 @@ window.CAMPUS_CREDITS = {"toyoda":"Photo: Wikimedia Commons, CC BY-SA 3.0","libr
     // demo heading until a real sensor reports in: start turned ~40° away so the arrows visibly point somewhere
     arHead = (p.brg - 40 + 360) % 360; arRel = 40; arUpdate();
     arTurn.value = Math.round(arHead); arTurn.hidden = false; $("arNote").textContent = hereSource === "gps" ? t(hereAcc > 50 ? "ar.weak" : "ar.gps", { a: Math.round(hereAcc) }) : t("ar.demo");
+    if(p.indoor){ar.classList.add('indoor');$('indoorArControls').hidden=false;renderIndoorAR();}
     // Real position for real sites: ask for location now that AR is in use (falls back to the demo position).
     if (p.live && hereSource !== "gps") useGps({ quiet: true }).then(() => { if (arPoint) { arPoint.m = dist(HERE, arPoint.ll); arPlace(); if (!arSeen) $("arNote").textContent = hereSource === "gps" ? t("ar.gps", { a: Math.round(hereAcc) }) : t("ar.demo"); } });
     // iOS needs an explicit permission request from a tap

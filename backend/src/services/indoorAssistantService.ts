@@ -321,7 +321,10 @@ export function answerIndoorQuestion(
   const target =
     destination ??
     building.nodes.find(
-      (n) => !code && n.kind === "room" && roomCode(n) === request.context.destinationId,
+      (n) =>
+        !code &&
+        n.kind === "room" &&
+        roomCode(n) === request.context.destinationId,
     );
   if (!target)
     return {

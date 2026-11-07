@@ -97,7 +97,11 @@ test("other buildings and unmapped rooms never inherit Engineering II routes", (
   assert.equal(unknown.route, undefined);
   const pending = ask({
     message: "room 999",
-    context: { buildingId: "nu-eng2", destinationId: "221", checkpointId: "eng2-office-3" },
+    context: {
+      buildingId: "nu-eng2",
+      destinationId: "221",
+      checkpointId: "eng2-office-3",
+    },
   });
   assert.equal(pending.status, "not-found");
   assert.equal(pending.route, undefined);
