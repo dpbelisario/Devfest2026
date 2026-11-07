@@ -1,0 +1,109 @@
+package com.contour.app.alert
+
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.ComponentName
+import android.content.Context
+import android.content.Intent
+import android.graphics.PixelFormat
+import android.os.Build
+import android.os.Handler
+import android.os.Looper
+import android.provider.Settings
+import android.view.View
+import android.view.WindowManager
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
+import com.contour.app.R
+import com.contour.app.WebUiActivity
+import org.json.JSONObject
+
+/**
+ * Brings Contour to the front when an official emergency alert arrives.
+ *
+ * Android does not let apps open themselves from the background, so two paths are used together:
+ * 1. "Display over other apps" granted: start the alert screen directly. Android 15 requires the app to
+ *    have a visible overlay window at that moment, so a 1-pixel transparent one is shown briefly.
+ * 2. Always: a high-priority notification with a full-screen intent. On a locked or sleeping phone
+ *    Android opens the alert screen from it; otherwise it appears as a heads-up banner.
+ */
+object EmergencyPopup {
+    const val EXTRA_KIND = "com.contour.app.ALERT_KIND"
+    const val EXTRA_TITLE = "com.contour.app.ALERT_TITLE"
+    const val EXTRA_TEXT = "com.contour.app.ALERT_TEXT"
+    private const val CHANNEL = "emergency_popup"
+    private const val NOTIFICATION_ID = 7110
+
+    fun alertIntent(context: Context, kind: AlertKind, title: String, text: String): Intent =
+        Intent(context, WebUiActivity::class.java)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            .putExtra(EXTRA_KIND, kind.id)
+            .putExtra(EXTRA_TITLE, title)
+            .putExtra(EXTRA_TEXT, text)
+
+    fun show(context: Context, kind: AlertKind, title: String, text: String) {
+        val intent = alertIntent(context, kind, title, text)
+        postNotification(context, intent, title, text)
+        if (Settings.canDrawOverlays(context)) startOverOtherApps(context, intent)
+    }
+
+    private fun postNotification(context: Context, intent: Intent, title: String, text: String) {
+        val nm = context.getSystemService(NotificationManager::class.java) ?: return
+        if (nm.getNotificationChannel(CHANNEL) == null) {
+            // The official alert already sounds and vibrates; this channel stays silent but urgent.
+            nm.createNotificationChannel(NotificationChannel(CHANNEL, "Emergency pop-up", NotificationManager.IMPORTANCE_HIGH).apply {
+                description = "Opens Contour when an official emergency alert arrives"
+                setSound(null, null)
+                enableVibration(false)
+                lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
+            })
+        }
+        if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) return
+        val pi = PendingIntent.getActivity(context, NOTIFICATION_ID, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+        val n = NotificationCompat.Builder(context, CHANNEL)
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setContentTitle(title.ifBlank { "Contour" })
+            .setContentText(text.ifBlank { "Open Contour for the nearest evacuation site" })
+            .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setContentIntent(pi)
+            .setFullScreenIntent(pi, true)
+            .setAutoCancel(true)
+            .build()
+        try { nm.notify(NOTIFICATION_ID, n) } catch (_: SecurityException) { }
+    }
+
+    private fun startOverOtherApps(context: Context, intent: Intent) {
+        val main = Handler(Looper.getMainLooper())
+        main.post {
+            val wm = context.getSystemService(WindowManager::class.java)
+            val dot = View(context)
+            val params = WindowManager.LayoutParams(
+                1, 1,
+                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE,
+                PixelFormat.TRANSLUCENT,
+            )
+            val added = try { wm?.addView(dot, params); wm != null } catch (_: Exception) { false }
+            try { context.startActivity(intent) } catch (_: Exception) { }
+            if (added) main.postDelayed({ try { wm?.removeView(dot) } catch (_: Exception) { } }, 3_000)
+        }
+    }
+
+    /** Which permissions are on, for the setup page. */
+    fun status(context: Context): JSONObject {
+        val listener = NotificationManagerCompat.getEnabledListenerPackages(context).contains(context.packageName)
+        val notifications = NotificationManagerCompat.from(context).areNotificationsEnabled()
+        val fullScreen = Build.VERSION.SDK_INT < 34 ||
+            (context.getSystemService(NotificationManager::class.java)?.canUseFullScreenIntent() ?: false)
+        return JSONObject()
+            .put("listener", listener)
+            .put("overlay", Settings.canDrawOverlays(context))
+            .put("notifications", notifications)
+            .put("fullScreen", fullScreen)
+    }
+
+    fun listenerComponent(context: Context) = ComponentName(context, EmergencyAlertListener::class.java)
+}
