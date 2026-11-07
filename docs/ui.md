@@ -94,3 +94,11 @@ See [live-data.md](live-data.md) for the API.
 - 3D AR is a compass arrow on the camera view, not ARCore geospatial tracking; accuracy depends on
   GPS and compass calibration.
 - The assistant can make mistakes; official announcements take priority.
+
+## Native indoor positioning
+
+The Android shell adds **Indoor navigation** to the menu for both hosted and
+bundled pages. It opens a native IndoorAtlas floor-map positioning preview.
+See [IndoorAtlas setup and validation](indoor-positioning.md) for credentials,
+MapCreator surveying, physical-device tests and limits. A new APK is required;
+this does not add indoor positioning to the standalone browser UI.

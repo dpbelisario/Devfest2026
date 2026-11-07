@@ -6,3 +6,7 @@ EVACUATION_AR_API_BASE_URL=http://10.0.2.2:8080/
 # Configure restricted Android ARCore credentials when implementing AR.
 # Optional: load the Contour UI from the backend (https only) instead of the bundled copy.
 # CONTOUR_UI_URL=https://<your-backend>/app/
+# IndoorAtlas client Positioning SDK credentials from your IndoorAtlas account.
+# A surveyed venue and generated signal map are required for real indoor positioning.
+INDOORATLAS_API_KEY=
+INDOORATLAS_API_SECRET=

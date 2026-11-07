@@ -16,6 +16,11 @@ require(!apiBaseUrl.contains('"') && !apiBaseUrl.contains('\\')) { "Invalid API 
 val uiUrl = providers.gradleProperty("contourUiUrl").orNull ?: local.getProperty("CONTOUR_UI_URL", "")
 require(uiUrl.isEmpty() || uiUrl.startsWith("https://")) { "CONTOUR_UI_URL must use https." }
 require(!uiUrl.contains('"') && !uiUrl.contains('\\')) { "Invalid CONTOUR_UI_URL" }
+// Client SDK credentials are packaged in the APK; do not use server/admin credentials.
+val indoorAtlasKey = local.getProperty("INDOORATLAS_API_KEY", "").trim()
+val indoorAtlasSecret = local.getProperty("INDOORATLAS_API_SECRET", "").trim()
+fun configString(value: String): String = "\"" + value.replace("\\", "\\\\")
+ .replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r") + "\""
 android {
  namespace = "com.contour.app"
  compileSdk = 35
@@ -28,6 +33,8 @@ android {
   versionName = "0.1.0"
   buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
   buildConfigField("String", "UI_URL", "\"$uiUrl\"")
+  buildConfigField("String", "INDOORATLAS_API_KEY", configString(indoorAtlasKey))
+  buildConfigField("String", "INDOORATLAS_API_SECRET", configString(indoorAtlasSecret))
   testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
  }
  buildFeatures { compose = true; buildConfig = true }
@@ -35,6 +42,7 @@ android {
  kotlinOptions { jvmTarget = "17" }
 }
 dependencies {
+ implementation("com.indooratlas.android:indooratlas-android-sdk:3.8.1@aar")
  implementation(platform("androidx.compose:compose-bom:2025.04.01"))
  implementation("androidx.activity:activity-compose:1.10.1")
  implementation("androidx.compose.material3:material3")

@@ -26,6 +26,8 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.webkit.WebViewAssetLoader
+import androidx.webkit.WebViewCompat
+import androidx.webkit.WebViewFeature
 import kotlinx.coroutines.launch
 
 /**
@@ -206,6 +208,24 @@ class WebUiActivity : ComponentActivity() {
 
         web.addJavascriptInterface(ContourBridge(this, speechInput, translator), "ContourBridge")
 
+        // Only trusted top-level pages may launch the native indoor feature. No SDK data or
+        // credentials cross this bridge; child frames cannot request positioning or launch it.
+        val indoorSupported = WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)
+        if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
+            val origins = mutableSetOf("https://${WebViewAssetLoader.DEFAULT_DOMAIN}")
+            hostedUrl?.let { url ->
+                val uri = Uri.parse(url)
+                val port = if (uri.port == -1) "" else ":${uri.port}"
+                origins.add("https://${uri.host}$port")
+            }
+            WebViewCompat.addWebMessageListener(web, "ContourIndoor", origins) { _, message, _, isMainFrame, _ ->
+                if (isMainFrame && message.data == "open") {
+                    startActivity(Intent(this, com.contour.app.indoor.IndoorActivity::class.java))
+                }
+            }
+        }
+        val indoorMenuScript = assets.open("indoor-menu.js").bufferedReader().use { it.readText() }
+
         val assets = WebViewAssetLoader.Builder()
             .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(this))
             .build()
@@ -226,6 +246,10 @@ class WebUiActivity : ComponentActivity() {
 
             override fun onPageFinished(view: WebView, url: String) {
                 if (Uri.parse(url).host == hostedHost) web.removeCallbacks(hostedTimeout)
+                if (indoorSupported && isOurs(Uri.parse(url).host)) {
+                    // Inject into both bundled and existing hosted UI versions, without a deployment.
+                    web.evaluateJavascript(indoorMenuScript, null)
+                }
             }
 
             override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
