@@ -14,8 +14,14 @@ android/keystore.properties
 .DS_Store
 *.log
 ios/DerivedData/
-ios/Contour/GoogleService-Info.plist
+**/GoogleService-Info.plist
 **/xcuserdata/
 *.xcuserstate
 .playwright-cli/
 output/playwright/
+
+ios/Contour.xcodeproj/project.xcworkspace/contents.xcworkspacedata
+
+__pycache__/
+
+gha-creds-*.json

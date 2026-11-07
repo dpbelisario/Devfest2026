@@ -1,0 +1,208 @@
+name: iOS build and Firebase distribution
+
+on:
+  workflow_dispatch:
+    inputs:
+      distribution:
+        description: Unsigned artifact needs local re-signing; Firebase needs a paid Apple team
+        type: choice
+        options: [unsigned, firebase]
+        default: unsigned
+      tester_groups:
+        description: Firebase tester group aliases (comma-separated)
+        type: string
+        default: team-david
+      release_notes:
+        description: Notes for this build
+        type: string
+        default: Contour iOS prototype; routes and alerts are demonstrations.
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    outputs:
+      bundle_id: ${{ steps.config.outputs.bundle_id }}
+      app_id: ${{ steps.config.outputs.app_id }}
+      project_id: ${{ steps.config.outputs.project_id }}
+      profile_uuid: ${{ steps.config.outputs.profile_uuid }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Validate configuration before starting the macOS runner
+        id: config
+        shell: bash
+        env:
+          DISTRIBUTION: ${{ inputs.distribution }}
+          TESTER_GROUPS: ${{ inputs.tester_groups }}
+          IOS_TEAM_ID: ${{ vars.IOS_TEAM_ID }}
+          GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          GCP_SERVICE_ACCOUNT: ${{ vars.GCP_SERVICE_ACCOUNT }}
+          IOS_DISTRIBUTION_CERTIFICATE_BASE64: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_BASE64 }}
+          IOS_DISTRIBUTION_CERTIFICATE_PASSWORD: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_PASSWORD }}
+          IOS_AD_HOC_PROFILE_BASE64: ${{ secrets.IOS_AD_HOC_PROFILE_BASE64 }}
+        run: |
+          set -euo pipefail
+          [[ "$DISTRIBUTION" == unsigned || "$DISTRIBUTION" == firebase ]] || exit 1
+          if [[ "$DISTRIBUTION" == firebase ]]; then
+            for name in IOS_TEAM_ID GCP_WORKLOAD_IDENTITY_PROVIDER GCP_SERVICE_ACCOUNT IOS_DISTRIBUTION_CERTIFICATE_BASE64 IOS_DISTRIBUTION_CERTIFICATE_PASSWORD IOS_AD_HOC_PROFILE_BASE64; do
+              if [[ -z "${!name}" ]]; then
+                echo "::error::Missing repository secret or variable: $name"
+                exit 1
+              fi
+            done
+            [[ "$IOS_TEAM_ID" =~ ^[A-Z0-9]{10}$ ]] || exit 1
+            [[ "$TESTER_GROUPS" =~ ^[A-Za-z0-9_-]+(,[A-Za-z0-9_-]+)*$ ]] || exit 1
+          fi
+          python3 - <<'PY'
+          import base64, datetime, json, os, pathlib, plistlib, re, subprocess, tempfile, uuid
+          with open('ios/firebase-app.json') as file:
+              app = json.load(file)
+          assert re.fullmatch(r'[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+', app['bundleId']), 'Invalid bundle identifier'
+          assert re.fullmatch(r'1:[0-9]+:ios:[a-f0-9]+', app['appId']), 'Invalid Firebase iOS app ID'
+          assert re.fullmatch(r'[a-z][a-z0-9-]+', app['projectId']), 'Invalid Firebase project ID'
+          profile_uuid = ''
+          if os.environ['DISTRIBUTION'] == 'firebase':
+              with tempfile.TemporaryDirectory() as directory:
+                  directory = pathlib.Path(directory)
+                  for name, filename in [('IOS_DISTRIBUTION_CERTIFICATE_BASE64', 'certificate.p12'), ('IOS_AD_HOC_PROFILE_BASE64', 'profile.mobileprovision')]:
+                      (directory / filename).write_bytes(base64.b64decode(os.environ[name], validate=True))
+                  subprocess.run(['openssl', 'pkcs12', '-legacy', '-in', str(directory / 'certificate.p12'), '-noout', '-passin', 'env:IOS_DISTRIBUTION_CERTIFICATE_PASSWORD'], check=True, capture_output=True)
+                  subprocess.run(['openssl', 'cms', '-verify', '-inform', 'DER', '-in', str(directory / 'profile.mobileprovision'), '-noverify', '-out', str(directory / 'profile.plist')], check=True, capture_output=True)
+                  with open(directory / 'profile.plist', 'rb') as file:
+                      profile = plistlib.load(file)
+                  assert profile['ExpirationDate'] > datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None), 'Provisioning profile expired'
+                  assert profile.get('ProvisionedDevices'), 'Ad hoc profile must include tester device UDIDs'
+                  assert not profile.get('ProvisionsAllDevices'), 'Enterprise profiles are not supported'
+                  assert not profile['Entitlements'].get('get-task-allow', False), 'Use an ad hoc distribution profile, not development signing'
+                  assert os.environ['IOS_TEAM_ID'] in profile['TeamIdentifier'], 'Profile belongs to a different Apple team'
+                  assert profile['Entitlements']['application-identifier'].split('.', 1)[1] == app['bundleId'], 'Profile bundle identifier does not match'
+                  profile_uuid = str(uuid.UUID(profile['UUID'])).upper()
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as file:
+              for key, value in [('bundle_id', app['bundleId']), ('app_id', app['appId']), ('project_id', app['projectId']), ('profile_uuid', profile_uuid)]:
+                  file.write(key + '=' + value + '\n')
+          PY
+
+  build:
+    needs: validate
+    runs-on: macos-15
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      IOS_BUNDLE_ID: ${{ needs.validate.outputs.bundle_id }}
+      FIREBASE_IOS_APP_ID: ${{ needs.validate.outputs.app_id }}
+      FIREBASE_PROJECT_ID: ${{ needs.validate.outputs.project_id }}
+      IOS_PROFILE_UUID: ${{ needs.validate.outputs.profile_uuid }}
+      IOS_TEAM_ID: ${{ vars.IOS_TEAM_ID }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - uses: android-actions/setup-android@v3
+      - name: Install Android SDK for the shared Kotlin module
+        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+      - name: Check bridge and build environment behavior
+        run: node --test ios/tests/bridge.test.cjs ios/tests/build-shared.test.cjs
+      - name: Import owner-provided ad hoc signing material
+        if: inputs.distribution == 'firebase'
+        env:
+          CERTIFICATE_BASE64: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_BASE64 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_PASSWORD }}
+          PROFILE_BASE64: ${{ secrets.IOS_AD_HOC_PROFILE_BASE64 }}
+        run: |
+          set -euo pipefail
+          umask 077
+          python3 - <<'PY'
+          import base64, os
+          for name, filename in [('CERTIFICATE_BASE64', 'ios-signing.p12'), ('PROFILE_BASE64', 'ios-signing.mobileprovision')]:
+              with open(os.environ['RUNNER_TEMP'] + '/' + filename, 'wb') as file:
+                  file.write(base64.b64decode(os.environ[name], validate=True))
+          PY
+          security cms -D -i "$RUNNER_TEMP/ios-signing.mobileprovision" > "$RUNNER_TEMP/ios-profile.plist"
+          python3 - <<'PY'
+          import os, plistlib
+          export_options = {'method': 'release-testing', 'teamID': os.environ['IOS_TEAM_ID'], 'signingStyle': 'manual', 'signingCertificate': 'Apple Distribution', 'provisioningProfiles': {os.environ['IOS_BUNDLE_ID']: os.environ['IOS_PROFILE_UUID']}}
+          with open(os.environ['RUNNER_TEMP'] + '/ios-export.plist', 'wb') as file:
+              plistlib.dump(export_options, file)
+          PY
+          mkdir -p "$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"
+          cp "$RUNNER_TEMP/ios-signing.mobileprovision" "$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles/$IOS_PROFILE_UUID.mobileprovision"
+          keychain_password=$(openssl rand -hex 24)
+          echo "::add-mask::$keychain_password"
+          security create-keychain -p "$keychain_password" "$RUNNER_TEMP/ios-signing.keychain-db"
+          security set-keychain-settings -lut 21600 "$RUNNER_TEMP/ios-signing.keychain-db"
+          security unlock-keychain -p "$keychain_password" "$RUNNER_TEMP/ios-signing.keychain-db"
+          security import "$RUNNER_TEMP/ios-signing.p12" -P "$CERTIFICATE_PASSWORD" -k "$RUNNER_TEMP/ios-signing.keychain-db" -T /usr/bin/codesign > /dev/null
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -k "$keychain_password" "$RUNNER_TEMP/ios-signing.keychain-db" > /dev/null
+          security list-keychains -d user -s "$RUNNER_TEMP/ios-signing.keychain-db" "$HOME/Library/Keychains/login.keychain-db"
+      - name: Archive the iPhone app
+        env:
+          DISTRIBUTION: ${{ inputs.distribution }}
+        run: |
+          set -euo pipefail
+          signing=(CODE_SIGNING_ALLOWED=NO)
+          if [[ "$DISTRIBUTION" == firebase ]]; then
+            signing=(CODE_SIGN_STYLE=Manual "DEVELOPMENT_TEAM=$IOS_TEAM_ID" "PROVISIONING_PROFILE_SPECIFIER=$IOS_PROFILE_UUID" 'CODE_SIGN_IDENTITY=Apple Distribution')
+          fi
+          xcodebuild -quiet -project ios/Contour.xcodeproj -scheme Contour -configuration Release \
+            -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/Contour.xcarchive" \
+            -derivedDataPath ios/DerivedData "PRODUCT_BUNDLE_IDENTIFIER=$IOS_BUNDLE_ID" \
+            "CURRENT_PROJECT_VERSION=$GITHUB_RUN_NUMBER" "${signing[@]}" archive
+      - name: Package unsigned IPA for local re-signing
+        if: inputs.distribution == 'unsigned'
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/ios-package/Payload" ios/DerivedData/distribution
+          cp -R "$RUNNER_TEMP/Contour.xcarchive/Products/Applications/Contour.app" "$RUNNER_TEMP/ios-package/Payload/"
+          (cd "$RUNNER_TEMP/ios-package" && zip -qr "$GITHUB_WORKSPACE/ios/DerivedData/distribution/Contour-unsigned.ipa" Payload)
+          echo 'Unsigned IPA requires local Apple development signing before installation; Firebase cannot install it.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Export ad hoc IPA
+        if: inputs.distribution == 'firebase'
+        run: |
+          xcodebuild -quiet -exportArchive -archivePath "$RUNNER_TEMP/Contour.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/ios-export.plist" -exportPath ios/DerivedData/distribution
+      - name: Authenticate to the owner's existing Google service account
+        if: inputs.distribution == 'firebase'
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+          project_id: ${{ needs.validate.outputs.project_id }}
+      - name: Distribute to Firebase testers
+        if: inputs.distribution == 'firebase'
+        env:
+          TESTER_GROUPS: ${{ inputs.tester_groups }}
+          RELEASE_NOTES: ${{ inputs.release_notes }}
+        run: |
+          set -euo pipefail
+          printf '%s\n' "$RELEASE_NOTES" > "$RUNNER_TEMP/ios-release-notes.txt"
+          npx --yes firebase-tools@15.33.0 appdistribution:distribute ios/DerivedData/distribution/Contour.ipa \
+            --project "$FIREBASE_PROJECT_ID" --app "$FIREBASE_IOS_APP_ID" \
+            --groups "$TESTER_GROUPS" --release-notes-file "$RUNNER_TEMP/ios-release-notes.txt" --non-interactive
+      - name: Save the IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: contour-ios-${{ inputs.distribution }}-${{ github.run_number }}
+          path: ios/DerivedData/distribution/*.ipa
+          if-no-files-found: error
+          retention-days: 7
+      - name: Remove signing material
+        if: always() && inputs.distribution == 'firebase'
+        run: |
+          security delete-keychain "$RUNNER_TEMP/ios-signing.keychain-db" 2>/dev/null || true
+          if [[ -n "${IOS_PROFILE_UUID:-}" ]]; then
+            rm -f "$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles/$IOS_PROFILE_UUID.mobileprovision"
+          fi
+          rm -f "$RUNNER_TEMP/ios-signing.p12" "$RUNNER_TEMP/ios-signing.mobileprovision" "$RUNNER_TEMP/ios-profile.plist" "$RUNNER_TEMP/ios-export.plist"

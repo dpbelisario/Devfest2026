@@ -5,7 +5,8 @@ the `ContourShared` Kotlin framework from `android/shared`; it does not replace 
 interface with Compose. Use `ios/Contour.xcodeproj`, scheme **Contour**.
 
 Apple requirements checked on 7 November 2026. This guide describes manual setup;
-an iOS compile, signed archive, upload and device run still need verification.
+the simulator build and four native XCTest tests have passed. A signed archive,
+upload and physical-device run still need verification.
 
 ## Choose an installation method
 
@@ -216,3 +217,6 @@ beta review has been performed by writing this guide. Current feature limits are
 documented in [ios.md](ios.md).
 
 Tracked work: [iOS foundation #26](https://github.com/dpbelisario/Devfest2026/issues/26), [TestFlight #27](https://github.com/dpbelisario/Devfest2026/issues/27), [IndoorAtlas verification #28](https://github.com/dpbelisario/Devfest2026/issues/28).
+
+For Firebase distribution and the already registered iOS app, see
+[iOS on Firebase](ios-firebase.md). Firebase hosting does not replace Apple signing.

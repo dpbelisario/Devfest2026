@@ -733,7 +733,6 @@ html.native .ar-near { background: var(--accent-wash); color: var(--accent-deep)
 /* Emergency pop-up setup page */
 .page .al-steps { list-style: none; padding: 0; margin: 16px 0 10px; display: grid; gap: 10px; counter-reset: al; }
 .al-steps li { display: flex; align-items: center; gap: 12px; padding: 12px 12px 12px 14px; border-radius: 10px; border: 1px solid var(--wash-line, #d6d7da); max-width: none; }
-.al-steps li[hidden] { display: none; }
 .al-steps li div { flex: 1; min-width: 0; display: grid; gap: 3px; }
 .al-steps li b { font: 600 15px/1.3 var(--f-body); color: var(--ink); }
 .al-steps li span { font: 400 13px/1.4 var(--f-body); color: var(--ink-3); }
@@ -1508,9 +1507,6 @@ window.CAMPUS_CREDITS = {"toyoda":"Photo: Wikimedia Commons, CC BY-SA 3.0","libr
     "al.close": ["Close", "閉じる", "关闭", "닫기"],
     "al.note": ["Whether a site is open is unknown. Follow official instructions.", "避難場所の開設状況は不明です。公式の指示に従ってください。", "避难场所是否开放未知，请遵循官方指示。", "대피 장소 개설 여부는 알 수 없습니다. 공식 지시를 따르세요."],
     "al.setup.h": ["Open Contour when an emergency alert arrives", "緊急速報が届いたらContourを自動で開く", "收到紧急警报时自动打开 Contour", "긴급 경보가 오면 Contour를 자동으로 열기"],
-    "al.ios.h": ["Contour alerts on iPhone", "iPhoneのContour警報", "iPhone 上的 Contour 警报", "iPhone의 Contour 경보"],
-    "al.ios.p": ["Contour cannot read the iPhone's government alerts or open over other apps. This build lets you test a Contour notification: tap it to open the alert screen. Strong vibration runs while Contour is open; background vibration follows iPhone settings. Live push alerts require a configured notification service.", "ContourはiPhoneの政府警報を読み取ったり、他のアプリの上に自動表示したりできません。このビルドではContourの通知をテストできます。通知をタップすると警報画面が開きます。強い振動はContour表示中のみで、バックグラウンドではiPhoneの設定に従います。実際のプッシュ警報には通知サービスの設定が必要です。", "Contour 无法读取 iPhone 的政府警报，也无法覆盖其他应用自动打开。此版本可测试 Contour 通知：点按通知打开警报画面。强振动仅在 Contour 打开时运行，后台振动遵循 iPhone 设置。实时推送警报需要配置通知服务。", "Contour는 iPhone의 정부 경보를 읽거나 다른 앱 위에 자동으로 열릴 수 없습니다. 이 빌드에서 Contour 알림을 테스트할 수 있습니다. 알림을 탭하면 경보 화면이 열립니다. 강한 진동은 Contour가 열려 있을 때 작동하며, 백그라운드 진동은 iPhone 설정을 따릅니다. 실제 푸시 경보에는 알림 서비스 설정이 필요합니다."],
-    "al.ios.test": ["The test notification arrives in 5 seconds. Keep Contour open for strong vibration, or tap the notification to open it. Dismiss the alert to stop vibration.", "5秒後にテスト通知が届きます。Contourを開いたままにすると強く振動します。通知をタップして開くこともできます。警報を閉じると振動が止まります。", "测试通知将在 5 秒后到达。保持 Contour 打开可体验强振动，或点按通知打开应用。关闭警报即可停止振动。", "5초 후 테스트 알림이 도착합니다. 강한 진동을 확인하려면 Contour를 열어 두거나 알림을 탭해 여세요. 경보를 닫으면 진동이 멈춥니다."],
     "al.setup.p": ["When your phone receives an official emergency alert (緊急速報: earthquake early warning, tsunami, emergency warning or evacuation order), Contour opens by itself and shows the nearest evacuation site. Turn on the settings below once. Drills and ordinary notifications never open it.", "スマホに公式の緊急速報（緊急地震速報・津波・特別警報・避難指示）が届くと、Contourが自動で開き、最寄りの避難場所を表示します。下の設定を一度オンにしてください。訓練や普通の通知では開きません。", "手机收到官方紧急警报（緊急速報：紧急地震速报、海啸、特别警报或避难指示）时，Contour 会自动打开并显示最近的避难场所。请将下方设置开启一次。演练和普通通知不会触发。", "휴대폰에 공식 긴급 경보(緊急速報: 긴급 지진 속보, 쓰나미, 특별경보, 대피 지시)가 오면 Contour가 자동으로 열려 가장 가까운 대피 장소를 보여 줍니다. 아래 설정을 한 번 켜 주세요. 훈련이나 일반 알림으로는 열리지 않습니다."],
     "al.s.listener": ["Notification access", "通知へのアクセス", "通知使用权", "알림 접근 권한"],
     "al.s.listener.d": ["Lets Contour notice the official alert. Other notifications are ignored and nothing is saved.", "公式の緊急速報に気づくために使います。他の通知は無視し、何も保存しません。", "用于察觉官方紧急警报。其他通知一律忽略，不保存任何内容。", "공식 긴급 경보를 알아차리는 데 사용합니다. 다른 알림은 무시하며 아무것도 저장하지 않습니다."],

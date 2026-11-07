@@ -57,5 +57,6 @@ Background vibration follows iOS notification settings; custom repeated haptics
 run only while Contour is active. On-device name translation remains Android-only.
 GPS/camera arrows and walking previews are not verified emergency routes.
 
-The Xcode project has been structurally checked and Swift syntax parsed, but
-an iOS compile and simulator/device run are still required before calling it ready.
+The full iOS simulator build and four native XCTest tests passed with Xcode 16.4
+on 7 November 2026. Physical-device permissions, haptics, camera and GPS still need
+verification. See [Firebase setup](ios-firebase.md) for distribution status.

@@ -23,9 +23,13 @@ The **Build shared Kotlin** phase runs `scripts/build-shared.sh`, honors
 `JAVA_HOME` and `ANDROID_HOME`, and builds `ContourShared` through Gradle.
 Use JDK 17 and Android SDK 35. Keep team IDs, signing keys and API credentials local.
 
+[Firebase iOS distribution](../docs/ios-firebase.md) documents the registered app,
+Google upload identity and manual build pipeline.
+
 [Installation and TestFlight](../docs/ios-setup.md) distinguishes local Personal
 Team installation from paid-team uploads. [IndoorAtlas and LiDAR planning](../docs/ios-indoor-navigation.md)
 records documented requirements, proposed alignment checks and unresolved limits.
 LiDAR stays optional and cannot establish safe routes or absolute position alone.
 
-No native build, signed archive or TestFlight upload has been verified yet.
+The native simulator build and four XCTest tests passed with Xcode 16.4.
+Signed distribution and physical-device checks remain pending.
