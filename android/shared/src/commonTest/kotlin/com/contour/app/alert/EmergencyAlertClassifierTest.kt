@@ -1,10 +1,15 @@
 package com.contour.app.alert
 
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
-import org.junit.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNull
+import kotlin.test.Test
 
 class EmergencyAlertClassifierTest {
+    @Test fun wireKindsRoundTripAndUnknownKindsAreRejected() {
+        AlertKind.entries.forEach { assertEquals(it, AlertKind.fromId(it.id)) }
+        assertNull(AlertKind.fromId("unknown"))
+        assertNull(AlertKind.fromId(""))
+    }
     private val cb = "com.google.android.cellbroadcastreceiver"
 
     @Test fun earthquakeEarlyWarningOpensTheApp() =

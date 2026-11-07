@@ -14,6 +14,10 @@ screen says so.
 
 GPS is often off by 5–10 m near buildings, so the 10 m prompt may come a little early or late.
 
+Buildings that have a real floor plan in the indoor catalog (Engineering Building II, ILAS Building A; see
+[indoor-pilot.md](indoor-pilot.md)) do not use the sample plan: their Details button and 10 m prompt open
+**Ask** with that building's indoor directions (Engineering Building II starts the Room 221 demo).
+
 ## What it does
 
 1. Pick a start point, a destination (Evacuation: nearest exit, elevators avoided) and where movement

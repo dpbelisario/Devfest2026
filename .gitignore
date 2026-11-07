@@ -13,3 +13,9 @@ android/keystore.properties
 .idea/
 .DS_Store
 *.log
+ios/DerivedData/
+ios/Contour/GoogleService-Info.plist
+**/xcuserdata/
+*.xcuserstate
+.playwright-cli/
+output/playwright/

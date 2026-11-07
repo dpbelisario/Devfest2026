@@ -8,13 +8,13 @@ evacuation site (designated for that hazard when known), and **3D AR directions*
 
 ## How it works
 
-| Part | File |
-| --- | --- |
-| Which notifications count (urgent alert kinds only; drills and ordinary notifications ignored) | `android/app/src/main/java/com/contour/app/alert/EmergencyAlertClassifier.kt` (unit-tested) |
-| Watches notifications from the phone's emergency-alert app | `alert/EmergencyAlertListener.kt` (NotificationListenerService) |
-| Brings Contour to the front: full-screen notification + direct start when "display over other apps" is on | `alert/EmergencyPopup.kt` |
-| Shows over the lock screen, passes the alert to the page, setup buttons | `WebUiActivity.kt` (`window.contourAlert`, `ContourBridge.alertSetupStatus/openAlertSetting/testAlert`) |
-| Alert screen + setup page (menu → **Emergency pop-up**) | `android/app/src/main/assets/contour.html` |
+| Part                                                                                                      | File                                                                                                    |
+| --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| Which notifications count (urgent alert kinds only; drills and ordinary notifications ignored)            | `android/app/src/main/java/com/contour/app/alert/EmergencyAlertClassifier.kt` (unit-tested)             |
+| Watches notifications from the phone's emergency-alert app                                                | `alert/EmergencyAlertListener.kt` (NotificationListenerService)                                         |
+| Brings Contour to the front: full-screen notification + direct start when "display over other apps" is on | `alert/EmergencyPopup.kt`                                                                               |
+| Shows over the lock screen, passes the alert to the page, setup buttons                                   | `WebUiActivity.kt` (`window.contourAlert`, `ContourBridge.alertSetupStatus/openAlertSetting/testAlert`) |
+| Alert screen + setup page (menu → **Emergency pop-up**)                                                   | `android/app/src/main/assets/contour.html`                                                              |
 
 Only notifications from an emergency-alert app (package name containing `cellbroadcast`, `areamail`,
 `emergencyalert` or `etws`) are read; everything else is ignored at once. Nothing is stored or sent.
@@ -42,7 +42,7 @@ wording (earthquake area, 強い揺れに備えてください, tsunami and evac
 the Japanese original underneath; other text goes to the device translator or stays Japanese.
 Contour may show over the lock screen only for an alert: once it leaves the screen, the normal lock
 applies again. Only the test
-makes its own sound; a real alert is already loud from the phone's emergency-alert app. The screen is labelled "TEST · not a real emergency". If a setting is
+adds vibration; a real alert already sounds and vibrates through the phone's emergency-alert app. The screen is labelled "TEST · not a real emergency". If a setting is
 still off, the menu item opens the setup page instead. In a browser, the test shows the alert screen at
 once.
 
