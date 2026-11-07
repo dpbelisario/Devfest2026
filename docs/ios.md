@@ -26,9 +26,13 @@ UIKit/WKWebView handles iOS location, speech, camera permissions and foreground 
    alert screen and 12 strong foreground pulses. Dismiss it to stop the pulses.
    Also test with the phone locked: tap its notification to open Contour.
 
-The project uses the existing Homebrew JDK 17 and Android SDK paths in its Kotlin
-build phase. If building on another Mac, update those paths in Build Phases →
-Build shared Kotlin. No Firebase iOS registration is needed for this local demo.
+The Kotlin build uses `ios/scripts/build-shared.sh`. Set `JAVA_HOME` to JDK 17
+and `ANDROID_HOME` to your Android SDK when the local defaults do not apply.
+No Firebase iOS registration is needed for this local demo.
+
+For paid-team TestFlight enrollment, compatible upload tools and archive steps,
+see [iOS setup](ios-setup.md). For IndoorAtlas and optional LiDAR prerequisites,
+see [iPhone indoor navigation](ios-indoor-navigation.md).
 
 Free development provisioning expires after seven days; reconnect and press ⌘R
 to install again. Apple limits Personal Team device/app registrations. There is
@@ -53,5 +57,6 @@ Background vibration follows iOS notification settings; custom repeated haptics
 run only while Contour is active. On-device name translation remains Android-only.
 GPS/camera arrows and walking previews are not verified emergency routes.
 
-The Xcode project has been structurally checked and Swift syntax parsed, but
-an iOS compile and simulator/device run are still required before calling it ready.
+The full iOS simulator build and four native XCTest tests passed with Xcode 16.4
+on 7 November 2026. Physical-device permissions, haptics, camera and GPS still need
+verification. See [Firebase setup](ios-firebase.md) for distribution status.

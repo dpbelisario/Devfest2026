@@ -6,11 +6,11 @@ screen says so.
 
 ## Where it opens
 
-| Mode | Entry point | Flow |
-| --- | --- | --- |
-| Student | Building **Details** → **Indoor navigation · find a classroom** | Indoor view for that building; pick a room |
-| Student | During **3D AR** to a building, within **10 m** (GPS) | "You're near {building}. Find your classroom with indoor navigation?" Yes → indoor view. Asked once per building. Without GPS (demo position) the AR card shows **Demo: I'm near the building** instead |
-| Evacuation | Starting **3D AR** to a site (card, Details, picker, alert screen) | "Are you inside a building right now?" Yes → indoor view to the nearest exit (elevators avoided), then 3D AR to the site starts by itself once you are out. No → 3D AR straight away |
+| Mode       | Entry point                                                        | Flow                                                                                                                                                                                                    |
+| ---------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Student    | Building **Details** → **Indoor navigation · find a classroom**    | Indoor view for that building; pick a room                                                                                                                                                              |
+| Student    | During **3D AR** to a building, within **10 m** (GPS)              | "You're near {building}. Find your classroom with indoor navigation?" Yes → indoor view. Asked once per building. Without GPS (demo position) the AR card shows **Demo: I'm near the building** instead |
+| Evacuation | Starting **3D AR** to a site (card, Details, picker, alert screen) | "Are you inside a building right now?" Yes → indoor view to the nearest exit (elevators avoided), then 3D AR to the site starts by itself once you are out. No → 3D AR straight away                    |
 
 GPS is often off by 5–10 m near buildings, so the 10 m prompt may come a little early or late.
 
@@ -36,11 +36,11 @@ All texts are in English, 日本語, 中文 and 한국어. Everything except the
 No beacons or other hardware. The phone only measures movement, so the position is always an
 estimate; the floor plan keeps it in check.
 
-| Input | Source |
-| --- | --- |
-| Steps | Accelerometer peaks (`devicemotion` in the page), 0.70 m per step |
-| Direction | Compass (`deviceorientationabsolute`); without a compass the start faces the first route direction |
-| Floor | Barometer (Android `TYPE_PRESSURE`, sent by the app about 4×/s): about 0.12 hPa per metre, 4 m per floor. Steps while the height changes = stairs, none = elevator |
+| Input     | Source                                                                                                                                                             |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Steps     | Accelerometer peaks (`devicemotion` in the page), 0.70 m per step                                                                                                  |
+| Direction | Compass (`deviceorientationabsolute`); without a compass the start faces the first route direction                                                                 |
+| Floor     | Barometer (Android `TYPE_PRESSURE`, sent by the app about 4×/s): about 0.12 hPa per metre, 4 m per floor. Steps while the height changes = stairs, none = elevator |
 
 - **Particle filter**: 300 guesses (position, floor, step-length scale, compass bias). Each step moves
   every guess with a little noise; a guess that would walk through a wall is dropped; the rest give
@@ -60,15 +60,15 @@ it without timers and returns the error between the true and estimated position.
 
 Results for 7 routes × 12 seeds (headless Chrome, 2026-11-07):
 
-| Route | Mean error | Worst | Right floor at the end | Arrived |
-| --- | --- | --- | --- | --- |
-| Room 101 → exit (1 floor) | 0.4 m | 1.1 m | 12/12 | 12/12 |
-| Room 203 (2F) → nearest exit | 0.8 m | 3.4 m | 12/12 | 12/12 |
-| Room 204 (2F) → nearest exit | 0.8 m | 3.3 m | 12/12 | 12/12 |
-| Room 205 (2F) → nearest exit | 0.8 m | 3.3 m | 12/12 | 12/12 |
-| Main entrance → Room 205 (2F) | 1.1 m | 3.1 m | 12/12 | 12/12 |
-| East exit → Room 201 (2F) | 1.1 m | 3.3 m | 12/12 | 12/12 |
-| Office → Study room (2F) | 0.9 m | 5.9 m | 12/12 | 10/12 |
+| Route                         | Mean error | Worst | Right floor at the end | Arrived |
+| ----------------------------- | ---------- | ----- | ---------------------- | ------- |
+| Room 101 → exit (1 floor)     | 0.4 m      | 1.1 m | 12/12                  | 12/12   |
+| Room 203 (2F) → nearest exit  | 0.8 m      | 3.4 m | 12/12                  | 12/12   |
+| Room 204 (2F) → nearest exit  | 0.8 m      | 3.3 m | 12/12                  | 12/12   |
+| Room 205 (2F) → nearest exit  | 0.8 m      | 3.3 m | 12/12                  | 12/12   |
+| Main entrance → Room 205 (2F) | 1.1 m      | 3.1 m | 12/12                  | 12/12   |
+| East exit → Room 201 (2F)     | 1.1 m      | 3.3 m | 12/12                  | 12/12   |
+| Office → Study room (2F)      | 0.9 m      | 5.9 m | 12/12                  | 10/12   |
 
 This is a simulation with the error model above, not a field test. Real phones held in a pocket or
 while running, and magnetic disturbance from steel, will do worse.
