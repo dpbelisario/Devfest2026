@@ -8,13 +8,13 @@ evacuation site (designated for that hazard when known), and **3D AR directions*
 
 ## How it works
 
-| Part | File |
-| --- | --- |
-| Which notifications count (urgent alert kinds only; drills and ordinary notifications ignored) | `android/app/src/main/java/com/contour/app/alert/EmergencyAlertClassifier.kt` (unit-tested) |
-| Watches notifications from the phone's emergency-alert app | `alert/EmergencyAlertListener.kt` (NotificationListenerService) |
-| Brings Contour to the front: full-screen notification + direct start when "display over other apps" is on | `alert/EmergencyPopup.kt` |
-| Shows over the lock screen, passes the alert to the page, setup buttons | `WebUiActivity.kt` (`window.contourAlert`, `ContourBridge.alertSetupStatus/openAlertSetting/testAlert`) |
-| Alert screen + setup page (menu → **Emergency pop-up**) | `android/app/src/main/assets/contour.html` |
+| Part                                                                                                      | File                                                                                                    |
+| --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| Which notifications count (urgent alert kinds only; drills and ordinary notifications ignored)            | `android/app/src/main/java/com/contour/app/alert/EmergencyAlertClassifier.kt` (unit-tested)             |
+| Watches notifications from the phone's emergency-alert app                                                | `alert/EmergencyAlertListener.kt` (NotificationListenerService)                                         |
+| Brings Contour to the front: full-screen notification + direct start when "display over other apps" is on | `alert/EmergencyPopup.kt`                                                                               |
+| Shows over the lock screen, passes the alert to the page, setup buttons                                   | `WebUiActivity.kt` (`window.contourAlert`, `ContourBridge.alertSetupStatus/openAlertSetting/testAlert`) |
+| Alert screen + setup page (menu → **Emergency pop-up**)                                                   | `android/app/src/main/assets/contour.html`                                                              |
 
 Only notifications from an emergency-alert app (package name containing `cellbroadcast`, `areamail`,
 `emergencyalert` or `etws`) are read; everything else is ignored at once. Nothing is stored or sent.
@@ -32,8 +32,19 @@ APKs installed from outside the Play Store (Firebase App Distribution) get Andro
 setting** block for notification access. Fix: App info → ⋮ → **Allow restricted settings**, then turn
 it on again. The setup page explains this and has an **Open app info** button.
 
-**Test the pop-up** on the setup page fires a simulated alert after 5 seconds: go to the home screen or
-lock the phone and watch Contour open.
+**Test alert** (menu, below About Contour) or **Test the pop-up** (setup page) first asks **Yes / No**.
+On Yes, lock the phone: about 8 seconds later the screen wakes, a test alert notification
+(緊急地震速報（テスト）) appears on the lock screen with a short strong vibration (no sound), and about
+3.5 seconds later Contour pops up through the real pop-up path.
+
+The official message on the alert screen is translated into the app language for the usual 緊急速報
+wording (earthquake area, 強い揺れに備えてください, tsunami and evacuation sentences, (気象庁)), with
+the Japanese original underneath; other text goes to the device translator or stays Japanese.
+Contour may show over the lock screen only for an alert: once it leaves the screen, the normal lock
+applies again. Only the test
+adds vibration; a real alert already sounds and vibrates through the phone's emergency-alert app. The screen is labelled "TEST · not a real emergency". If a setting is
+still off, the menu item opens the setup page instead. In a browser, the test shows the alert screen at
+once.
 
 ## Testing with adb (debug builds)
 

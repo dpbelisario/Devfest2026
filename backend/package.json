@@ -4,8 +4,8 @@
   "type": "module",
   "version": "0.1.0",
   "scripts": {
-    "dev": "tsx watch src/server.ts",
-    "build": "tsc && node scripts/copy-data.mjs",
+    "dev": "tsx scripts/sync-indoor.mjs && tsx watch src/server.ts",
+    "build": "tsx scripts/sync-indoor.mjs && tsc && node scripts/copy-data.mjs",
     "start": "node dist/src/server.js",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test tests/*.test.ts",

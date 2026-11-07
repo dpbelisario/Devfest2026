@@ -188,7 +188,8 @@ class WebUiActivity : ComponentActivity() {
             val k = com.contour.app.alert.AlertKind.entries.firstOrNull { it.id == kind } ?: com.contour.app.alert.AlertKind.EARTHQUAKE
             val ctx = activity.applicationContext
             android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                com.contour.app.alert.EmergencyPopup.show(ctx, k, "緊急地震速報（テスト表示）", "Contour test. 強い揺れに備えてください。")
+                // Worded like a real alert, so it is translated the same way on the alert screen.
+                com.contour.app.alert.EmergencyPopup.showTest(ctx, k, "緊急地震速報（テスト）", "強い揺れに備えてください。（Contourのテストです）")
             }, delayMs.coerceIn(0, 60_000).toLong())
         }
 
@@ -408,6 +409,15 @@ class WebUiActivity : ComponentActivity() {
         super.onResume()
         web.onResume()
         notifyAlertSetup()   // back from a settings screen: refresh the setup page
+    }
+
+    override fun onStop() {
+        super.onStop()
+        // Only an alert may show Contour over the lock screen; once the app leaves the screen, the
+        // normal lock applies again (otherwise anyone could open the app on a locked phone).
+        if (android.os.Build.VERSION.SDK_INT >= 27) { setShowWhenLocked(false); setTurnScreenOn(false) }
+        else @Suppress("DEPRECATION") window.clearFlags(
+            android.view.WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or android.view.WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON)
     }
 
     override fun onPause() {
