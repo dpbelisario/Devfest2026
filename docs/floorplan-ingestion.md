@@ -42,6 +42,19 @@ Its headerless row ID `71`, grid fields `B3,3` (displayed as B3-3), name
 That point is a directory reference, not a surveyed entrance or complete-building
 center. The existing canonical catalog is `backend/data/indoor.json`.
 
+For **SAI Dining**, the university's
+[G30 welcome-party notice](https://admissions.g30.nagoya-u.ac.jp/event_schedule/2024-welcome-party/)
+identifies **South Cafeteria 2F**, campus marker **B5-3**. A floor schematic is
+published on page 11 of the
+[2026 Japanese Ornithological Society conference program](https://osj2026.ornithology.jp/docs/osj2026_book.pdf?20261026=#page=11).
+The source was visually checked and a one-page PDF plus PNG crop saved under
+`~/Downloads/Contour-SAI-Dining-map/`. It shows the entrance, stairs/elevator,
+exit and toilet direction. Poster rows and booths are temporary conference
+furniture, not ordinary dining seating; no measured scale is supplied. This is a
+useful discovery pattern for conference venues, while requiring a review that
+separates facility geometry from event-specific arrangements. It has not been
+uploaded to IndoorAtlas or incorporated into the room-221 route.
+
 ## Reproduce the download, render and crops
 
 Requires `curl`, Python 3, Poppler (`pdftoppm`, `pdfinfo`) and Pillow. On macOS,

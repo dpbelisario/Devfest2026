@@ -29,6 +29,19 @@ the drawings have no measured scale, and their proportions differ from the exter
 footprint. These are preview alignments requiring field checks. No MapCreator
 recordings or configured SDK credentials were available for this build.
 
+The [exported preview wayfinding graph](indooratlas-engineering-II-preview-graph.json)
+contains seven nodes and six edges: office-side middle-wing 3F corridor → north-wing
+stairs → matching 2F landing → middle-wing corridor near room 221. It is a manual
+interpretation of the schematic, not surveyed corridor/door geometry. The exported
+graph alone does not enable positioning. CMS persistence was verified, and the
+wayfinding editor successfully previewed an office-side 3F origin to the 2F endpoint
+with a route visible on both floors. This checks graph connectivity, not positioning
+accuracy or whether the physical corridor/door path is correct.
+
+The room POI is `e8679fc0-da9a-11f1-b91e-6591398611dd`, named `Room221`, floor 2,
+at `35.155600092138236, 136.9647637009621`, about 1 m from the graph endpoint.
+Its placement is approximate; the actual door position still needs checking.
+
 ## Set up the venue
 
 1. [Create/sign in to IndoorAtlas](https://app.indooratlas.com/). The advertised
@@ -64,7 +77,7 @@ recordings or configured SDK credentials were available for this build.
    INDOORATLAS_API_KEY=your-mobile-sdk-key
    INDOORATLAS_API_SECRET=your-mobile-sdk-secret
    INDOORATLAS_VENUE_ID=0d3ece20-da98-11f1-95cb-e11cd22c6739
-   INDOORATLAS_ROOM221_POI_ID=your-room-poi-id
+   INDOORATLAS_ROOM221_POI_ID=e8679fc0-da9a-11f1-b91e-6591398611dd
    ```
 
    Build environment variables with those names are also supported. SDK key and

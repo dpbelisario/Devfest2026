@@ -22,6 +22,10 @@ settings = {
         "Venue ID [0d3ece20-da98-11f1-95cb-e11cd22c6739]: ",
         default="0d3ece20-da98-11f1-95cb-e11cd22c6739",
     ),
+    "INDOORATLAS_ROOM221_POI_ID": value(
+        "Room 221 POI ID [e8679fc0-da9a-11f1-b91e-6591398611dd]: ",
+        default="e8679fc0-da9a-11f1-b91e-6591398611dd",
+    ),
 }
 existing = config.read_text() if config.exists() else ""
 for key, entry in settings.items():
