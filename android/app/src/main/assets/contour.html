@@ -31,6 +31,7 @@
 .ar.indoor .ar-meta b { display:block; font-size:13px; margin-bottom:8px; }
 .ar.indoor .ar-meta span { display:block; font-size:17px; line-height:1.4; }
 .ar.indoor .ar-card { bottom:calc(var(--bot) + 16px); }
+.ar.indoor .ar-ground { top:45%; }
 .indoor-ar-controls { display:flex; flex-wrap:wrap; gap:6px; margin-top:14px; }
 .indoor-ar-controls[hidden], #indoorArFloor[hidden] { display:none; }
 .indoor-ar-controls button { flex:1; min-height:42px; padding:8px; border:1px solid var(--wash-line); border-radius:8px; font:500 13px/1.3 var(--f-body); }
@@ -69,7 +70,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 :focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 
 .stage { height: 100%; display: flex; align-items: center; justify-content: center; overflow: hidden; background: radial-gradient(120% 80% at 50% 0%, #f1f2f4, var(--stage)); }
-.phone { position: relative; width: 100%; height: 100%; overflow: hidden; background: var(--mapbg); isolation: isolate; }
+.phone { position: relative; width: 100%; height: 100%; overflow: hidden; overflow: clip; background: var(--mapbg); isolation: isolate; }
 
 /* Browser preview: present the app inside an Android phone frame (punch-hole camera, Android status
    bar, gesture handle), scaled to fit the window. The Android app itself never shows this frame. */
@@ -2834,7 +2835,7 @@ window.CAMPUS_CREDITS = {"toyoda":"Photo: Wikimedia Commons, CC BY-SA 3.0","libr
     text = text.trim(); if (!text || askBusy) return;
     if (mode === "student") {
       if(indoorQuestion(text)) { await sendIndoorAsk(text); return; }
-      $("askInput").value = ""; addAsk("u", text); campusReply(text); return;
+      clearIndoorNavigation();indoorContext={};$("askInput").value = ""; addAsk("u", text); campusReply(text); return;
     }
     askBusy = true; $("askSend").disabled = true; $("askInput").value = "";
     addAsk("u", text);
@@ -2860,7 +2861,7 @@ window.CAMPUS_CREDITS = {"toyoda":"Photo: Wikimedia Commons, CC BY-SA 3.0","libr
     } finally { askBusy = false; $("askSend").disabled = false; }
   }
   function openAsk() {
-    if (!ask.hidden) return;
+    if (!ask.hidden && ask.classList.contains("on")) return;
     closeOverlays(); closePick(); renderAskQuick(); ask.hidden = false;
     requestAnimationFrame(() => { ask.classList.add("on"); askDim.classList.add("on"); });
   }
@@ -2906,7 +2907,8 @@ window.CAMPUS_CREDITS = {"toyoda":"Photo: Wikimedia Commons, CC BY-SA 3.0","libr
     askLog.querySelectorAll('[data-indoor-ar]').forEach(b=>b.disabled=true);
   }
   function indoorQuestion(text) {
-    return !!indoorContext.destinationId || /\b(room|classroom|floor|stairs|office|engineering (?:building )?(?:ii|2))\b|\b[A-Z]\s*-?\s*\d{2,3}\b|\b\d{3}\b|教室|講義室|事務室|階段/i.test(text.normalize('NFKC'));
+    const message=text.normalize('NFKC');
+    return /\b(room|classroom|floor|stairs|downstairs|upstairs|office|engineering (?:building )?(?:ii|2))\b|\b[A-Z]\s*-?\s*\d{2,3}\b|\b\d{3}\b|教室|講義室|事務室|階段/i.test(message) || (!!indoorContext.destinationId && /\b(i'?m|i am|from|at|standing|yes|here|there|middle|north|south|library)\b|現在|今|いる|在|있/i.test(message));
   }
   function addIndoorAnswer(result) {
     const li = addAsk('m', result.reply);
