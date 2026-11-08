@@ -15,8 +15,12 @@ final class ContourTests: XCTestCase {
     }
     func testContinuousDemoDirectionRequiresObservedSide() {
         XCTAssertEqual(ObstacleProbe.guidance(center:.farther,left:.unknown,right:.unknown,relative:0),"forward")
-        XCTAssertEqual(ObstacleProbe.guidance(center:.farther,left:.farther,right:.near,relative:1),"left")
-        XCTAssertEqual(ObstacleProbe.guidance(center:.farther,left:.unknown,right:.unknown,relative:1),"scan")
+        XCTAssertEqual(ObstacleProbe.guidance(center:.farther,left:.farther,right:.near,relative:1),"face-right")
+        XCTAssertEqual(ObstacleProbe.guidance(center:.unknown,left:.unknown,right:.unknown,relative:1),"face-right")
+        XCTAssertEqual(ObstacleProbe.guidance(center:.unknown,left:.unknown,right:.unknown,relative:-1),"face-left")
+        XCTAssertEqual(ObstacleProbe.guidance(center:.unknown,left:.unknown,right:.unknown,relative:3),"around")
+        XCTAssertEqual(ObstacleProbe.guidance(center:.unknown,left:.farther,right:.farther,relative:0),"scan")
+        XCTAssertEqual(ObstacleProbe.guidance(center:.near,left:.farther,right:.near,relative:.nan),"left")
         XCTAssertEqual(ObstacleProbe.guidance(center:.near,left:.near,right:.near,relative:0),"stop")
         XCTAssertEqual(ObstacleProbe.guidance(center:.farther,left:.farther,right:.farther,relative:.nan),"scan")
     }

@@ -48,6 +48,11 @@ test("one-shot location completes once; a watch continues until cleared", () => 
   p.navigator.geolocation.clearWatch(id);
   assert.equal(sent.at(-1).action, "locationStop");
 });
+test("floor overlay opens separately through the trusted native bridge", () => {
+  const { context: p, sent } = page();
+  p.ContourBridge.openFloorOverlay();
+  assert.equal(sent.at(-1).action, "openFloorOverlay");
+});
 test("denial and timeout release native location and report an error", () => {
   for (const fail of ["denied", "timeout"]) {
     const { context: p, sent, timers } = page();

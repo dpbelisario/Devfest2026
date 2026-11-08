@@ -17,8 +17,6 @@ final class ContourViewController: UIViewController, WKNavigationDelegate, WKUID
     private var speechRequest: SFSpeechAudioBufferRecognitionRequest?
     private var pendingAlert: ContourAlert?
     private var pageReady = false
-    private var overlayTransferTask: Task<Void, Never>?
-    private var returningFromOverlay = false
     private var usingFallback = false
     private var timeout: DispatchWorkItem?
     private var microphoneTapInstalled = false
@@ -49,33 +47,11 @@ final class ContourViewController: UIViewController, WKNavigationDelegate, WKUID
         web.customUserAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 Mobile ContourApp/1.0 ContourIOS/1.0"
         web.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(web)
-        let overlayBar = UIView()
-        overlayBar.backgroundColor = .secondarySystemBackground
-        overlayBar.translatesAutoresizingMaskIntoConstraints = false
-        let overlayButton = UIButton(type: .system)
-        var overlayConfiguration = UIButton.Configuration.plain()
-        overlayConfiguration.title = "Floor overlay"
-        overlayConfiguration.image = UIImage(systemName: "square.3.layers.3d")
-        overlayConfiguration.imagePadding = 8
-        overlayButton.configuration = overlayConfiguration
-        overlayButton.accessibilityIdentifier = "nativeFloorOverlayButton"
-        overlayButton.translatesAutoresizingMaskIntoConstraints = false
-        overlayButton.addTarget(self, action: #selector(openFloorOverlay), for: .touchUpInside)
-        overlayBar.addSubview(overlayButton)
-        view.addSubview(overlayBar)
         NSLayoutConstraint.activate([
-            web.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor),
-            web.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor),
-            web.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
-            web.bottomAnchor.constraint(equalTo: overlayBar.topAnchor),
-            overlayBar.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor),
-            overlayBar.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor),
-            overlayBar.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
-            overlayBar.heightAnchor.constraint(equalToConstant: 48),
-            overlayButton.leadingAnchor.constraint(equalTo: overlayBar.leadingAnchor),
-            overlayButton.trailingAnchor.constraint(equalTo: overlayBar.trailingAnchor),
-            overlayButton.topAnchor.constraint(equalTo: overlayBar.topAnchor),
-            overlayButton.bottomAnchor.constraint(equalTo: overlayBar.bottomAnchor)
+            web.leadingAnchor.constraint(equalTo:view.safeAreaLayoutGuide.leadingAnchor),
+            web.trailingAnchor.constraint(equalTo:view.safeAreaLayoutGuide.trailingAnchor),
+            web.topAnchor.constraint(equalTo:view.safeAreaLayoutGuide.topAnchor),
+            web.bottomAnchor.constraint(equalTo:view.safeAreaLayoutGuide.bottomAnchor)
         ])
         location.delegate = self
         location.desiredAccuracy = kCLLocationAccuracyBest
@@ -89,36 +65,20 @@ final class ContourViewController: UIViewController, WKNavigationDelegate, WKUID
 
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
-        let focus = returningFromOverlay
-        returningFromOverlay = false
-        syncSavedFloorOverlay(focus: focus)
+        clearMainMapOverlay()
     }
 
-    @objc private func refreshSavedFloorOverlay() { syncSavedFloorOverlay(focus: true) }
+    @objc private func refreshSavedFloorOverlay() { clearMainMapOverlay() }
 
-    private func syncSavedFloorOverlay(focus: Bool) {
-        overlayTransferTask?.cancel()
+    private func clearMainMapOverlay() {
         guard pageReady, isOurs(web.url) else { return }
-        let expectedURL = web.url
-        overlayTransferTask = Task { [weak self] in
-            do {
-                let json = try await NativeFloorOverlayTransfer.json()
-                guard let self, !Task.isCancelled, self.pageReady,
-                      self.web.url == expectedURL, self.isOurs(self.web.url) else { return }
-                _ = try await self.web.callAsyncJavaScript(
-                    "return window.ContourNativeFloorOverlay?.apply(JSON.parse(json), focus) ?? false;",
-                    arguments: ["json": json, "focus": focus], in: nil, in: .page)
-            } catch {
-                // Keep the existing page intact on storage/navigation failure; the native editor reports disk errors.
-                NSLog("Saved floor overlay could not be restored: %@", error.localizedDescription)
-            }
-        }
+        // The saved image belongs to the separate editor, not the surrounding campus map.
+        web.evaluateJavaScript("window.ContourNativeFloorOverlay?.apply(null, false)", completionHandler:nil)
     }
 
     @objc private func openFloorOverlay() {
         guard presentedViewController == nil else { return }
         if #available(iOS 17.0, *) {
-            returningFromOverlay = true
             let editor = UIHostingController(rootView: NativeFloorOverlay())
             editor.modalPresentationStyle = .fullScreen
             present(editor, animated: true)
@@ -162,7 +122,6 @@ final class ContourViewController: UIViewController, WKNavigationDelegate, WKUID
 
     func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
         pageReady = false
-        overlayTransferTask?.cancel()
         sessionGeneration += 1
         stopDeviceActivity()
     }
@@ -172,7 +131,7 @@ final class ContourViewController: UIViewController, WKNavigationDelegate, WKUID
         timeout?.cancel()
         pageReady = true
         startLocationIfAllowed()
-        syncSavedFloorOverlay(focus: false)
+        clearMainMapOverlay()
         refreshNotificationStatus()
         deliverAlert()
         openLaunchDemoIfReady()
@@ -288,6 +247,7 @@ final class ContourViewController: UIViewController, WKNavigationDelegate, WKUID
         guard message.frameInfo.isMainFrame, isOurs(message.frameInfo.securityOrigin), isOurs(web.url),
               let body = message.body as? [String: Any], let action = body["action"] as? String else { return }
         switch action {
+        case "openFloorOverlay": openFloorOverlay()
         case "startLibraryExitAR": startObstacleScan(exitDemo: true)
         case "startObstacleScan": startObstacleScan()
         case "stopObstacleScan": obstacleScanner?.pause(); obstacleScanner?.dismiss(animated: false)

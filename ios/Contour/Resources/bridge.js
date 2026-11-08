@@ -65,6 +65,7 @@
     if (window.onAlertSetupChanged) window.onAlertSetupChanged();
   };
   window.ContourBridge = {
+    openFloorOverlay: () => send("openFloorOverlay"),
     startLibraryExitAR: () => send("startLibraryExitAR"),
     startObstacleScan: () => send("startObstacleScan"),
     stopObstacleScan: () => send("stopObstacleScan"),

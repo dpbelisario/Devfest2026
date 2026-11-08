@@ -159,7 +159,10 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .card { flex: 0 0 auto; width: min(304px, calc(100% - 64px)); scroll-snap-align: start; background: var(--paper); border-radius: 20px; box-shadow: var(--shadow); padding: 20px 20px 18px; cursor: pointer; transition: opacity .35s, transform .45s cubic-bezier(.2,.9,.3,1); user-select: none; -webkit-user-select: none; }
 .card:not(.selected) { opacity: .9; }
 .card.hide { display: none; }
-.card-body { display: grid; gap: 0; }
+.card-body { display: flex; flex-direction: column; flex: 1; }
+.card { display: flex; }
+.card .facts { margin-bottom: 14px; }
+.card .cta { margin-top: auto; flex-shrink: 0; }
 .eyebrow { display: flex; justify-content: space-between; align-items: center; font: 600 12px/1 var(--f-display); letter-spacing: .16em; color: var(--ink-3); text-transform: uppercase; }
 .eyebrow .num { font-variant-numeric: tabular-nums; color: var(--ink-3); }
 .card.selected .eyebrow .num { color: var(--accent); }
@@ -827,6 +830,7 @@ html.native .ar-near { background: var(--accent-wash); color: var(--accent-deep)
           <button type="button" class="btn primary" id="dirBtn"><span data-i18n="d.dir">Directions</span> <svg viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 11 11 5M6 5h5v5"/></svg></button>
           <button class="btn outline" id="arBtn" data-i18n="ar.btn">3D AR</button>
           <button class="btn outline in-btn" id="indoorBtn" type="button" hidden><svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2.400" stroke-linecap="round" stroke-linejoin="round"><path d="M3.500 4.500h21v19h-21z"/><path d="M3.500 13h7M15 13h9.500M13 4.500v5M13 17v6.500"/></svg><span data-i18n="d.indoor">Indoor navigation · find a classroom</span></button>
+          <button class="btn outline in-btn" id="floorOverlayBtn" type="button" hidden><span data-i18n="lib.overlay">Floor overlay</span></button>
           <button class="btn outline" id="backBtn" data-i18n="d.back">Back</button>
         </div>
       </div>
@@ -1471,6 +1475,7 @@ window.ContourLibrary = {
   const LANGS = { en: { label: "English", loc: "en-US", i: 0 }, ja: { label: "日本語", loc: "ja-JP", i: 1 }, zh: { label: "中文", loc: "zh-CN", i: 2 }, ko: { label: "한국어", loc: "ko-KR", i: 3 } };
   const D = {
     "map.unavailable": ["Map unavailable · floor maps and AR still work", "地図を表示できません · フロアマップとARは使えます", "地图暂不可用 · 楼层地图与AR仍可使用", "지도 이용 불가 · 층별 지도와 AR은 사용할 수 있습니다"],
+    "lib.overlay": ["Floor overlay", "フロア図", "楼层图", "층 도면"],
     "lib.entry": ["3D AR · Library exit", "3D AR · 図書館出口", "3D AR · 图书馆出口", "3D AR · 도서관 출구"],
     "lib.level": ["Inside library · exit on 2F", "図書館内 · 出口は2F", "图书馆内 · 出口在2F", "도서관 내부 · 출구는2F"],
     "lib.relative": ["Relative obstacle arrows · demo (no location)", "相対障害物矢印 · デモ（測位なし）", "相对避障箭头 · 演示（无定位）", "상대 장애물 화살표 · 데모 (위치 추적 없음)"],
@@ -2139,7 +2144,7 @@ window.ContourLibrary = {
       <div class="jp">${esc(pSub(p))}</div>
       <div class="meta">${p.id === "library" ? esc(t("lib.level")) : `<span class="dist">${arrowSvg(p.brg)}${fmtDist(p.m)}</span><span class="sep"></span><span>${t("card.walk", { n: p.walk })}</span>`}</div>
       <div class="facts">${p.building ? `${t("b.k." + p.kind)} · ${p.hours}` : p.live ? t("card.live", { h: hazList(p) }) : t("card.facts", { n: p.cap.toLocaleString("en-US") })}</div>
-      <button class="cta" type="button" tabindex="-1"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="4.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 15 24 4l14 11" opacity=".4"/><path d="M10 28 24 17l14 11" opacity=".7"/><path d="M10 41 24 30l14 11"/></svg>${t(p.id === "library" ? "lib.entry" : "card.ar")}</button>
+      <button class="cta" type="button" tabindex="-1"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="4.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 15 24 4l14 11" opacity=".4"/><path d="M10 28 24 17l14 11" opacity=".7"/><path d="M10 41 24 30l14 11"/></svg>${t("card.ar")}</button>
     </div>`;
   const hazList = p => { const h = p.haz.map(k => t("haz." + k)); return h.length > 3 ? h.slice(0, 3).join(" · ") + " +" + (h.length - 3) : h.join(" · "); };
   const makeCard = (p, i) => {
@@ -2340,6 +2345,7 @@ window.ContourLibrary = {
     }
   });
 
+  let detailTapTimer = null, detailTapIndex = -1;
   carousel.addEventListener("click", e => {
     if (dragMoved) return;
     const card = e.target.closest(".card"); if (!card || card === emptyCard) return;
@@ -2347,6 +2353,16 @@ window.ContourLibrary = {
     // With the keyboard open the page is short; close the keyboard first so the sheet is sized for the full screen.
     const kb = document.activeElement === q;
     if (kb) q.blur();
+    if (e.target.closest(".det") && POINTS[i]?.id === "library" && typeof window.ContourBridge?.openFloorOverlay === "function" && e.detail !== 0) {
+      if (detailTapTimer !== null && detailTapIndex === i) {
+        clearTimeout(detailTapTimer); detailTapTimer = null;
+        ContourBridge.openFloorOverlay(); return;
+      }
+      clearTimeout(detailTapTimer); detailTapIndex = i;
+      detailTapTimer = setTimeout(() => { detailTapTimer = null; if (i !== sel) select(i, { pan: false }); openSheet(i); }, 280);
+      return;
+    }
+    clearTimeout(detailTapTimer); detailTapTimer = null;
     // Main button: straight into 3D AR toward this place. "Details" (top right), or tapping the selected card, opens the sheet.
     if (e.target.closest(".cta")) { if (i !== sel) select(i, { pan: false }); setTimeout(() => goAR(POINTS[i]), kb ? 320 : 0); }
     else if (e.target.closest(".det") || i === sel) { if (i !== sel) select(i, { pan: false }); setTimeout(() => openSheet(i), kb ? 320 : 0); }
@@ -2383,7 +2399,8 @@ window.ContourLibrary = {
     $("dDist").innerHTML = `${dv}<small>${du}</small>`;
     $("dWalk").innerHTML = `${p.walk}<small>${t("min")}</small>`;
     $("dPhoto").hidden = !p.building;
-    $("arBtn").dataset.i18n = p.id === "library" ? "lib.entry" : "ar.btn"; $("arBtn").textContent = t($("arBtn").dataset.i18n);
+    $("arBtn").dataset.i18n = "ar.btn"; $("arBtn").textContent = t($("arBtn").dataset.i18n);
+    $("floorOverlayBtn").hidden = p.id !== "library" || typeof window.ContourBridge?.openFloorOverlay !== "function";
     const indoorLabel = $("indoorBtn").querySelector("span");
     indoorLabel.dataset.i18n = p.id === "library" ? "b.maps" : "d.indoor";
     indoorLabel.textContent = t(indoorLabel.dataset.i18n);
@@ -2761,6 +2778,7 @@ window.ContourLibrary = {
   }
   arTurn.addEventListener("input", () => { arHead = +arTurn.value; arUpdate(); });
   $("arClose").addEventListener("click", closeAR);
+  $("floorOverlayBtn").addEventListener("click", () => window.ContourBridge?.openFloorOverlay?.());
   $("arBtn").addEventListener("click", () => goAR(POINTS[sheetIdx]));
 
   // ----- indoor navigation entry points

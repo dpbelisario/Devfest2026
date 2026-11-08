@@ -1,6 +1,9 @@
 import ARKit
 import SceneKit
 import UIKit
+import CoreLocation
+import CryptoKit
+import ContourShared
 
 /// Close-object evidence only. Missing depth never establishes a clear passage.
 enum ObstacleProbe {
@@ -37,20 +40,18 @@ enum ObstacleProbe {
     }
 
     static func guidance(center:Evidence,left:Evidence,right:Evidence,relative:Float)->String {
-        guard relative.isFinite else { return "scan" }
         if center == .near { return cue(center:center,left:left,right:right) }
+        guard relative.isFinite else { return "scan" }
+        // Turning in place does not claim the unseen walking path is clear.
+        if abs(relative) > .pi * 0.8 { return "around" }
+        if abs(relative) > .pi/6 { return relative > 0 ? "face-right" : "face-left" }
         guard center == .farther else { return "scan" }
-        if abs(relative) <= .pi/6 { return "forward" }
-        let desired = relative > 0 ? right : left
-        let other = relative > 0 ? left : right
-        if desired == .farther { return relative > 0 ? "right" : "left" }
-        if desired == .near && other == .farther { return relative > 0 ? "left" : "right" }
-        return "scan"
+        return "forward"
     }
 
 }
 
-final class ObstacleScanViewController: UIViewController, ARSessionDelegate, ARSCNViewDelegate {
+final class ObstacleScanViewController: UIViewController, ARSessionDelegate, ARSCNViewDelegate, CLLocationManagerDelegate {
     var exitDemo = false
     var completion: ((String, String) -> Void)?
     private let scene = ARSCNView()
@@ -60,7 +61,11 @@ final class ObstacleScanViewController: UIViewController, ARSessionDelegate, ARS
     private let review = UIButton(type:.system)
     private var nearFrames = 0
     private let directionArrow = SCNNode()
-    private var goalYaw: Float?
+    private let location = CLLocationManager()
+    private var entrance: ExitCoordinate?
+    private var targetPosition: SIMD2<Float>?
+    private var headingAt: Date?
+    private var headingAccuracy: CLLocationDirection = -1
     private var stableCue = "scan"
     private var cueFrames = 0
     private var lastUpdate: TimeInterval = 0
@@ -69,6 +74,8 @@ final class ObstacleScanViewController: UIViewController, ARSessionDelegate, ARS
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        location.delegate = self
+        location.desiredAccuracy = kCLLocationAccuracyBest
         view.backgroundColor = .black
         scene.translatesAutoresizingMaskIntoConstraints = false
         scene.session.delegate = self
@@ -81,7 +88,7 @@ final class ObstacleScanViewController: UIViewController, ARSessionDelegate, ARS
         status.textColor = .white
         status.numberOfLines = 3
         status.font = .preferredFont(forTextStyle: .body)
-        status.text = "Exit · 2F entrance. Starting direction assumed for this demo. Scanning nearby obstacles…"
+        status.text = "Finding Entrance Hall direction. Scanning nearby obstacles…"
         review.setTitle("Review possible obstacle",for:.normal)
         review.isEnabled = false
         review.isHidden = exitDemo
@@ -139,17 +146,40 @@ final class ObstacleScanViewController: UIViewController, ARSessionDelegate, ARS
     private func start() {
         guard ARWorldTrackingConfiguration.isSupported else { status.text = "AR camera tracking is unavailable on this phone. Use Library floor maps."; return }
         let config = ARWorldTrackingConfiguration()
+        if exitDemo {
+            config.worldAlignment = .gravityAndHeading
+            Task { [weak self] in
+                guard let json = try? await NativeFloorOverlayTransfer.json(),
+                      let overlay = try? JSONDecoder().decode(GeographicOverlay.self,from:Data(json.utf8)),overlay.isValid,
+                      SHA256.hash(data:overlay.image).map({String(format:"%02x",$0)}).joined() == LibraryExitGeometry.shared.imageSha256 else { return }
+                self?.entrance = LibraryExitGeometry.shared.entrance(latitude:overlay.latitude,longitude:overlay.longitude,
+                    width:overlay.width,aspect:overlay.aspect,angle:overlay.angle)
+            }
+            if location.authorizationStatus == .notDetermined { location.requestWhenInUseAuthorization() }
+            startLocation()
+        }
         config.planeDetection = [.horizontal, .vertical]
         if usesDepth {
             config.frameSemantics.insert(.sceneDepth)
             if ARWorldTrackingConfiguration.supportsSceneReconstruction(.mesh) { config.sceneReconstruction = .mesh }
         }
-        goalYaw = nil
+        targetPosition = nil
         nearFrames = 0; review.isEnabled = false; cueFrames = 0; stableCue = "scan"
         scene.session.run(config, options: [.resetTracking, .removeExistingAnchors])
     }
 
-    func pause() { scene.session.pause(); nearFrames = 0; review.isEnabled = false; goalYaw = nil; directionArrow.isHidden = true; arrow.text = "Scan slowly"; cueFrames = 0; stableCue = "scan"; reason = "unknown" }
+    func pause() { scene.session.pause(); location.stopUpdatingLocation(); location.stopUpdatingHeading(); headingAt=nil; targetPosition=nil; nearFrames = 0; review.isEnabled = false; directionArrow.isHidden = true; arrow.text = "Scan slowly"; cueFrames = 0; stableCue = "scan"; reason = "unknown" }
+
+    private func startLocation() {
+        guard exitDemo, view.window != nil, [.authorizedAlways,.authorizedWhenInUse].contains(location.authorizationStatus) else { return }
+        location.startUpdatingLocation()
+        if CLLocationManager.headingAvailable() { location.startUpdatingHeading() }
+    }
+    func locationManagerDidChangeAuthorization(_ manager:CLLocationManager) { startLocation() }
+    func locationManager(_ manager:CLLocationManager,didUpdateHeading heading:CLHeading) {
+        headingAt=heading.timestamp; headingAccuracy=heading.headingAccuracy
+    }
+    func locationManager(_ manager:CLLocationManager,didFailWithError error:Error) { }
 
     func session(_ session: ARSession, didUpdate frame: ARFrame) {
         guard frame.timestamp - lastUpdate >= 0.2 else { return }
@@ -167,14 +197,24 @@ final class ObstacleScanViewController: UIViewController, ARSessionDelegate, ARS
             return
         }
         let heading = atan2(-frame.camera.transform.columns.2.x, frame.camera.transform.columns.2.z)
-        // shortcut: opening camera direction stands in for exit bearing, replace after library pose registration.
-        if goalYaw == nil { goalYaw = heading }
-        guard let goalYaw else { return }
-        let relative = atan2(sin(goalYaw-heading),cos(goalYaw-heading))
-        renderArrow(frame, heading:heading, relative:relative, cue:"scan")
+        let compassReady = headingAccuracy >= 0 && headingAccuracy <= 25 && headingAt.map { abs($0.timeIntervalSinceNow)<3 } == true
+        if targetPosition == nil, compassReady, let entrance, let fix=location.location, abs(fix.timestamp.timeIntervalSinceNow)<10 {
+            let bearing=LibraryExitGeometry.shared.bearing(latitude:fix.coordinate.latitude,longitude:fix.coordinate.longitude,accuracy:fix.horizontalAccuracy,target:entrance)
+            if bearing.isFinite {
+                let distance=Float(LibraryExitGeometry.shared.distance(latitude:fix.coordinate.latitude,longitude:fix.coordinate.longitude,target:entrance))
+                let camera=frame.camera.transform.columns.3
+                // Initial GPS uncertainty remains; AR motion tracks displacement, not a surveyed indoor pose.
+                targetPosition=SIMD2<Float>(camera.x+distance*Float(sin(bearing)),camera.z-distance*Float(cos(bearing)))
+            }
+        }
+        let camera=frame.camera.transform.columns.3
+        let goal=targetPosition.flatMap { target -> Float? in
+            guard hypot(target.x-camera.x,target.y-camera.z)>=4 else { return nil }
+            return atan2(target.x-camera.x,camera.z-target.y)
+        }
+        let relative:Float = (!exitDemo ? 0 : compassReady ? goal.map { atan2(sin($0-heading),cos($0-heading)) } : nil) ?? .nan
         var evidence = [ObstacleProbe.Evidence](repeating: .unknown, count: 3)
-        if usesDepth {
-            guard let depth = frame.sceneDepth else { nearFrames=0;review.isEnabled=false;cueFrames=0;stableCue="scan";status.text="Waiting for LiDAR depth. Scan slowly.";return }
+        if usesDepth, let depth = frame.sceneDepth {
             let buffer = depth.depthMap
             CVPixelBufferLockBaseAddress(buffer, .readOnly)
             if let confidence = depth.confidenceMap { CVPixelBufferLockBaseAddress(confidence, .readOnly) }
@@ -203,7 +243,7 @@ final class ObstacleScanViewController: UIViewController, ARSessionDelegate, ARS
                 }
             }
             reason = "lidar-depth"
-        } else {
+        } else if !usesDepth {
             // Restored from the earlier camera-only branch; unobserved surfaces remain unknown.
             let cameraFromWorld = frame.camera.viewMatrix(for:.portrait)
             let points = frame.rawFeaturePoints?.points.map { point -> SIMD3<Float> in
@@ -235,8 +275,8 @@ final class ObstacleScanViewController: UIViewController, ARSessionDelegate, ARS
         cueFrames = cue == stableCue ? cueFrames + 1 : 1
         stableCue = cue
         let displayed = cueFrames >= 3 ? cue : "scan"
-        arrow.text = ["forward":"Continue ahead", "left":"Turn left", "right":"Turn right", "stop":"Stop", "scan":"Scan slowly"][displayed]
-        status.text = displayed == "stop" ? "Nearby directions blocked. Check your surroundings." : displayed == "scan" ? "Checking depth · direction is a demo assumption." : "Exit · 2F entrance · demo direction. Check the real path as you move."
+        arrow.text = ["forward":"Continue ahead", "left":"Check left", "right":"Check right", "face-left":"Turn left in place", "face-right":"Turn right in place", "around":"Turn around in place", "stop":"Stop", "scan":"Scan slowly"][displayed]
+        status.text = !relative.isFinite ? "Finding location/compass · obstacle scan active. Exit direction unavailable." : displayed == "stop" ? "Nearby directions blocked. Check your surroundings." : displayed == "scan" ? "Entrance Hall direction found · checking nearby surfaces." : "Entrance Hall exit · approximate map/GPS bearing. Check the real path."
         if !usesDepth { status.text = (status.text ?? "") + " Camera estimate; blank walls/glass can be missed." }
         renderArrow(frame,heading:heading,relative:relative,cue:displayed)
         if evidence[1] == .near && displayed == "scan" { directionArrow.isHidden = true }
@@ -246,12 +286,12 @@ final class ObstacleScanViewController: UIViewController, ARSessionDelegate, ARS
         let camera = frame.camera.transform.columns.3
         let forward = frame.camera.transform.columns.2
         directionArrow.position = SCNVector3(camera.x-forward.x*0.8,camera.y-0.6,camera.z-forward.z*0.8)
-        let turn:Float = cue == "left" ? -.pi/3 : cue == "right" ? .pi/3 : relative
-        directionArrow.eulerAngles.y = -(heading+turn)
-        directionArrow.isHidden = cue == "stop"
+        let turn:Float = cue == "left" ? -.pi/3 : cue == "right" ? .pi/3 : relative.isFinite ? relative : 0
+        directionArrow.eulerAngles.y = -heading
+        directionArrow.isHidden = cue == "stop" || (cue == "scan" && !relative.isFinite)
         // Amber is an orientation preview while evidence is missing; it never means walk forward.
-        let color:UIColor = cue == "scan" ? .systemOrange : .white
-        for node in directionArrow.childNodes { node.geometry?.firstMaterial?.diffuse.contents = color }
+        let color:UIColor = ["scan","face-left","face-right","around"].contains(cue) ? .systemOrange : .white
+        for node in directionArrow.childNodes { node.eulerAngles.y = -turn; node.geometry?.firstMaterial?.diffuse.contents = color }
     }
 
     func renderer(_ renderer: SCNSceneRenderer,didAdd node:SCNNode,for anchor:ARAnchor) { drawMesh(node,anchor) }

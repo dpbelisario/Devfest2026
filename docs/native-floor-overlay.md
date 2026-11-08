@@ -1,6 +1,7 @@
 # Native iPhone floor overlay
 
-Open **Contour → Floor overlay**, the native button beneath the existing interface.
+Open **Contour → Central Library → Details → Floor overlay**, or double-tap
+Central Library’s **Details** button. There is no separate native bottom bar.
 The editor uses SwiftUI, UIKit gestures, MapKit and the system Photos/Files pickers.
 Apple base-map tiles need connectivity; floor images and alignment remain local.
 The editor requires iOS 17; the existing iOS 16 shell shows an availability message.
@@ -33,20 +34,21 @@ saves keep edits open; failed imports preserve the saved plan. No device locatio
 camera permission or upload is needed to align an image. Alignment does not improve
 indoor positioning, infer routes, or establish that an exit is usable.
 
-The native file/default is authoritative. An iOS-only WebKit user script displays
-it on the online Google Map or offline Leaflet canvas after Save, Show/Hide, returning from the editor,
-and page loading. Rotation, ground dimensions and opacity are preserved. Saving
-or returning focuses the plan; startup restores it without overriding live GPS
-centering. Hidden/null plans remove the displayed copy. No image API upload or
-hosted-page deployment is required for this iOS bridge. The bundled default is an
-iOS resource; standalone web/Android clients do not read that native resource.
+The native file/default is authoritative for the separate editor. The surrounding
+main map never automatically draws or focuses the floor image on startup, Save,
+or return. The existing Google/Leaflet overlay adapter remains available internally;
+the shell clears its main-map image. AR reads the saved supported image alignment
+independently and estimates the Entrance Hall door coordinate from it.
 
-The shared page announces its map provider and map instance when ready; the bridge
-uses Google OverlayView online and a Leaflet layer offline. A Leaflet initialization
-hook supports older hosted pages that load Leaflet externally. Native JSON is passed as a structured WebKit argument,
-never concatenated into executable code. Navigation cancels stale transfers;
-only the configured trusted main page receives the image. Map, image and corner
-handles are sibling native views so their gestures do not intercept each other.
+The trusted bridge opens the editor from the normal Details controls. Single-click
+Details opens the sheet; double-tapping the library Details button opens the native
+editor directly. An explicit Floor overlay button inside the sheet provides an
+accessible alternative. Standalone web/Android clients retain Library floor maps
+and do not pretend to have the native iOS editor.
+
+Map, image and corner handles remain sibling native views in the editor, so their
+gestures do not intercept each other. Import/save validation, atomic storage,
+existing local-save priority and the bundled image are preserved.
 
 ## Build and verification
 
@@ -59,7 +61,7 @@ bundled page for immediate local testing; production defaults to the hosted URL.
 See [live-location-fix.md](live-location-fix.md).
 
 UIKit scene lifecycle support allows launch with the iOS 27 SDK. Camera/location
-activity stops when the scene resigns active. The tests cover the native button,
+activity stops when the scene resigns active. The tests cover the Details bridge,
 presentation, geometry/validation, all four rotated corner resizes, map interaction
 while editing, and the bundled floor image. Real GPS accuracy, multi-touch and
 building alignment still require physical verification.

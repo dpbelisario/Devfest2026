@@ -12,6 +12,15 @@ import android.opengl.GLES20
 import android.opengl.GLSurfaceView
 import android.os.Bundle
 import android.os.SystemClock
+import android.location.Location
+import android.location.LocationManager
+import android.location.LocationListener
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
+import android.hardware.GeomagneticField
+import com.contour.app.navigation.LibraryExitGeometry
 import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
@@ -40,7 +49,7 @@ import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
 
 /** Native, on-device depth observation. It never labels an unobserved path as clear. */
-class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer {
+class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer, SensorEventListener, LocationListener {
     companion object {
         const val EXTRA_STATUS = "obstacle_status"
         const val EXTRA_REASON = "obstacle_reason"
@@ -52,7 +61,15 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer {
     private lateinit var chevrons: View
     private var usesDepth = false
     private lateinit var headingLabel: TextView
-    private var goalYaw: Float? = null
+    private var targetX: Float? = null
+    private var targetZ: Float? = null
+    @Volatile private var locationFix: Location? = null
+    @Volatile private var compassHeading = Double.NaN
+    @Volatile private var compassAt = 0L
+    private val sensors by lazy { getSystemService(SENSOR_SERVICE) as SensorManager }
+    private val locations by lazy { getSystemService(LOCATION_SERVICE) as LocationManager }
+    private val entrance = LibraryExitGeometry.entrance(LibraryExitGeometry.defaultLatitude,LibraryExitGeometry.defaultLongitude,
+        LibraryExitGeometry.defaultWidth,LibraryExitGeometry.defaultAspect,LibraryExitGeometry.defaultAngle)
     private var arrowRadians = 0f
     private var arrowSupported = false
     private var arrowStopped = false
@@ -65,6 +82,7 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer {
     @Volatile private var lastPossibleAt = 0L
     private var installRequested = false
     private var permissionRequested = false
+    private var locationPermissionRequested = false
     private var lastUiAt = 0L
     private var lastDirection = DepthObstacleClassifier.Direction.SCAN
     private var lastFrameTimestamp = 0L
@@ -92,6 +110,42 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer {
     private val askCamera = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (granted) startSession() else showUnavailable("Camera permission is required for this scan.", "camera-permission")
     }
+    private val askLocation = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { startPositioning() }
+
+    @Suppress("MissingPermission")
+    private fun startPositioning() {
+        if (!intent.getBooleanExtra("exitDemo",false)) return
+        sensors.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)?.let { sensors.registerListener(this,it,SensorManager.SENSOR_DELAY_UI) }
+        if (checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) return
+        for (provider in listOf(LocationManager.GPS_PROVIDER,LocationManager.NETWORK_PROVIDER)) {
+            if (provider == LocationManager.GPS_PROVIDER && checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) continue
+            try {
+                if (locations.isProviderEnabled(provider)) {
+                    locations.getLastKnownLocation(provider)?.let { onLocationChanged(it) }
+                    locations.requestLocationUpdates(provider,1000L,0f,this)
+                }
+            } catch (_: SecurityException) { locationFix=null }
+        }
+    }
+    override fun onLocationChanged(location:Location) { locationFix=location }
+    override fun onProviderEnabled(provider:String) { }
+    override fun onProviderDisabled(provider:String) { locationFix=null }
+    override fun onSensorChanged(event:SensorEvent) {
+        if (event.sensor.type != Sensor.TYPE_ROTATION_VECTOR) return
+        if (event.accuracy < SensorManager.SENSOR_STATUS_ACCURACY_MEDIUM ||
+            (event.values.size >= 5 && (event.values[4] < 0 || event.values[4] > 0.44f))) { compassHeading=Double.NaN;return }
+        val rotation=FloatArray(9)
+        SensorManager.getRotationMatrixFromVector(rotation,event.values)
+        // Back camera looks along negative device Z; device-top azimuth is wrong when held upright.
+        if (kotlin.math.hypot(rotation[2],rotation[5]) < 0.5f) { compassHeading=Double.NaN;return }
+        val fix=locationFix ?: return
+        val declination=GeomagneticField(fix.latitude.toFloat(),fix.longitude.toFloat(),fix.altitude.toFloat(),System.currentTimeMillis()).declination
+        compassHeading=kotlin.math.atan2(-rotation[2].toDouble(),-rotation[5].toDouble())+Math.toRadians(declination.toDouble())
+        compassAt=SystemClock.elapsedRealtime()
+    }
+    override fun onAccuracyChanged(sensor:Sensor?,accuracy:Int) {
+        if (accuracy < SensorManager.SENSOR_STATUS_ACCURACY_MEDIUM) compassHeading=Double.NaN
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -112,11 +166,11 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer {
                 if (!previewReady || arrowStopped) return
                 canvas.save()
                 canvas.translate(width*0.5f,height*0.65f)
-                canvas.rotate(Math.toDegrees(arrowRadians.toDouble()).toFloat())
                 for (index in 0..4) {
                     canvas.save()
                     val scale = width/450f * (1f-index*0.12f)
                     canvas.translate(0f,-index*height*0.055f)
+                    canvas.rotate(Math.toDegrees(arrowRadians.toDouble()).toFloat())
                     canvas.scale(scale,scale*0.5f)
                     path.reset()
                     path.moveTo(0f,-50f); path.lineTo(34f,-16f); path.lineTo(22f,-4f)
@@ -186,6 +240,13 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer {
 
     override fun onResume() {
         super.onResume()
+        if (intent.getBooleanExtra("exitDemo",false)) {
+            if (checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) startPositioning()
+            else if (!locationPermissionRequested) {
+                locationPermissionRequested=true
+                askLocation.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION,Manifest.permission.ACCESS_COARSE_LOCATION))
+            }
+        }
         if (checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) startSession()
         else if (!permissionRequested) {
             permissionRequested = true
@@ -214,14 +275,14 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer {
             }
             session?.resume()
             classifier.reset()
-            goalYaw = null
+            targetX=null;targetZ=null
             previewReady = false
             possibleObstacle = false
             lastFrameTimestamp = 0L
             arrow.text = "…"
             arrow.contentDescription = "Starting camera tracking"
             review.isEnabled = false
-            message.text = "Starting direction assumed · checking nearby obstacles…"
+            message.text = "Finding Entrance Hall direction · obstacle scan active…"
             running = true
             surface.onResume()
         } catch (_: Exception) {
@@ -232,7 +293,8 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer {
     override fun onPause() {
         running = false
         previewReady = false
-        goalYaw = null
+        targetX=null;targetZ=null
+        sensors.unregisterListener(this);locations.removeUpdates(this);compassHeading=Double.NaN
         possibleObstacle = false
         surface.onPause()
         session?.pause()
@@ -369,9 +431,23 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer {
         } else {
             poseReady = true
             val heading = kotlin.math.atan2(-camera.pose.zAxis[0],camera.pose.zAxis[2])
-            // shortcut: opening camera bearing is the demo exit direction, replace with registered library pose.
-            if (goalYaw == null) goalYaw = heading
-            relative = kotlin.math.atan2(kotlin.math.sin(goalYaw!!-heading),kotlin.math.cos(goalYaw!!-heading))
+            val compassReady=compassHeading.isFinite() && SystemClock.elapsedRealtime()-compassAt < 3000
+            val fix=locationFix
+            if (targetX == null && compassReady && fix != null && SystemClock.elapsedRealtimeNanos()-fix.elapsedRealtimeNanos in 0L..10_000_000_000L) {
+                val bearing=LibraryExitGeometry.bearing(fix.latitude,fix.longitude,fix.accuracy.toDouble(),entrance)
+                if (bearing.isFinite()) {
+                    val distance=LibraryExitGeometry.distance(fix.latitude,fix.longitude,entrance).toFloat()
+                    val offset=(bearing-compassHeading).toFloat()
+                    val goal=heading+kotlin.math.atan2(kotlin.math.sin(offset),kotlin.math.cos(offset))
+                    targetX=camera.pose.tx()+distance*kotlin.math.sin(goal)
+                    targetZ=camera.pose.tz()-distance*kotlin.math.cos(goal)
+                }
+            }
+            relative=if (!intent.getBooleanExtra("exitDemo",false)) 0f else if (targetX != null && compassReady) {
+                val goal=kotlin.math.atan2(targetX!!-camera.pose.tx(),camera.pose.tz()-targetZ!!)
+                kotlin.math.atan2(kotlin.math.sin(goal-heading),kotlin.math.cos(goal-heading))
+            } else Float.NaN
+            if (targetX != null && kotlin.math.hypot(targetX!!-camera.pose.tx(),targetZ!!-camera.pose.tz()) < 4f) relative=Float.NaN
             if (!usesDepth) {
                 val observation=inspectCamera(frame,relative)
                 blocked=observation.possibleObstacle
@@ -400,7 +476,8 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer {
                     blocked = observation.possibleObstacle
                     direction = observation.direction
                     text = when (direction) {
-                        DepthObstacleClassifier.Direction.FORWARD -> "Exit · 2F entrance · assumed direction. Check the real path as you move."
+                        DepthObstacleClassifier.Direction.FORWARD -> "Entrance Hall exit · approximate map/GPS bearing. Check the real path."
+                        DepthObstacleClassifier.Direction.FACE_LEFT, DepthObstacleClassifier.Direction.FACE_RIGHT, DepthObstacleClassifier.Direction.TURN_AROUND -> "Face the Entrance Hall exit in place. Walking clearance is not established."
                         DepthObstacleClassifier.Direction.CHECK_LEFT -> "Turn left · farther surfaces observed. Check the real path."
                         DepthObstacleClassifier.Direction.CHECK_RIGHT -> "Turn right · farther surfaces observed. Check the real path."
                         DepthObstacleClassifier.Direction.STOP -> "Stop and look around. No supported turn suggestion yet. The space behind you was not checked."
@@ -412,6 +489,14 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer {
                 text = "Depth is not ready. Move the phone slowly and keep looking ahead."
             }
         }
+        if (poseReady && direction == DepthObstacleClassifier.Direction.SCAN && !blocked && relative.isFinite()) {
+            direction=when {
+                kotlin.math.abs(relative) > Math.PI.toFloat()*0.8f -> DepthObstacleClassifier.Direction.TURN_AROUND
+                relative > Math.PI.toFloat()/6 -> DepthObstacleClassifier.Direction.FACE_RIGHT
+                relative < -Math.PI.toFloat()/6 -> DepthObstacleClassifier.Direction.FACE_LEFT
+                else -> direction
+            }
+        }
         possibleObstacle = blocked
         val now = SystemClock.elapsedRealtime()
         if (blocked) lastPossibleAt = now
@@ -420,20 +505,23 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer {
             lastDirection = direction
             runOnUiThread {
                 if (!unavailable && !isFinishing) {
-                    message.text = text
-                    previewReady = poseReady
-                    arrowSupported = direction != DepthObstacleClassifier.Direction.SCAN
+                    message.text = if (intent.getBooleanExtra("exitDemo",false) && !relative.isFinite()) "Finding location/compass · obstacle scan active. Exit direction unavailable." else text
+                    previewReady = poseReady && (relative.isFinite() || direction in listOf(DepthObstacleClassifier.Direction.CHECK_LEFT,DepthObstacleClassifier.Direction.CHECK_RIGHT))
+                    arrowSupported = direction in listOf(DepthObstacleClassifier.Direction.FORWARD,DepthObstacleClassifier.Direction.CHECK_LEFT,DepthObstacleClassifier.Direction.CHECK_RIGHT)
                     arrowStopped = direction == DepthObstacleClassifier.Direction.STOP
                     arrowRadians = when (direction) {
                         DepthObstacleClassifier.Direction.CHECK_LEFT -> -Math.PI.toFloat()/3
                         DepthObstacleClassifier.Direction.CHECK_RIGHT -> Math.PI.toFloat()/3
-                        else -> relative
+                        else -> if(relative.isFinite()) relative else 0f
                     }
                     chevrons.invalidate()
                     arrow.text = when (direction) {
                         DepthObstacleClassifier.Direction.FORWARD -> "Continue ahead"
                         DepthObstacleClassifier.Direction.CHECK_LEFT -> "Turn left"
                         DepthObstacleClassifier.Direction.CHECK_RIGHT -> "Turn right"
+                        DepthObstacleClassifier.Direction.FACE_LEFT -> "Turn left in place"
+                        DepthObstacleClassifier.Direction.FACE_RIGHT -> "Turn right in place"
+                        DepthObstacleClassifier.Direction.TURN_AROUND -> "Turn around in place"
                         DepthObstacleClassifier.Direction.STOP -> "Stop"
                         DepthObstacleClassifier.Direction.SCAN -> "Scan slowly"
                     }

@@ -1,23 +1,36 @@
 # Central Library exit and stairs preview
 
-Central Library is building **01** at the fixed demo position. Open its
-**3D AR · Library exit** button. This directly opens the native exit-arrow demo
-on iOS and Android, with no floor picker, checkpoint, alignment button or
-confirmation step. The destination label is **Exit · 2F entrance**. Five animated
-white chevrons match the normal AR screen and update continuously around local
-sensor observations. Amber chevrons show orientation only while depth is unknown;
-blocked/uncertain observations never produce a forward instruction.
+Central Library is building **01**. Its ordinary **3D AR directions** card button
+opens the native exit-arrow view directly, without a floor picker or checkpoint.
+AR buttons align at the bottom of every card even when names wrap.
 
-For this explicitly requested demo, the opening camera direction is assumed to
-point toward the exit and is retained in the AR session as the phone turns.
-This is not a measured bearing to the entrance. Opening elsewhere or facing the
-wrong direction produces the wrong goal. It does not locate a seat, change floors,
-solve a maze or confirm arrival. iOS automatically uses LiDAR when supported, otherwise the restored ARKit
-camera-feature/vertical-plane fallback. Android automatically prefers ARCore
-Depth (which can work without LiDAR), otherwise camera features/vertical planes.
-ARKit/ARCore tracking support is still required. Camera fallback estimates are
-weaker and can miss blank walls, glass and low objects.
-After backgrounding, a new session assumes the new opening direction.
+The goal is the pictured **Entrance Hall doors on 2F**, transformed through the
+saved floor image's rotation and ground dimensions. iOS loads this phone's saved
+alignment and verifies the exact supported image fingerprint; Android uses the
+same exported alignment snapshot in the shared Kotlin geometry. The opening
+camera direction is no longer used as the exit goal.
+
+A fresh location fix and usable compass are required for the initial general
+bearing. Fixes worse than25m, outside150m of the target, or whose uncertainty
+could reverse the direction are rejected. AR motion then tracks displacement
+from that approximate starting fix. No surveyed indoor localization or floor
+identification is established. Poor location/compass hides goal guidance while
+local obstacle sensing continues. Near the estimated target the goal arrow is
+hidden; that does not confirm arrival.
+
+Amber chevrons can say **Turn left/right/around in place** before depth is ready.
+They are orientation cues, not permission to walk. White forward guidance still
+requires observed farther surfaces; close obstacles suppress forward guidance.
+Chevrons stay centred during turns. iOS selects LiDAR when supported and otherwise
+camera features/vertical planes; Android prefers ARCore Depth and otherwise uses
+camera geometry. Missing/stale/tilted observations remain unknown. Camera fallback
+can miss blank walls, glass, low objects and people.
+
+The surrounding main map has no automatic floor-plan overlay. On iOS,
+**Central Library → Details → Floor overlay**, or double-tapping its **Details**
+button, opens the separate saved-plan editor. The native bottom bar is removed.
+The saved alignment remains local and is used by AR; editing an image does not
+make GPS accurate or establish a camera pose. See [native-floor-overlay.md](native-floor-overlay.md).
 
 Previous localization and map tools remain separate: **Details → Library floor
 maps** opens official maps, manually confirmed exit/stairs paths, photo landmark

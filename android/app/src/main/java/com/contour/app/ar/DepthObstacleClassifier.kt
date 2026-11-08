@@ -4,7 +4,7 @@ import kotlin.math.abs
 
 /** Camera-relative observations only; no result certifies a walkable route. */
 class DepthObstacleClassifier {
-    enum class Direction { SCAN, FORWARD, CHECK_LEFT, CHECK_RIGHT, STOP }
+    enum class Direction { SCAN, FORWARD, CHECK_LEFT, CHECK_RIGHT, FACE_LEFT, FACE_RIGHT, TURN_AROUND, STOP }
     data class Observation(val possibleObstacle: Boolean, val direction: Direction)
     private data class Sector(val near: Boolean, val farther: Boolean, val lowerDepth: Int)
     private var lastDepthTimestamp = 0L
@@ -50,7 +50,7 @@ class DepthObstacleClassifier {
 
     private fun observe(leftView:Sector,ahead:Sector,rightView:Sector,frameTimestamp:Long,depthTimestamp:Long,
                         tracking:Boolean,forwardY:Float,relativeGoal:Float):Observation {
-        if (!tracking || !relativeGoal.isFinite() || !forwardY.isFinite() || abs(forwardY) > 0.34f ||
+        if (!tracking || !forwardY.isFinite() || abs(forwardY) > 0.34f ||
             depthTimestamp <= 0 || frameTimestamp - depthTimestamp !in 0L..200_000_000L ||
             depthTimestamp < lastDepthTimestamp) {
             reset()
@@ -71,22 +71,17 @@ class DepthObstacleClassifier {
             nearFrames++
         }
         val next = when {
-            ahead.farther && abs(relativeGoal) <= Math.PI.toFloat()/6 -> Direction.FORWARD
-            ahead.farther -> {
-                val desired = if (relativeGoal > 0) rightView else leftView
-                val other = if (relativeGoal > 0) leftView else rightView
-                when {
-                    desired.farther -> if (relativeGoal > 0) Direction.CHECK_RIGHT else Direction.CHECK_LEFT
-                    desired.near && other.farther -> if (relativeGoal > 0) Direction.CHECK_LEFT else Direction.CHECK_RIGHT
-                    else -> Direction.SCAN
-                }
-            }
-            !ahead.near -> Direction.SCAN
-            leftView.farther && rightView.farther ->
+            ahead.near && leftView.farther && rightView.farther ->
                 if (leftView.lowerDepth >= rightView.lowerDepth) Direction.CHECK_LEFT else Direction.CHECK_RIGHT
-            leftView.farther -> Direction.CHECK_LEFT
-            rightView.farther -> Direction.CHECK_RIGHT
-            leftView.near && rightView.near -> Direction.STOP
+            ahead.near && leftView.farther -> Direction.CHECK_LEFT
+            ahead.near && rightView.farther -> Direction.CHECK_RIGHT
+            ahead.near && leftView.near && rightView.near -> Direction.STOP
+            ahead.near -> Direction.SCAN
+            // In-place orientation needs a goal bearing, not a claim of walkable side clearance.
+            relativeGoal.isFinite() && abs(relativeGoal) > Math.PI.toFloat()*0.8f -> Direction.TURN_AROUND
+            relativeGoal.isFinite() && relativeGoal > Math.PI.toFloat()/6 -> Direction.FACE_RIGHT
+            relativeGoal.isFinite() && relativeGoal < -Math.PI.toFloat()/6 -> Direction.FACE_LEFT
+            relativeGoal.isFinite() && ahead.farther -> Direction.FORWARD
             else -> Direction.SCAN
         }
         if (next != candidate || directionFrames == 0) {

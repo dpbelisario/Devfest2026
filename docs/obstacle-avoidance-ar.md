@@ -7,31 +7,35 @@ solve a maze, prove a complete route clear or locate the phone on the map.
 
 ## Implemented flow
 
-1. Open **01 Central Library → 3D AR · Library exit**. Native camera permission
-   and device capability checks are the only prerequisites. No extra setup UI.
-2. On the first usable level camera pose, retain its world heading as the
-   assumed exit direction. Animated chevrons appear immediately, amber while
-   waiting for depth, then white when current observations support the cue.
-3. Continuous depth updates suppress forward guidance at an observed blocker,
-   choose left/right only with farther observations on the chosen side, and
-   stop when sampled directions are blocked. Turning the phone updates the
-   retained goal's relative direction. Unknown/stale/tilted tracking pauses
-   walking guidance; interruptions reset the AR session and assumed heading.
-4. Close to return. No checkpoint or per-obstacle confirmation is required.
+1. Open **01 Central Library → 3D AR directions**. Camera permission and native
+   tracking are required; the general exit goal also needs location and compass.
+2. Transform the pictured 2F Entrance Hall doors through the supported saved
+   image's alignment. Shared Kotlin geometry supplies both native apps. iOS uses
+   the phone's saved alignment; Android uses its exported snapshot.
+3. A fresh, bounded-accuracy GPS fix establishes an approximate starting bearing;
+   camera AR motion tracks displacement from it. iOS uses north-aligned ARKit;
+   Android calibrates ARCore's local heading against the back-camera direction
+   from the rotation sensor and magnetic declination. Unusable sensors hide the
+   goal; they do not prevent local obstacle detection.
+4. Turn-in-place cues can appear before walking clearance is known. Amber means
+   orientation only. White forward cues still require observed farther surfaces.
+   Close evidence overrides forward; side walking suggestions need farther side
+   evidence. Chevrons remain centred while turning. Close to return.
 
-The initial bearing is a user-authorized demo assumption, not a localization
-result. The phone cannot know where the library entrance is from a floor image
-or LiDAR alone. The chevrons reuse the normal AR design: five pulsing chevrons
-on a camera-relative 3D plane on iOS and a perspective camera overlay on Android.
-The local detector does not solve a maze or certify passage. No automatic rear
-arrow is generated because the rear is unobserved.
+The goal is an approximate map/GPS bearing, not a verified indoor localization
+result. The image door position and geographic alignment are unsurveyed. Opening
+in a different floor, GPS drift, magnetism, unobserved obstacles or closed doors
+can make it wrong. No full route, maze, floor, stairs or arrival is established.
+A turn-around cue asks you to rotate in place; it does not indicate a checked
+walking route behind you. Readable repeated room signs and ordinary shelves do
+not establish a unique camera pose and are not used as point localization.
 
 The previous map/photo/checkpoint tools remain in **Details → Library floor
 maps**, with optional obstacle review and server-validated blocked-edge reroutes.
 That separate flow still needs a physically confirmed checkpoint and manually
 calibrated heading. No code automatically fuses a photo candidate, IndoorAtlas's
 Room221 pose or an uncaptured Cloud Anchor into the demo. A surveyed and registered
-library pose would be needed to replace the startup assumption.
+library pose is still needed for reliable absolute indoor guidance.
 
 ## What each phone measures
 
@@ -67,8 +71,8 @@ planes must contain the ray hit. Features/planes share the depth path's sustaine
 observation, stale/repeated frame and tilt gates. Sensor selection happens at
 session creation, with no extra user setup. The fallback is weaker: glass, blank
 surfaces, low objects and people can be missed. It is an observed-geometry estimate,
-not reconstructed clearance. Both modes retain the initial demo heading and
-continuous chevrons, with no map tap or checkpoint confirmation.
+not reconstructed clearance. Both modes use the estimated entrance goal and continuous chevrons, with no
+map tap or checkpoint confirmation. Unknown geometry never permits forward walking.
 
 Apple requires capability checks for scene depth and mesh reconstruction.
 [Apple scene reconstruction capability](<https://developer.apple.com/documentation/arkit/arworldtrackingconfiguration/supportsscenereconstruction(_:)>),
@@ -82,8 +86,8 @@ free-space geometry is used to steer the arrow.
 
 ## Registration, network and costs
 
-Neither scanner estimates absolute floor-map location or identifies the blocked
-graph edge. Automated edge selection would require a surveyed metric map,
+Neither scanner establishes a surveyed absolute floor-map pose or identifies
+the blocked graph edge. Automated edge selection would require a surveyed metric map,
 registered camera pose, measured passage widths, and a local occupancy model
 tested against real obstacles. The
 [Cloud Anchor localization design](library-localization.md) explains the missing
