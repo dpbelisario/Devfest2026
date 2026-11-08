@@ -10,6 +10,7 @@ final class ContourViewController: UIViewController, WKNavigationDelegate, WKUID
     private let location = CLLocationManager()
     private let haptics = AlertHaptics()
     private let audio = AVAudioEngine()
+    private var launchObstacleDemo = ProcessInfo.processInfo.arguments.contains("--bundled-obstacle-demo")
     private weak var obstacleScanner: ObstacleScanViewController?
     private var speechTask: SFSpeechRecognitionTask?
     private var speechRequest: SFSpeechAudioBufferRecognitionRequest?
@@ -49,7 +50,7 @@ final class ContourViewController: UIViewController, WKNavigationDelegate, WKUID
         ])
         location.delegate = self
         location.desiredAccuracy = kCLLocationAccuracyBest
-        if let url = hostedURL, url.scheme == "https" {
+        if !launchObstacleDemo, let url = hostedURL, url.scheme == "https" {
             web.load(URLRequest(url: url))
             let task = DispatchWorkItem { [weak self] in self?.fallBack() }
             timeout = task
@@ -100,6 +101,7 @@ final class ContourViewController: UIViewController, WKNavigationDelegate, WKUID
         pageReady = true
         refreshNotificationStatus()
         deliverAlert()
+        openLaunchDemoIfReady()
     }
 
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) { fallBack() }
@@ -117,6 +119,12 @@ final class ContourViewController: UIViewController, WKNavigationDelegate, WKUID
         // WebKit can supply a nil frame request during camera authorization on physical iPhones.
         let ours = frame.isMainFrame && isOurs(webView.url) && origin.protocol == "https" && isOurs(origin)
         decisionHandler(ours && type == .camera ? .prompt : .deny)
+    }
+
+    private func openLaunchDemoIfReady() {
+        guard launchObstacleDemo, pageReady, UIApplication.shared.applicationState == .active else { return }
+        launchObstacleDemo = false
+        startObstacleScan()
     }
 
     private func startObstacleScan() {
@@ -161,6 +169,7 @@ final class ContourViewController: UIViewController, WKNavigationDelegate, WKUID
     }
 
     func resumeDeviceActivity() {
+        openLaunchDemoIfReady()
         startLocationIfAllowed()
         refreshNotificationStatus()
     }

@@ -85,3 +85,14 @@ experiment. The native shell must be rebuilt/installed; a hosted HTML update
 alone cannot add ARKit/ARCore code. Both shells share the same entry and floor
 preview. Three.js r128 is bundled with its MIT notice for offline 3D previews.
 See [obstacle-avoidance-ar.md](obstacle-avoidance-ar.md) for sensing limits.
+
+To launch the installed iPhone camera demo directly while Hosting is still
+deploying, bypassing the older hosted UI without changing Wi-Fi settings:
+
+```sh
+xcrun devicectl --timeout 30 device process launch --terminate-existing \
+  --device "$IOS_DEVICE_UDID" "$IOS_BUNDLE_ID" --bundled-obstacle-demo
+```
+
+This explicit launch uses the bundled page and opens the native scanner. Ordinary
+launches continue using the hosted page with bundled fallback.
