@@ -69,6 +69,11 @@ final class ContourViewController: UIViewController, WKNavigationDelegate, WKUID
         return hostedURL.map { WebOrigin.sameOrigin(url, $0) } ?? false
     }
 
+    private func isOurs(_ origin: WKSecurityOrigin) -> Bool {
+        if origin.protocol == "file" { return web.url?.isFileURL == true && isOurs(web.url) }
+        return hostedURL.map { WebOrigin.sameOrigin(scheme: origin.protocol, host: origin.host, port: origin.port, to: $0) } ?? false
+    }
+
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
                  decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
         guard let url = navigationAction.request.url else { decisionHandler(.cancel); return }
@@ -108,7 +113,8 @@ final class ContourViewController: UIViewController, WKNavigationDelegate, WKUID
     func webView(_ webView: WKWebView, requestMediaCapturePermissionFor origin: WKSecurityOrigin,
                  initiatedByFrame frame: WKFrameInfo, type: WKMediaCaptureType,
                  decisionHandler: @escaping (WKPermissionDecision) -> Void) {
-        let ours = frame.isMainFrame && isOurs(frame.request.url) && origin.protocol == "https" && origin.host == hostedURL?.host
+        // WebKit can supply a nil frame request during camera authorization on physical iPhones.
+        let ours = frame.isMainFrame && isOurs(webView.url) && origin.protocol == "https" && isOurs(origin)
         decisionHandler(ours && type == .camera ? .prompt : .deny)
     }
 
@@ -175,7 +181,7 @@ final class ContourViewController: UIViewController, WKNavigationDelegate, WKUID
     }
 
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
-        guard message.frameInfo.isMainFrame, isOurs(message.frameInfo.request.url), isOurs(web.url),
+        guard message.frameInfo.isMainFrame, isOurs(message.frameInfo.securityOrigin), isOurs(web.url),
               let body = message.body as? [String: Any], let action = body["action"] as? String else { return }
         switch action {
         case "locationStart":

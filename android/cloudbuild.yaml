@@ -69,7 +69,7 @@ steps:
           android/app/build/outputs/apk/debug/app-debug.apk \
           --app "${_FIREBASE_APP_ID}" \
           --groups "${_TESTER_GROUPS}" \
-          --release-notes "main @ ${SHORT_SHA} (debug build; demo data, not real evacuation guidance)"
+          --release-notes "${BRANCH_NAME} @ ${SHORT_SHA} (debug build; demo data, not real evacuation guidance)"
 
 availableSecrets:
   secretManager:
