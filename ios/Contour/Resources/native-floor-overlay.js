@@ -1,6 +1,7 @@
 // iOS-only adapter: display the locally saved native floor plan on the existing Leaflet map.
 (() => {
   let map = null;
+  let provider = "leaflet";
   let layer = null;
   let pending = null;
   let hasPending = false;
@@ -33,11 +34,16 @@
   function draw() {
     if (!map || !hasPending) return;
     if (layer) {
-      map.removeLayer(layer);
+      if (provider === "google") layer.setMap(null);
+      else map.removeLayer(layer);
       layer = null;
     }
     const v = pending;
     if (!v || !v.visible) return;
+    if (provider === "google") {
+      drawGoogle(v);
+      return;
+    }
     const L = window.L;
     const pane =
       map.getPane("nativeFloorPlan") || map.createPane("nativeFloorPlan");
@@ -109,6 +115,80 @@
       );
     }
   }
+
+  function drawGoogle(v) {
+    const gm = window.google.maps;
+    class NativeImage extends gm.OverlayView {
+      onAdd() {
+        this.image = document.createElement("img");
+        this.image.className = "contour-native-floor-plan";
+        this.image.src = "data:image/png;base64," + v.image;
+        this.image.alt = "Saved floor plan";
+        Object.assign(this.image.style, {
+          position: "absolute",
+          maxWidth: "none",
+          pointerEvents: "none",
+          opacity: String(v.opacity),
+          transformOrigin: "50% 50%",
+        });
+        this.getPanes().overlayLayer.appendChild(this.image);
+      }
+      draw() {
+        const projection = this.getProjection();
+        if (!projection || !this.image) return;
+        const delta =
+          v.width /
+          (111319.49079327358 * Math.cos((v.latitude * Math.PI) / 180));
+        const a = projection.fromLatLngToDivPixel(
+          new gm.LatLng(v.latitude, v.longitude),
+        );
+        const b = projection.fromLatLngToDivPixel(
+          new gm.LatLng(v.latitude, v.longitude + delta),
+        );
+        const width = Math.abs(b.x - a.x),
+          height = width * v.aspect;
+        Object.assign(this.image.style, {
+          left: `${a.x - width / 2}px`,
+          top: `${a.y - height / 2}px`,
+          width: `${width}px`,
+          height: `${height}px`,
+          transform: `rotate(${v.angle}deg)`,
+        });
+      }
+      onRemove() {
+        this.image?.remove();
+      }
+    }
+    layer = new NativeImage();
+    layer.setMap(map.native);
+    if (focusPending) {
+      focusPending = false;
+      const half = Math.hypot(v.width, v.width * v.aspect) / 2;
+      const lat = half / 111319.49079327358;
+      const lng = lat / Math.cos((v.latitude * Math.PI) / 180);
+      map.native.setOptions({ restriction: null, maxZoom: 22 });
+      map.native.fitBounds(
+        {
+          south: v.latitude - lat,
+          north: v.latitude + lat,
+          west: v.longitude - lng,
+          east: v.longitude + lng,
+        },
+        25,
+      );
+    }
+  }
+
+  window.addEventListener("contour-map-ready", (event) => {
+    if (layer) {
+      if (provider === "google") layer.setMap(null);
+      else map.removeLayer(layer);
+      layer = null;
+    }
+    map = event.detail.map;
+    provider = event.detail.provider;
+    draw();
+  });
 
   function attach() {
     const L = window.L;

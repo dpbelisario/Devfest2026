@@ -40,7 +40,7 @@ the app from its icon preserves this local build configuration. Hosted and bundl
 pages have separate WebView localStorage; native saved floor overlays remain in
 the same app storage and are transferred to either page.
 
-Verification completed: live-location browser regression passed; 70 backend tests,
+Verification completed: live-location browser regression passed; 72 backend tests,
 typecheck, lint, formatting and build passed; seven Node iOS bridge/build checks
 and all 17 iOS XCTest tests passed. Android debug assembly, unit tests and lint
 passed with JDK 21 (JDK 17 unavailable). Final bundled iPhone HTML matches the

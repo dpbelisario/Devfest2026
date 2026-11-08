@@ -118,6 +118,87 @@ const assert = require("node:assert/strict");
     assert.equal(await apply(value, true), true);
     await image.waitFor({ state: "visible" });
     assert.equal(await image.count(), 1);
+    // Exercise Google's OverlayView contract without credentials or network tiles.
+    await page.evaluate(() => {
+      const pane = document.createElement("div");
+      pane.id = "google-test-pane";
+      document.body.appendChild(pane);
+      window.google = {
+        maps: {
+          LatLng: class {
+            constructor(lat, lng) {
+              this.lat = lat;
+              this.lng = lng;
+            }
+          },
+          OverlayView: class {
+            setMap(map) {
+              if (this.map) this.onRemove();
+              this.map = map;
+              if (map) {
+                this.onAdd();
+                this.draw();
+              }
+            }
+            getPanes() {
+              return { overlayLayer: pane };
+            }
+            getProjection() {
+              return {
+                fromLatLngToDivPixel: (p) => ({
+                  x: p.lng * 1000,
+                  y: -p.lat * 1000,
+                }),
+              };
+            }
+          },
+        },
+      };
+      window.googleTestMap = {
+        setOptions(value) {
+          this.options = value;
+        },
+        fitBounds(bounds) {
+          this.bounds = bounds;
+        },
+      };
+      window.dispatchEvent(
+        new CustomEvent("contour-map-ready", {
+          detail: { provider: "google", map: { native: window.googleTestMap } },
+        }),
+      );
+    });
+    assert.equal(await apply(value, true), true);
+    const googleImage = page.locator(
+      "#google-test-pane .contour-native-floor-plan",
+    );
+    const googleFirst = await googleImage.evaluate((el) => ({
+      width: parseFloat(el.style.width),
+      height: parseFloat(el.style.height),
+      angle: el.style.transform,
+    }));
+    assert.ok(googleFirst.width > 0);
+    assert.ok(
+      Math.abs(googleFirst.height / googleFirst.width - value.aspect) < 0.00001,
+    );
+    assert.equal(googleFirst.angle, "rotate(35deg)");
+    assert.equal(
+      await page.evaluate(() => window.googleTestMap.options.restriction),
+      null,
+    );
+    assert.equal(await apply({ ...value, width: 160 }), true);
+    const googleWidth = await googleImage.evaluate((el) =>
+      parseFloat(el.style.width),
+    );
+    assert.ok(Math.abs(googleWidth / googleFirst.width - 2) < 0.001);
+    assert.equal(await apply({ ...value, visible: false }), true);
+    assert.equal(await googleImage.count(), 0);
+    assert.equal(await apply(value), true);
+    assert.equal(await apply(null), true);
+    assert.equal(await googleImage.count(), 0);
+    console.log(
+      "PASS: Google OverlayView contract preserves geometry, replaces/hides/clears the image, and focuses the saved bounds (SDK mocked).",
+    );
     console.log(
       "PASS: actual Contour Leaflet page receives native image/alignment, updates scale/rotation/opacity, hides, clears, rejects invalid data, and restores after reload.",
     );

@@ -34,15 +34,16 @@ camera permission or upload is needed to align an image. Alignment does not impr
 indoor positioning, infer routes, or establish that an exit is usable.
 
 The native file/default is authoritative. An iOS-only WebKit user script displays
-it on the existing Leaflet page after Save, Show/Hide, returning from the editor,
+it on the online Google Map or offline Leaflet canvas after Save, Show/Hide, returning from the editor,
 and page loading. Rotation, ground dimensions and opacity are preserved. Saving
 or returning focuses the plan; startup restores it without overriding live GPS
 centering. Hidden/null plans remove the displayed copy. No image API upload or
 hosted-page deployment is required for this iOS bridge. The bundled default is an
 iOS resource; standalone web/Android clients do not read that native resource.
 
-The script captures Leaflet's initialization hook when the existing external
-Leaflet script loads. Native JSON is passed as a structured WebKit argument,
+The shared page announces its map provider and map instance when ready; the bridge
+uses Google OverlayView online and a Leaflet layer offline. A Leaflet initialization
+hook supports older hosted pages that load Leaflet externally. Native JSON is passed as a structured WebKit argument,
 never concatenated into executable code. Navigation cancels stale transfers;
 only the configured trusted main page receives the image. Map, image and corner
 handles are sibling native views so their gestures do not intercept each other.
@@ -74,5 +75,7 @@ node --test ios/tests/bridge.test.cjs ios/tests/build-shared.test.cjs
 
 Browser checks cover native-style injection into the real page, width/rotation/
 opacity changes, hide/show, reload, invalid data, startup GPS and moving line origins.
+Google OverlayView lifecycle/geometry is checked with a mocked SDK; real online
+Google overlay rendering still needs a phone check after deployment.
 The iPhone development app was built, installed and launched during implementation;
 it uses local Personal Team signing rather than Firebase iOS OTA distribution.
