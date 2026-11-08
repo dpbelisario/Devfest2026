@@ -21,6 +21,19 @@ substitutions:
   _CMDLINE_TOOLS: '13114758'
 
 steps:
+  - id: validate-shared-navigation
+    name: node:24
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        npm ci
+        sha256sum android/app/src/main/assets/contour.html > /tmp/contour-page.sha256
+        npm run build
+        npm test
+        sha256sum --check /tmp/contour-page.sha256
+
   - id: build-apk
     name: eclipse-temurin:17-jdk
     dir: android

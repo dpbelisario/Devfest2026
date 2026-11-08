@@ -5,7 +5,12 @@ export const indoorNodeSchema = z.object({
   label: z.string().min(1),
   labelJa: z.string().optional(),
   aliases: z.array(z.string()).default([]),
-  floor: z.number().int().min(1).max(10),
+  floor: z
+    .number()
+    .int()
+    .min(-1)
+    .max(10)
+    .refine((floor) => floor !== 0, "Use -1 for B1; there is no floor 0"),
   kind: z.enum(["room", "corridor", "stairs", "lift", "landmark"]),
   x: z.number().min(0).max(100),
   y: z.number().min(0).max(100),

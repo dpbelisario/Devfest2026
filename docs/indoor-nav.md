@@ -1,8 +1,9 @@
 # Indoor navigation (demo)
 
-Indoor navigation guides you through a **fictional** two-floor building ("Sample Hall"). No real
-Nagoya University floor plans are in the app yet; every building uses this sample plan, and the
-screen says so.
+Indoor navigation guides you through a **fictional** two-floor building ("Sample Hall"). Central Library instead uses its official five floor maps with manually confirmed
+exit/stairs route previews; see [library-demo.md](library-demo.md). Engineering II
+and ILAS A also have schematic route catalogs. Other buildings still use Sample Hall,
+which is explicitly labelled fictional.
 
 ## Where it opens
 

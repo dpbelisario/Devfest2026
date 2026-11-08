@@ -8,6 +8,7 @@ import {
   siteDisasters,
   type LiveDataService,
 } from "../services/liveDataService.js";
+import type { LibraryLocalizationService } from "../services/libraryLocalizationService.js";
 import type { RateLimiter } from "../services/rateLimiter.js";
 
 /** Public read endpoints over the ingestion job outputs, plus the assistant. */
@@ -15,6 +16,7 @@ export interface LiveContext {
   live: LiveDataService;
   /** Absent when the assistant is disabled; POST /assistant then answers 503. */
   assistant?: AssistantService;
+  libraryLocalizer?: LibraryLocalizationService;
   assistantLimiter: RateLimiter;
 }
 

@@ -165,3 +165,11 @@ message sent or device tested. Public-document checks do not establish building
 coverage or safe navigation; those remain pilot acceptance gates.
 
 Tracked work: [iOS foundation #26](https://github.com/dpbelisario/Devfest2026/issues/26), [TestFlight #27](https://github.com/dpbelisario/Devfest2026/issues/27), [IndoorAtlas verification #28](https://github.com/dpbelisario/Devfest2026/issues/28).
+
+## Central Library exit / stairs
+
+The shared page now offers manually confirmed routes across B1–4F to the 2F
+entrance, or to stairs on the current floor. Compass calibration is per walking
+segment; no native localization or LiDAR is required for this preview. See
+[library-demo.md](library-demo.md), [library-localization.md](library-localization.md)
+and [library-deployment.md](library-deployment.md).

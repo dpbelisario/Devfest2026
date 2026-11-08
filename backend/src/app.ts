@@ -5,6 +5,8 @@ import { directionsRouter } from "./routes/directions.js";
 import { createJobsRouter } from "./routes/jobs.js";
 import { createLiveRouter, type LiveContext } from "./routes/live.js";
 import { webAppRouter } from "./routes/webApp.js";
+import { createLibraryLocalizationRouter } from "./routes/libraryLocalization.js";
+import { RateLimiter } from "./services/rateLimiter.js";
 import { indoorRouter } from "./routes/indoor.js";
 import type { JobsContext } from "./services/jobs/context.js";
 
@@ -22,6 +24,15 @@ export function createApp(
   app.disable("x-powered-by");
   // Cloud Run (and Firebase Hosting in front of it) set X-Forwarded-For.
   app.set("trust proxy", true);
+  app.use(
+    "/api/indoor/localize-photo",
+    createLibraryLocalizationRouter({
+      localizer: options.live?.libraryLocalizer,
+      limiter:
+        options.live?.assistantLimiter ??
+        new RateLimiter({ windowMs: 60000, perKeyLimit: 1, totalLimit: 1 }),
+    }),
+  );
   app.use(express.json({ limit: "16kb" }));
   app.use("/health", healthRouter);
   app.use("/destinations", destinationsRouter);

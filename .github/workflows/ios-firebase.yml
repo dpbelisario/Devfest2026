@@ -113,6 +113,12 @@ jobs:
       - uses: android-actions/setup-android@v3
       - name: Install Android SDK for the shared Kotlin module
         run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+      - name: Validate shared navigation and bundled page
+        run: |
+          npm ci
+          npm run build
+          npm test
+          git diff --exit-code -- android/app/src/main/assets/contour.html
       - name: Check bridge and build environment behavior
         run: node --test ios/tests/bridge.test.cjs ios/tests/build-shared.test.cjs
       - name: Import owner-provided ad hoc signing material
