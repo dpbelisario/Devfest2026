@@ -20,6 +20,8 @@ const environmentSchema = z.object({
   JOBS_STORE: z.enum(["firestore", "memory"]).default("firestore"),
   /** Optional; Application Default Credentials usually supply the project. */
   GOOGLE_CLOUD_PROJECT: optionalText,
+  /** Public Maps JavaScript API key; restrict it to Hosting referrers and Maps API. */
+  GOOGLE_MAPS_BROWSER_KEY: optionalText,
   /** Optional named Firestore database; defaults to `(default)`. */
   FIRESTORE_DATABASE_ID: optionalText,
   /**
