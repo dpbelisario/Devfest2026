@@ -40,11 +40,16 @@ enum ObstacleProbe {
     }
 
     static func guidance(center:Evidence,left:Evidence,right:Evidence,relative:Float)->String {
-        if center == .near { return cue(center:center,left:left,right:right) }
+        if center == .near {
+            if relative.isFinite && relative > .pi/6 && right == .farther { return "right" }
+            if relative.isFinite && relative < -.pi/6 && left == .farther { return "left" }
+            return cue(center:center,left:left,right:right)
+        }
         guard relative.isFinite else { return "scan" }
-        // Turning in place does not claim the unseen walking path is clear.
+        // shortcut: nearby sector evidence is not a full aisle map; upgrade after on-site route surveying.
         if abs(relative) > .pi * 0.8 { return "around" }
-        if abs(relative) > .pi/6 { return relative > 0 ? "face-right" : "face-left" }
+        if center == .farther && relative > .pi/6 && right == .farther { return "right" }
+        if center == .farther && relative < -.pi/6 && left == .farther { return "left" }
         guard center == .farther else { return "scan" }
         return "forward"
     }
@@ -59,6 +64,12 @@ final class ObstacleScanViewController: UIViewController, ARSessionDelegate, ARS
     private let status = UILabel()
     private let arrow = UILabel()
     private let review = UIButton(type:.system)
+    private let floorBubble = UIButton(type:.system)
+    private let headingBubble = UIButton(type:.system)
+    private var guessedFloor = "2F"
+    private var manualGoalHeading: Float?
+    private var currentHeading: Float = .nan
+    private var currentRelative: Float = .nan
     private var nearFrames = 0
     private let directionArrow = SCNNode()
     private let location = CLLocationManager()
@@ -88,7 +99,27 @@ final class ObstacleScanViewController: UIViewController, ARSessionDelegate, ARS
         status.textColor = .white
         status.numberOfLines = 3
         status.font = .preferredFont(forTextStyle: .body)
-        status.text = "Finding Entrance Hall direction. Scanning nearby obstacles…"
+        status.text = ""
+        status.isHidden = true
+        floorBubble.setTitle("Floor guess · 2F · Edit",for:.normal)
+        floorBubble.accessibilityIdentifier = "exitFloorGuess"
+        floorBubble.addTarget(self,action:#selector(editFloor),for:.touchUpInside)
+        headingBubble.setTitle("Exit direction · Edit",for:.normal)
+        headingBubble.accessibilityIdentifier = "exitHeadingGuess"
+        headingBubble.isEnabled = false
+        headingBubble.addTarget(self,action:#selector(editHeading),for:.touchUpInside)
+        let guesses = UIStackView(arrangedSubviews:[floorBubble,headingBubble])
+        guesses.axis = .vertical; guesses.spacing = 4
+        guesses.backgroundColor = UIColor.black.withAlphaComponent(0.8)
+        guesses.layer.cornerRadius = 16
+        guesses.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(guesses)
+        NSLayoutConstraint.activate([
+            guesses.topAnchor.constraint(equalTo:view.safeAreaLayoutGuide.topAnchor,constant:8),
+            guesses.centerXAnchor.constraint(equalTo:view.centerXAnchor),
+            guesses.leadingAnchor.constraint(greaterThanOrEqualTo:view.safeAreaLayoutGuide.leadingAnchor,constant:12),
+            guesses.trailingAnchor.constraint(lessThanOrEqualTo:view.safeAreaLayoutGuide.trailingAnchor,constant:-12)
+        ])
         review.setTitle("Review possible obstacle",for:.normal)
         review.isEnabled = false
         review.isHidden = exitDemo
@@ -96,7 +127,7 @@ final class ObstacleScanViewController: UIViewController, ARSessionDelegate, ARS
         let back = UIButton(type: .system)
         back.setTitle("Close", for: .normal)
         back.addTarget(self, action: #selector(finishUnknown), for: .touchUpInside)
-        arrow.text = "Scan slowly"
+        arrow.text = "Hold"
         arrow.textColor = .white
         arrow.font = .systemFont(ofSize: 22, weight: .semibold)
         arrow.textAlignment = .center
@@ -139,12 +170,45 @@ final class ObstacleScanViewController: UIViewController, ARSessionDelegate, ARS
         })
     }
 
+    @objc private func editFloor() {
+        let picker = UIAlertController(title:"Current floor",message:nil,preferredStyle:.actionSheet)
+        for floor in ["B1","1F","2F","3F","4F"] {
+            picker.addAction(UIAlertAction(title:floor,style:.default) { [weak self] _ in
+                self?.guessedFloor = floor
+                self?.floorBubble.setTitle("Floor · \(floor) · Edit",for:.normal)
+            })
+        }
+        picker.addAction(UIAlertAction(title:"Cancel",style:.cancel))
+        picker.popoverPresentationController?.sourceView = floorBubble
+        present(picker,animated:true)
+    }
+
+    @objc private func editHeading() {
+        let picker = UIAlertController(title:"Exit direction from where you face",message:nil,preferredStyle:.actionSheet)
+        for (label,offset) in [("Ahead",Float(0)),("Right",Float.pi/2),("Left",-Float.pi/2),("Behind",Float.pi)] {
+            picker.addAction(UIAlertAction(title:label,style:.default) { [weak self] _ in
+                guard let self else { return }
+                self.manualGoalHeading = self.currentHeading+offset
+                self.cueFrames = 0
+            })
+        }
+        picker.addAction(UIAlertAction(title:"Use map estimate",style:.default) { [weak self] _ in self?.manualGoalHeading = nil })
+        picker.addAction(UIAlertAction(title:"Cancel",style:.cancel))
+        picker.popoverPresentationController?.sourceView = headingBubble
+        present(picker,animated:true)
+    }
+
+    private func updateHeadingBubble() {
+        let bearing = currentRelative.isFinite ? abs(currentRelative) < .pi/6 ? "Ahead" : "\(Int(abs(currentRelative)*180 / .pi))° \(currentRelative > 0 ? "right" : "left")" : "Unknown"
+        headingBubble.setTitle("Exit \(manualGoalHeading == nil ? "guess" : "direction") · \(bearing) · Edit",for:.normal)
+    }
+
     override func viewDidAppear(_ animated: Bool) { super.viewDidAppear(animated); start() }
     override func viewWillDisappear(_ animated: Bool) { super.viewWillDisappear(animated); pause() }
     deinit { for observer in observers { NotificationCenter.default.removeObserver(observer) } }
 
     private func start() {
-        guard ARWorldTrackingConfiguration.isSupported else { status.text = "AR camera tracking is unavailable on this phone. Use Library floor maps."; return }
+        guard ARWorldTrackingConfiguration.isSupported else { status.isHidden = false; status.text = "AR camera tracking is unavailable on this phone. Use Library floor maps."; return }
         let config = ARWorldTrackingConfiguration()
         if exitDemo {
             config.worldAlignment = .gravityAndHeading
@@ -164,11 +228,12 @@ final class ObstacleScanViewController: UIViewController, ARSessionDelegate, ARS
             if ARWorldTrackingConfiguration.supportsSceneReconstruction(.mesh) { config.sceneReconstruction = .mesh }
         }
         targetPosition = nil
+        manualGoalHeading = nil; currentHeading = .nan; headingBubble.isEnabled = false
         nearFrames = 0; review.isEnabled = false; cueFrames = 0; stableCue = "scan"
         scene.session.run(config, options: [.resetTracking, .removeExistingAnchors])
     }
 
-    func pause() { scene.session.pause(); location.stopUpdatingLocation(); location.stopUpdatingHeading(); headingAt=nil; targetPosition=nil; nearFrames = 0; review.isEnabled = false; directionArrow.isHidden = true; arrow.text = "Scan slowly"; cueFrames = 0; stableCue = "scan"; reason = "unknown" }
+    func pause() { scene.session.pause(); location.stopUpdatingLocation(); location.stopUpdatingHeading(); headingAt=nil; targetPosition=nil; nearFrames = 0; review.isEnabled = false; directionArrow.isHidden = true; arrow.text = "Hold"; cueFrames = 0; stableCue = "scan"; reason = "unknown" }
 
     private func startLocation() {
         guard exitDemo, view.window != nil, [.authorizedAlways,.authorizedWhenInUse].contains(location.authorizationStatus) else { return }
@@ -192,7 +257,8 @@ final class ObstacleScanViewController: UIViewController, ARSessionDelegate, ARS
         guard case .normal = frame.camera.trackingState, CACurrentMediaTime() - frame.timestamp < 0.6,
               abs(frame.camera.transform.columns.2.y) < 0.35 else {
             nearFrames = 0; review.isEnabled = false
-            directionArrow.isHidden = true; arrow.text = "Scan slowly"; cueFrames = 0
+            headingBubble.isEnabled = false; currentRelative = .nan; updateHeadingBubble()
+            directionArrow.isHidden = true; arrow.text = "Hold"; cueFrames = 0
             status.text = "Tracking uncertain or camera tilted. Hold upright, level, and slowly scan."
             return
         }
@@ -212,7 +278,13 @@ final class ObstacleScanViewController: UIViewController, ARSessionDelegate, ARS
             guard hypot(target.x-camera.x,target.y-camera.z)>=4 else { return nil }
             return atan2(target.x-camera.x,camera.z-target.y)
         }
-        let relative:Float = (!exitDemo ? 0 : compassReady ? goal.map { atan2(sin($0-heading),cos($0-heading)) } : nil) ?? .nan
+        var relative:Float = (!exitDemo ? 0 : compassReady ? goal.map { atan2(sin($0-heading),cos($0-heading)) } : nil) ?? .nan
+        currentHeading = heading
+        headingBubble.isEnabled = true
+        if let manualGoalHeading { relative = atan2(sin(manualGoalHeading-heading),cos(manualGoalHeading-heading)) }
+        currentRelative = relative
+        updateHeadingBubble()
+
         var evidence = [ObstacleProbe.Evidence](repeating: .unknown, count: 3)
         if usesDepth, let depth = frame.sceneDepth {
             let buffer = depth.depthMap
@@ -274,8 +346,8 @@ final class ObstacleScanViewController: UIViewController, ARSessionDelegate, ARS
         let cue = ObstacleProbe.guidance(center:evidence[1],left:evidence[0],right:evidence[2],relative:relative)
         cueFrames = cue == stableCue ? cueFrames + 1 : 1
         stableCue = cue
-        let displayed = cueFrames >= 3 ? cue : "scan"
-        arrow.text = ["forward":"Continue ahead", "left":"Check left", "right":"Check right", "face-left":"Turn left in place", "face-right":"Turn right in place", "around":"Turn around in place", "stop":"Stop", "scan":"Scan slowly"][displayed]
+        let displayed = cueFrames >= 3 ? cue : evidence[1] == .near ? "stop" : "scan"
+        arrow.text = ["forward":"Move straight", "left":"Move left", "right":"Move right", "face-left":"Turn left", "face-right":"Turn right", "around":"Turn around", "stop":"Stop", "scan":"Hold"][displayed]
         status.text = !relative.isFinite ? "Finding location/compass · obstacle scan active. Exit direction unavailable." : displayed == "stop" ? "Nearby directions blocked. Check your surroundings." : displayed == "scan" ? "Entrance Hall direction found · checking nearby surfaces." : "Entrance Hall exit · approximate map/GPS bearing. Check the real path."
         if !usesDepth { status.text = (status.text ?? "") + " Camera estimate; blank walls/glass can be missed." }
         renderArrow(frame,heading:heading,relative:relative,cue:displayed)
@@ -286,9 +358,9 @@ final class ObstacleScanViewController: UIViewController, ARSessionDelegate, ARS
         let camera = frame.camera.transform.columns.3
         let forward = frame.camera.transform.columns.2
         directionArrow.position = SCNVector3(camera.x-forward.x*0.8,camera.y-0.6,camera.z-forward.z*0.8)
-        let turn:Float = cue == "left" ? -.pi/3 : cue == "right" ? .pi/3 : relative.isFinite ? relative : 0
+        let turn:Float = cue == "left" ? -.pi/3 : cue == "right" ? .pi/3 : cue == "around" ? .pi : 0
         directionArrow.eulerAngles.y = -heading
-        directionArrow.isHidden = cue == "stop" || (cue == "scan" && !relative.isFinite)
+        directionArrow.isHidden = cue == "stop" || cue == "scan"
         // Amber is an orientation preview while evidence is missing; it never means walk forward.
         let color:UIColor = ["scan","face-left","face-right","around"].contains(cue) ? .systemOrange : .white
         for node in directionArrow.childNodes { node.eulerAngles.y = -turn; node.geometry?.firstMaterial?.diffuse.contents = color }

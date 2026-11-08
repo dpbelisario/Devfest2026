@@ -1,7 +1,20 @@
 import XCTest
+import UIKit
 @testable import Contour
 
 final class ContourTests: XCTestCase {
+    @MainActor func testExitCameraShowsEditableGuessesAndShortHoldState() {
+        let scan = ObstacleScanViewController()
+        scan.loadViewIfNeeded()
+        func descendants(_ view: UIView) -> [UIView] { [view]+view.subviews.flatMap(descendants) }
+        let controls = descendants(scan.view)
+        let floor = controls.first { $0.accessibilityIdentifier == "exitFloorGuess" } as? UIButton
+        let heading = controls.first { $0.accessibilityIdentifier == "exitHeadingGuess" } as? UIButton
+        XCTAssertEqual(floor?.title(for:.normal),"Floor guess · 2F · Edit")
+        XCTAssertNotNil(heading)
+        XCTAssertTrue(controls.contains { ($0 as? UILabel)?.text == "Hold" })
+    }
+
     func testCameraFallbackRequiresActualFeaturesOrPlane() {
         XCTAssertEqual(ObstacleProbe.cameraEvidence([]),.unknown)
         XCTAssertEqual(ObstacleProbe.cameraEvidence(Array(repeating:0.8,count:6)),.near)
@@ -14,13 +27,18 @@ final class ContourTests: XCTestCase {
         XCTAssertEqual(ObstacleProbe.cameraEvidence([.nan,0],planeDistance:.nan),.unknown)
     }
     func testContinuousDemoDirectionRequiresObservedSide() {
+        XCTAssertEqual(ObstacleProbe.guidance(center:.farther,left:.near,right:.near,relative:1),"forward")
+        XCTAssertEqual(ObstacleProbe.guidance(center:.farther,left:.near,right:.farther,relative:1),"right")
+        XCTAssertEqual(ObstacleProbe.guidance(center:.farther,left:.farther,right:.near,relative:-1),"left")
         XCTAssertEqual(ObstacleProbe.guidance(center:.farther,left:.unknown,right:.unknown,relative:0),"forward")
-        XCTAssertEqual(ObstacleProbe.guidance(center:.farther,left:.farther,right:.near,relative:1),"face-right")
-        XCTAssertEqual(ObstacleProbe.guidance(center:.unknown,left:.unknown,right:.unknown,relative:1),"face-right")
-        XCTAssertEqual(ObstacleProbe.guidance(center:.unknown,left:.unknown,right:.unknown,relative:-1),"face-left")
+        XCTAssertEqual(ObstacleProbe.guidance(center:.farther,left:.farther,right:.near,relative:1),"forward")
+        XCTAssertEqual(ObstacleProbe.guidance(center:.unknown,left:.unknown,right:.unknown,relative:1),"scan")
+        XCTAssertEqual(ObstacleProbe.guidance(center:.unknown,left:.unknown,right:.unknown,relative:-1),"scan")
         XCTAssertEqual(ObstacleProbe.guidance(center:.unknown,left:.unknown,right:.unknown,relative:3),"around")
         XCTAssertEqual(ObstacleProbe.guidance(center:.unknown,left:.farther,right:.farther,relative:0),"scan")
         XCTAssertEqual(ObstacleProbe.guidance(center:.near,left:.farther,right:.near,relative:.nan),"left")
+        XCTAssertEqual(ObstacleProbe.guidance(center:.near,left:.farther,right:.farther,relative:1),"right")
+        XCTAssertEqual(ObstacleProbe.guidance(center:.near,left:.farther,right:.farther,relative:-1),"left")
         XCTAssertEqual(ObstacleProbe.guidance(center:.near,left:.near,right:.near,relative:0),"stop")
         XCTAssertEqual(ObstacleProbe.guidance(center:.farther,left:.farther,right:.farther,relative:.nan),"scan")
     }

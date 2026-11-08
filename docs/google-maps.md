@@ -90,3 +90,14 @@ markers and the direct library AR action worked, and no Maps authorization error
 occurred. Backend tests check public-config output and no-store caching. Offline
 and SDK-unavailable checks must preserve library card/AR access. Physical iOS and
 Android map interaction still needs device validation after the combined release.
+
+## Slow mobile loading
+
+The config request waits up to 8 seconds and the Google SDK up to 15 seconds.
+Native hosted-page fallback waits 20 seconds and is cancelled as soon as the
+trusted document commits, so slow third-party assets do not switch to a restricted
+bundled origin. iOS records only provider, hosted/bundled source, connectivity and
+SDK readiness in Documents/map-load-state.json; it records no key or location.
+A late SDK can trigger one hosted-page retry outside AR. XS Max diagnostics
+confirmed hosted/google/online/SDK-ready after this fix; tile rendering also passed
+a real Google browser test with the iPhone app user agent and a 6.2-second SDK delay.

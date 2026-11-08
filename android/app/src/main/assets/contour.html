@@ -1292,7 +1292,7 @@ THE SOFTWARE.
 window.ContourGoogleMaps = {
   async load(api) {
     if (!/^https?:$/.test(location.protocol) || location.hostname === 'appassets.androidplatform.net') return false;
-    const controller = new AbortController(), timeout = setTimeout(() => controller.abort(), 2000);
+    const controller = new AbortController(), timeout = setTimeout(() => controller.abort(), 8000);
     let key;
     try {
       const response = await fetch(`${api}/app/maps-config`, { signal: controller.signal });
@@ -1303,7 +1303,7 @@ window.ContourGoogleMaps = {
     return new Promise(resolve => {
       let settled = false;
       const finish = value => { if (!settled) { settled=true; clearTimeout(timer); resolve(value); } };
-      const timer=setTimeout(() => finish(false),5000);
+      const timer=setTimeout(() => finish(false),15000);
       window.contourGoogleReady=() => finish(!!window.google?.maps);
       window.gm_authFailure=() => { finish(false);window.dispatchEvent(new Event('contour-map-unavailable')); };
       const script=document.createElement('script');

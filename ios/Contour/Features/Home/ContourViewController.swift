@@ -18,6 +18,7 @@ final class ContourViewController: UIViewController, WKNavigationDelegate, WKUID
     private var pendingAlert: ContourAlert?
     private var pageReady = false
     private var usingFallback = false
+    private var retriedLateMap = false
     private var timeout: DispatchWorkItem?
     private var microphoneTapInstalled = false
     private var notificationStatus = false
@@ -59,13 +60,14 @@ final class ContourViewController: UIViewController, WKNavigationDelegate, WKUID
             web.load(URLRequest(url: url))
             let task = DispatchWorkItem { [weak self] in self?.fallBack() }
             timeout = task
-            DispatchQueue.main.asyncAfter(deadline: .now() + 8, execute: task)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 20, execute: task)
         } else { fallBack() }
     }
 
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         clearMainMapOverlay()
+        if pageReady { recordMapState() }
     }
 
     @objc private func refreshSavedFloorOverlay() { clearMainMapOverlay() }
@@ -135,6 +137,31 @@ final class ContourViewController: UIViewController, WKNavigationDelegate, WKUID
         refreshNotificationStatus()
         deliverAlert()
         openLaunchDemoIfReady()
+        recordMapState()
+    }
+
+    func webView(_ webView:WKWebView,didCommit navigation:WKNavigation!) {
+        // A real page arrived. Slow third-party map assets must not force a file:// fallback.
+        if webView.url?.scheme == "https", isOurs(webView.url) { timeout?.cancel() }
+    }
+
+    private func recordMapState() {
+        let expectedURL=web.url
+        DispatchQueue.main.asyncAfter(deadline:.now()+8) { [weak self] in
+            guard let self,self.pageReady,self.web.url==expectedURL,self.isOurs(self.web.url) else { return }
+            self.web.evaluateJavaScript("({source:location.protocol==='file:'?'bundled':'hosted',provider:document.getElementById('map')?.dataset.mapProvider||'loading',sdkReady:!!window.google?.maps,online:navigator.onLine})") { value,_ in
+                guard let value=value as? [String:Any],let data=try? JSONSerialization.data(withJSONObject:value),
+                      let directory=FileManager.default.urls(for:.documentDirectory,in:.userDomainMask).first else { return }
+                // Provider/source only: never persist keys, request URLs, camera data or location.
+                try? data.write(to:directory.appendingPathComponent("map-load-state.json"),options:[.atomic,.completeFileProtectionUnlessOpen])
+                if value["source"] as? String == "hosted",value["provider"] as? String == "offline",
+                   value["sdkReady"] as? Bool == true,value["online"] as? Bool == true,
+                   !self.retriedLateMap,self.presentedViewController == nil {
+                    // A late SDK can leave the earlier offline choice in place. Retry once, outside AR.
+                    self.retriedLateMap=true;self.web.reloadFromOrigin()
+                }
+            }
+        }
     }
 
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) { fallBack() }

@@ -62,12 +62,13 @@ class DepthObstacleClassifierTest {
         assertEquals(DepthObstacleClassifier.Direction.SCAN,classifier.updateCamera(empty,nearPoints,empty,FloatArray(3) {Float.NaN},start+500_000_000,start,true,0f).direction)
     }
 
-    @Test fun exitBearingCanOrientInPlaceBeforeSideClearanceIsKnown() {
+    @Test fun exitBearingWaitsForOpeningWhileContinuingAlongObservedAisle() {
         data class Case(val left:IntArray,val right:IntArray,val relative:Float,val expected:DepthObstacleClassifier.Direction)
         for ((left, right, relative, expected) in listOf(
-            Case(far, near, 1f, DepthObstacleClassifier.Direction.FACE_RIGHT),
-            Case(unknown, unknown, 1f, DepthObstacleClassifier.Direction.FACE_RIGHT),
-            Case(far, far, -1f, DepthObstacleClassifier.Direction.FACE_LEFT),
+            Case(far, near, 1f, DepthObstacleClassifier.Direction.FORWARD),
+            Case(unknown, unknown, 1f, DepthObstacleClassifier.Direction.FORWARD),
+            Case(far, far, -1f, DepthObstacleClassifier.Direction.CHECK_LEFT),
+            Case(near, far, 1f, DepthObstacleClassifier.Direction.CHECK_RIGHT),
         )) {
             val classifier = DepthObstacleClassifier()
             var result = DepthObstacleClassifier.Observation(false, DepthObstacleClassifier.Direction.SCAN)
@@ -79,9 +80,25 @@ class DepthObstacleClassifierTest {
         }
     }
 
+    @Test fun corridorTurnsOnlyWhenPreferredSideBecomesObserved() {
+        val classifier = DepthObstacleClassifier()
+        fun observe(center: IntArray, right: IntArray, first: Long): DepthObstacleClassifier.Direction {
+            var result = DepthObstacleClassifier.Observation(false, DepthObstacleClassifier.Direction.SCAN)
+            repeat(3) {
+                val time = first + it*100_000_000L
+                result = classifier.update(far,center,right,time,time,true,0f,1f)
+            }
+            return result.direction
+        }
+        assertEquals(DepthObstacleClassifier.Direction.FORWARD,observe(far,near,start))
+        assertEquals(DepthObstacleClassifier.Direction.CHECK_RIGHT,observe(far,far,start+300_000_000L))
+        assertEquals(DepthObstacleClassifier.Direction.CHECK_RIGHT,observe(near,far,start+600_000_000L))
+        assertEquals(DepthObstacleClassifier.Direction.SCAN,observe(unknown,unknown,start+900_000_000L))
+    }
+
     @Test fun missingLocationDoesNotDisableLocalObstaclesOrAllowForwardWalking() {
         for ((center,goal,expected) in listOf(
-            Triple(unknown,1f,DepthObstacleClassifier.Direction.FACE_RIGHT),
+            Triple(unknown,1f,DepthObstacleClassifier.Direction.SCAN),
             Triple(unknown,3f,DepthObstacleClassifier.Direction.TURN_AROUND),
             Triple(far,Float.NaN,DepthObstacleClassifier.Direction.SCAN),
             Triple(near,Float.NaN,DepthObstacleClassifier.Direction.CHECK_LEFT),

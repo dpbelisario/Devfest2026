@@ -8,7 +8,9 @@ The goal is the pictured **Entrance Hall doors on 2F**, transformed through the
 saved floor image's rotation and ground dimensions. iOS loads this phone's saved
 alignment and verifies the exact supported image fingerprint; Android uses the
 same exported alignment snapshot in the shared Kotlin geometry. The opening
-camera direction is no longer used as the exit goal.
+camera direction is no longer assumed to be the exit goal. The camera screen's
+editable exit-direction control can override a bad map/compass estimate with a
+relative **Ahead**, **Right**, **Left**, or **Behind** direction.
 
 A fresh location fix and usable compass are required for the initial general
 bearing. Fixes worse than25m, outside150m of the target, or whose uncertainty
@@ -18,13 +20,26 @@ identification is established. Poor location/compass hides goal guidance while
 local obstacle sensing continues. Near the estimated target the goal arrow is
 hidden; that does not confirm arrival.
 
-Amber chevrons can say **Turn left/right/around in place** before depth is ready.
-They are orientation cues, not permission to walk. White forward guidance still
-requires observed farther surfaces; close obstacles suppress forward guidance.
-Chevrons stay centred during turns. iOS selects LiDAR when supported and otherwise
-camera features/vertical planes; Android prefers ARCore Depth and otherwise uses
-camera geometry. Missing/stale/tilted observations remain unknown. Camera fallback
-can miss blank walls, glass, low objects and people.
+Top controls show **Floor guess · 2F · Edit** and the editable relative exit
+direction. The floor is a hardcoded demo guess, not detected from camera or GPS;
+changing it changes displayed metadata only. It does not start a stairs route or
+change the 2F Entrance Hall goal. The separate map flow below supplies stairs
+previews from a physically confirmed checkpoint.
+
+Movement labels are short: **Move straight**, **Move left**, **Move right**,
+**Turn around**, **Stop**, and **Hold**. An observed farther aisle ahead remains
+straight while the desired turn is near or unknown. A desired side turn requires
+farther evidence in that side and the front. Close front evidence overrides
+forward and may suggest an observed farther side; missing evidence hides the
+walking arrow. A turn-around means rotate in place, not walk into unchecked space
+behind. Chevrons remain centred; straight guidance points straight rather than
+rotating toward the exit through an observed side obstruction.
+
+iOS selects LiDAR when supported and otherwise camera features/vertical planes;
+Android prefers ARCore Depth and otherwise uses camera geometry. Missing/stale/
+tilted observations remain unknown and show **Hold**. Camera fallback can miss
+blank walls, glass, low objects and people. Farther surfaces are nearby sensor
+evidence, not proof of an opening, full aisle clearance or an exit route.
 
 The surrounding main map has no automatic floor-plan overlay. On iOS,
 **Central Library → Details → Floor overlay**, or double-tapping its **Details**

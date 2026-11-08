@@ -71,16 +71,18 @@ class DepthObstacleClassifier {
             nearFrames++
         }
         val next = when {
+            ahead.near && relativeGoal.isFinite() && relativeGoal > Math.PI.toFloat()/6 && rightView.farther -> Direction.CHECK_RIGHT
+            ahead.near && relativeGoal.isFinite() && relativeGoal < -Math.PI.toFloat()/6 && leftView.farther -> Direction.CHECK_LEFT
             ahead.near && leftView.farther && rightView.farther ->
                 if (leftView.lowerDepth >= rightView.lowerDepth) Direction.CHECK_LEFT else Direction.CHECK_RIGHT
             ahead.near && leftView.farther -> Direction.CHECK_LEFT
             ahead.near && rightView.farther -> Direction.CHECK_RIGHT
             ahead.near && leftView.near && rightView.near -> Direction.STOP
             ahead.near -> Direction.SCAN
-            // In-place orientation needs a goal bearing, not a claim of walkable side clearance.
+            // shortcut: nearby sectors do not establish a full aisle map; upgrade after route surveying.
             relativeGoal.isFinite() && abs(relativeGoal) > Math.PI.toFloat()*0.8f -> Direction.TURN_AROUND
-            relativeGoal.isFinite() && relativeGoal > Math.PI.toFloat()/6 -> Direction.FACE_RIGHT
-            relativeGoal.isFinite() && relativeGoal < -Math.PI.toFloat()/6 -> Direction.FACE_LEFT
+            ahead.farther && relativeGoal.isFinite() && relativeGoal > Math.PI.toFloat()/6 && rightView.farther -> Direction.CHECK_RIGHT
+            ahead.farther && relativeGoal.isFinite() && relativeGoal < -Math.PI.toFloat()/6 && leftView.farther -> Direction.CHECK_LEFT
             relativeGoal.isFinite() && ahead.farther -> Direction.FORWARD
             else -> Direction.SCAN
         }

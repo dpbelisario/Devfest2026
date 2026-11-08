@@ -24,6 +24,7 @@ import com.contour.app.navigation.LibraryExitGeometry
 import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
+import android.app.AlertDialog
 import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.LinearLayout
@@ -61,6 +62,11 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer, Sensor
     private lateinit var chevrons: View
     private var usesDepth = false
     private lateinit var headingLabel: TextView
+    private lateinit var floorBubble: Button
+    private lateinit var headingBubble: Button
+    @Volatile private var manualGoalHeading = Float.NaN
+    @Volatile private var currentHeading = Float.NaN
+    private var guessedFloor = "2F"
     private var targetX: Float? = null
     private var targetZ: Float? = null
     @Volatile private var locationFix: Location? = null
@@ -193,11 +199,42 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer, Sensor
             setTextColor(Color.WHITE); textSize = 19f
             setPadding(24, 24, 24, 24); setBackgroundColor(0xCC000000.toInt())
         }
-        root.addView(headingLabel, FrameLayout.LayoutParams(-1, -2, Gravity.TOP))
+        val guesses = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(16,8,16,8); setBackgroundColor(0xCC000000.toInt())
+        }
+        headingLabel.text = "Library exit AR"
+        guesses.addView(headingLabel)
+        floorBubble = Button(this).apply {
+            text = "Floor guess · 2F · Edit"
+            setOnClickListener {
+                val floors = arrayOf("B1","1F","2F","3F","4F")
+                AlertDialog.Builder(this@ObstacleScanActivity).setTitle("Current floor")
+                    .setItems(floors) { _, index ->
+                        guessedFloor = floors[index]
+                        text = "Floor · $guessedFloor · Edit"
+                    }.setNegativeButton("Cancel",null).show()
+            }
+        }
+        headingBubble = Button(this).apply {
+            text = "Exit direction · Edit"
+            isEnabled = false
+            setOnClickListener {
+                val labels = arrayOf("Ahead","Right","Left","Behind","Use map estimate")
+                val offsets = floatArrayOf(0f,Math.PI.toFloat()/2,-Math.PI.toFloat()/2,Math.PI.toFloat())
+                AlertDialog.Builder(this@ObstacleScanActivity).setTitle("Exit direction from where you face")
+                    .setItems(labels) { _, index ->
+                        manualGoalHeading = if(index == 4) Float.NaN else currentHeading+offsets[index]
+                    }.setNegativeButton("Cancel",null).show()
+            }
+        }
+        guesses.addView(floorBubble)
+        guesses.addView(headingBubble)
+        root.addView(guesses,FrameLayout.LayoutParams(-1,-2,Gravity.TOP))
         arrow = TextView(this).apply {
-            text = "Scan slowly"; textSize = 22f; gravity = Gravity.CENTER
+            text = "Hold"; textSize = 22f; gravity = Gravity.CENTER
             setTextColor(Color.WHITE); setShadowLayer(5f, 0f, 2f, Color.BLACK)
-            contentDescription = "Scanning for depth"
+            contentDescription = "Hold"
         }
         val panel = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -219,6 +256,7 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer, Sensor
             }
         }
         panel.addView(arrow)
+        message.visibility = View.GONE
         panel.addView(message)
         review.visibility = if (intent.getBooleanExtra("exitDemo",false)) View.GONE else View.VISIBLE
         panel.addView(review,LinearLayout.LayoutParams(-1,-2))
@@ -271,11 +309,12 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer, Sensor
                     planeFindingMode = if(usesDepth) Config.PlaneFindingMode.DISABLED else Config.PlaneFindingMode.HORIZONTAL_AND_VERTICAL
                     lightEstimationMode = Config.LightEstimationMode.DISABLED
                 })
-                headingLabel.text = "3D AR · Library exit\n" + if(usesDepth) "ARCore Depth · Exit on 2F" else "Camera estimate · Exit on 2F"
+                headingLabel.text = "Library exit AR"
             }
             session?.resume()
             classifier.reset()
             targetX=null;targetZ=null
+            manualGoalHeading=Float.NaN;currentHeading=Float.NaN;headingBubble.isEnabled=false
             previewReady = false
             possibleObstacle = false
             lastFrameTimestamp = 0L
@@ -320,7 +359,8 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer, Sensor
             previewReady = false
             chevrons.invalidate()
             reason = resultReason
-            message.text = text
+            message.visibility = View.VISIBLE
+        message.text = text
             arrow.text = "…"
             arrow.contentDescription = "Depth unavailable"
             review.isEnabled = false
@@ -417,7 +457,7 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer, Sensor
 
     private fun inspectDepth(frame: Frame) {
         val camera = frame.camera
-        var relative = 0f
+        var relative = Float.NaN
         var poseReady = false
         var blocked = false
         var direction = DepthObstacleClassifier.Direction.SCAN
@@ -448,6 +488,8 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer, Sensor
                 kotlin.math.atan2(kotlin.math.sin(goal-heading),kotlin.math.cos(goal-heading))
             } else Float.NaN
             if (targetX != null && kotlin.math.hypot(targetX!!-camera.pose.tx(),targetZ!!-camera.pose.tz()) < 4f) relative=Float.NaN
+            currentHeading = heading
+            if(manualGoalHeading.isFinite()) relative = kotlin.math.atan2(kotlin.math.sin(manualGoalHeading-heading),kotlin.math.cos(manualGoalHeading-heading))
             if (!usesDepth) {
                 val observation=inspectCamera(frame,relative)
                 blocked=observation.possibleObstacle
@@ -489,14 +531,6 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer, Sensor
                 text = "Depth is not ready. Move the phone slowly and keep looking ahead."
             }
         }
-        if (poseReady && direction == DepthObstacleClassifier.Direction.SCAN && !blocked && relative.isFinite()) {
-            direction=when {
-                kotlin.math.abs(relative) > Math.PI.toFloat()*0.8f -> DepthObstacleClassifier.Direction.TURN_AROUND
-                relative > Math.PI.toFloat()/6 -> DepthObstacleClassifier.Direction.FACE_RIGHT
-                relative < -Math.PI.toFloat()/6 -> DepthObstacleClassifier.Direction.FACE_LEFT
-                else -> direction
-            }
-        }
         possibleObstacle = blocked
         val now = SystemClock.elapsedRealtime()
         if (blocked) lastPossibleAt = now
@@ -506,26 +540,30 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer, Sensor
             runOnUiThread {
                 if (!unavailable && !isFinishing) {
                     message.text = if (intent.getBooleanExtra("exitDemo",false) && !relative.isFinite()) "Finding location/compass · obstacle scan active. Exit direction unavailable." else text
-                    previewReady = poseReady && (relative.isFinite() || direction in listOf(DepthObstacleClassifier.Direction.CHECK_LEFT,DepthObstacleClassifier.Direction.CHECK_RIGHT))
+                    headingBubble.isEnabled = poseReady
+                    val guessedDirection = if(!relative.isFinite()) "Unknown" else if(kotlin.math.abs(relative) < Math.PI/6) "Ahead" else "${Math.toDegrees(kotlin.math.abs(relative).toDouble()).toInt()}° ${if(relative > 0) "right" else "left"}"
+                    headingBubble.text = "Exit ${if(manualGoalHeading.isFinite()) "direction" else "guess"} · $guessedDirection · Edit"
+                    previewReady = poseReady && direction != DepthObstacleClassifier.Direction.SCAN
                     arrowSupported = direction in listOf(DepthObstacleClassifier.Direction.FORWARD,DepthObstacleClassifier.Direction.CHECK_LEFT,DepthObstacleClassifier.Direction.CHECK_RIGHT)
                     arrowStopped = direction == DepthObstacleClassifier.Direction.STOP
                     arrowRadians = when (direction) {
                         DepthObstacleClassifier.Direction.CHECK_LEFT -> -Math.PI.toFloat()/3
                         DepthObstacleClassifier.Direction.CHECK_RIGHT -> Math.PI.toFloat()/3
-                        else -> if(relative.isFinite()) relative else 0f
+                        DepthObstacleClassifier.Direction.TURN_AROUND -> Math.PI.toFloat()
+                        else -> 0f
                     }
                     chevrons.invalidate()
                     arrow.text = when (direction) {
-                        DepthObstacleClassifier.Direction.FORWARD -> "Continue ahead"
-                        DepthObstacleClassifier.Direction.CHECK_LEFT -> "Turn left"
-                        DepthObstacleClassifier.Direction.CHECK_RIGHT -> "Turn right"
-                        DepthObstacleClassifier.Direction.FACE_LEFT -> "Turn left in place"
-                        DepthObstacleClassifier.Direction.FACE_RIGHT -> "Turn right in place"
-                        DepthObstacleClassifier.Direction.TURN_AROUND -> "Turn around in place"
+                        DepthObstacleClassifier.Direction.FORWARD -> "Move straight"
+                        DepthObstacleClassifier.Direction.CHECK_LEFT -> "Move left"
+                        DepthObstacleClassifier.Direction.CHECK_RIGHT -> "Move right"
+                        DepthObstacleClassifier.Direction.FACE_LEFT -> "Turn left"
+                        DepthObstacleClassifier.Direction.FACE_RIGHT -> "Turn right"
+                        DepthObstacleClassifier.Direction.TURN_AROUND -> "Turn around"
                         DepthObstacleClassifier.Direction.STOP -> "Stop"
-                        DepthObstacleClassifier.Direction.SCAN -> "Scan slowly"
+                        DepthObstacleClassifier.Direction.SCAN -> "Hold"
                     }
-                    arrow.contentDescription = text
+                    arrow.contentDescription = arrow.text
                     review.isEnabled = possibleObstacle
                 }
             }

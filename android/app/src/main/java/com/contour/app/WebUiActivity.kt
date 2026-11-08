@@ -358,6 +358,10 @@ class WebUiActivity : ComponentActivity() {
                 pageReady = false
             }
 
+            override fun onPageCommitVisible(view: WebView, url: String) {
+                // The hosted page arrived; slow Google assets must not switch it to the bundled origin.
+                if (Uri.parse(url).host == hostedHost) web.removeCallbacks(hostedTimeout)
+            }
             override fun onPageFinished(view: WebView, url: String) {
                 if (Uri.parse(url).host == hostedHost) web.removeCallbacks(hostedTimeout)
                 if (isOurs(Uri.parse(url).host)) { pageReady = true; deliverAlert() }
@@ -430,8 +434,8 @@ class WebUiActivity : ComponentActivity() {
 
         if (savedInstanceState == null) {
             web.loadUrl(hostedUrl ?: bundledUrl)
-            // A slow network must not leave a blank screen: use the bundled page after 8 s.
-            if (hostedUrl != null) web.postDelayed(hostedTimeout, 8_000)
+            // Fall back only if the hosted page never commits.
+            if (hostedUrl != null) web.postDelayed(hostedTimeout, 20_000)
         } else {
             web.restoreState(savedInstanceState)
         }

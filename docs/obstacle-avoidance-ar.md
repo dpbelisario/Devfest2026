@@ -17,10 +17,21 @@ solve a maze, prove a complete route clear or locate the phone on the map.
    Android calibrates ARCore's local heading against the back-camera direction
    from the rotation sensor and magnetic declination. Unusable sensors hide the
    goal; they do not prevent local obstacle detection.
-4. Turn-in-place cues can appear before walking clearance is known. Amber means
-   orientation only. White forward cues still require observed farther surfaces.
-   Close evidence overrides forward; side walking suggestions need farther side
-   evidence. Chevrons remain centred while turning. Close to return.
+4. The top **Floor guess · 2F · Edit** and **Exit guess · direction · Edit**
+   controls stay in the camera screen. The floor starts at the hardcoded 2F demo
+   assumption; changing it changes displayed floor metadata, not the route or
+   stair selection. The direction shows the current relative exit estimate.
+   Tap it to use **Ahead**, **Right**, **Left**, **Behind**, or restore the map
+   estimate. A manual direction is anchored to the camera heading at selection.
+5. The movement label uses **Move straight**, **Move left**, **Move right**,
+   **Turn around**, **Stop**, or **Hold**. Verbose technical depth messages are
+   hidden during normal scanning; camera/service startup failures remain visible.
+   An observed farther front sector keeps the arrow straight when the desired
+   side is near or unknown. A turn toward the exit requires farther evidence in
+   that side sector as well as the front. A close front surface overrides forward
+   and can suggest an observed farther side. Missing observations show **Hold**
+   without a walking arrow. A turn-around is rotation in place, not a checked path.
+   Chevrons stay centred and point straight while following the aisle.
 
 The goal is an approximate map/GPS bearing, not a verified indoor localization
 result. The image door position and geographic alignment are unsurveyed. Opening
@@ -115,12 +126,15 @@ switch explicitly. Reopening the scanner starts fresh observations rather than
 reusing a stale obstruction result.
 
 Automated checks cover the Android evidence gate, stale/repeated frames, missing
-depth, tilt, noise, and gap resets. Backend/browser checks cover bidirectional
+depth, tilt, noise, and gap resets. Corridor-first cases cover a goal to the right
+with a blocked/unknown right side, then an observed farther right side; equivalent
+iOS cases cover left and right openings. Backend/browser checks cover bidirectional
 edge exclusions, an alternate library route and no-path handling. Direction tests
 cover observed forward space, left/right checks, blocked sides, unknown depth,
 and immediate removal of a forward arrow when a near surface appears. Build/lint and
 simulator checks cannot establish physical obstacle detection. Test the actual
-LiDAR iPhone and supported Android at the library: preview orientation, permission
+LiDAR iPhone and supported Android at the library: editable initial direction,
+straight-to-opening transition, permission
 denial, foreground/background transitions, a visible wall/shelf, a low obstacle,
 glass, changes in lighting, and opening bearing consistency. These
 checks remain required before depending on this feature in the field.
