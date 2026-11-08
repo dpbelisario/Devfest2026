@@ -37,6 +37,31 @@ class DepthObstacleClassifierTest {
         assertEquals(DepthObstacleClassifier.Direction.CHECK_RIGHT, stable(far, near, IntArray(25) { 5000 }).direction)
     }
 
+    @Test fun cameraFallbackNeverUsesMissingOrMixedClosePointsAsFarther() {
+        val empty=FloatArray(0)
+        val farPoints=FloatArray(6) {3f}
+        val nearPoints=FloatArray(6) {0.8f}
+        fun camera(left:FloatArray,center:FloatArray,right:FloatArray,planes:FloatArray=FloatArray(3) {Float.NaN}):DepthObstacleClassifier.Observation {
+            val classifier=DepthObstacleClassifier()
+            var result=DepthObstacleClassifier.Observation(false,DepthObstacleClassifier.Direction.SCAN)
+            for(index in 0..2) {
+                val time=start+index*100_000_000L
+                result=classifier.updateCamera(left,center,right,planes,time,time,true,0f)
+            }
+            return result
+        }
+        assertEquals(DepthObstacleClassifier.Direction.SCAN,camera(empty,empty,empty).direction)
+        assertEquals(DepthObstacleClassifier.Direction.FORWARD,camera(empty,farPoints,empty).direction)
+        assertEquals(DepthObstacleClassifier.Direction.STOP,camera(empty,farPoints,empty,floatArrayOf(0.8f,0.8f,0.8f)).direction)
+        assertEquals(DepthObstacleClassifier.Direction.SCAN,camera(empty,farPoints,empty,floatArrayOf(Float.NaN,1.3f,Float.NaN)).direction)
+        assertEquals(DepthObstacleClassifier.Direction.CHECK_LEFT,camera(farPoints,nearPoints,nearPoints).direction)
+        assertEquals(DepthObstacleClassifier.Direction.SCAN,camera(empty,floatArrayOf(0.8f)+farPoints,empty,floatArrayOf(Float.NaN,3f,Float.NaN)).direction)
+        assertEquals(DepthObstacleClassifier.Direction.STOP,camera(empty,empty,empty,floatArrayOf(0.8f,0.8f,0.8f)).direction)
+        val classifier=DepthObstacleClassifier()
+        repeat(5) {assertFalse(classifier.updateCamera(empty,nearPoints,empty,FloatArray(3) {Float.NaN},start,start,true,0f).possibleObstacle)}
+        assertEquals(DepthObstacleClassifier.Direction.SCAN,classifier.updateCamera(empty,nearPoints,empty,FloatArray(3) {Float.NaN},start+500_000_000,start,true,0f).direction)
+    }
+
     @Test fun demoExitBearingOnlyTurnsTowardObservedSide() {
         data class Case(val left:IntArray,val right:IntArray,val relative:Float,val expected:DepthObstacleClassifier.Direction)
         for ((left, right, relative, expected) in listOf(

@@ -25,6 +25,31 @@ class DepthObstacleClassifier {
         forwardY: Float,
         relativeGoal: Float = 0f,
     ): Observation {
+        return observe(sector(left),sector(center),sector(right),frameTimestamp,depthTimestamp,tracking,forwardY,relativeGoal)
+    }
+
+    fun updateCamera(
+        left:FloatArray,center:FloatArray,right:FloatArray,planes:FloatArray,
+        frameTimestamp:Long,observationTimestamp:Long,tracking:Boolean,forwardY:Float,relativeGoal:Float = 0f,
+    ):Observation {
+        require(planes.size == 3)
+        return observe(cameraSector(left,planes[0]),cameraSector(center,planes[1]),cameraSector(right,planes[2]),
+            frameTimestamp,observationTimestamp,tracking,forwardY,relativeGoal)
+    }
+
+    private fun cameraSector(points:FloatArray,plane:Float):Sector {
+        val valid=points.filter {it.isFinite() && it > 0.25f && it < 5f}.sorted()
+        val close=valid.count {it < 1.2f}
+        val planeValid=plane.isFinite() && plane > 0.25f && plane < 5f
+        return Sector(
+            near=close >= 6 || (planeValid && plane < 1.2f),
+            farther=close == 0 && (!planeValid || plane > 1.5f) && (valid.count {it > 1.5f} >= 6 || (planeValid && plane > 1.5f)),
+            lowerDepth=((valid.firstOrNull() ?: if(planeValid) plane else 0f)*1000).toInt(),
+        )
+    }
+
+    private fun observe(leftView:Sector,ahead:Sector,rightView:Sector,frameTimestamp:Long,depthTimestamp:Long,
+                        tracking:Boolean,forwardY:Float,relativeGoal:Float):Observation {
         if (!tracking || !relativeGoal.isFinite() || !forwardY.isFinite() || abs(forwardY) > 0.34f ||
             depthTimestamp <= 0 || frameTimestamp - depthTimestamp !in 0L..200_000_000L ||
             depthTimestamp < lastDepthTimestamp) {
@@ -38,9 +63,6 @@ class DepthObstacleClassifier {
             directionFrames = 0
         }
         lastDepthTimestamp = depthTimestamp
-        val ahead = sector(center)
-        val leftView = sector(left)
-        val rightView = sector(right)
         if (!ahead.near) {
             firstNearTimestamp = 0
             nearFrames = 0

@@ -40,7 +40,9 @@ the device reports support. It reads fresh 16-bit depth images, maps the visible
 left/centre/right sample areas through ARCore's display transform, and requires sustained
 near-depth observations with active tracking and a nearly level camera. The
 result is a possible close surface, not a classified bookshelf, person or closed
-door. Unsupported devices report unavailable. See
+door. Devices without Depth support automatically enable ARCore plane detection
+and use sparse camera features plus tracked vertical-plane hit tests. Devices
+without ARCore tracking remain unavailable. See
 [Android implementation and thresholds](obstacle-scan-android.md).
 
 Google documents that supported devices can estimate depth from camera motion
@@ -49,16 +51,26 @@ support Depth, or that Depth detects every obstruction.
 [ARCore Depth](https://developers.google.com/ar/develop/depth),
 [Android Depth guide](https://developers.google.com/ar/develop/java/depth/developer-guide).
 
-iPhone requires LiDAR for the current native exit demo. ARKit scene depth
-checks left/centre/right, requiring high-confidence samples and a fresh,
-normally tracked, nearly level frame. Scene reconstruction shows nearby surfaces
-as a translucent mesh; the arrow is a SceneKit object. No map tap, face-checkpoint
-alignment or per-waypoint confirmation exists on this demo screen.
+iPhone automatically selects LiDAR scene depth and mesh when supported. A
+LiDAR phone with temporarily missing depth waits for that depth; it does not
+silently downgrade mid-session. Other ARKit phones, including XS Max, use the
+camera fallback restored from the earlier obstacle branch (`2d21c02`), with the
+current continuous arrow UI. Sparse features are transformed into portrait camera
+coordinates; close features or a detected close vertical plane suppress forward
+guidance. Six farther features or a farther vertical plane can suggest a direction,
+but any observed close feature keeps that sector unknown. A plane at or below
+1.5m prevents a farther result. No feature/plane observation means unknown.
 
-The iPhone 14 Pro supports this mode. The XS Max is now explicitly unsupported:
-its former sparse camera fallback was removed from the exit demo. No opaque
-surface is treated as free when depth is missing. Apple requires capability
-checks for scene depth and mesh reconstruction.
+Android uses the same camera-evidence policy when Depth is unsupported. Its
+point cloud requires confidence at least0.5 and a fresh timestamp; tracked vertical
+planes must contain the ray hit. Features/planes share the depth path's sustained
+observation, stale/repeated frame and tilt gates. Sensor selection happens at
+session creation, with no extra user setup. The fallback is weaker: glass, blank
+surfaces, low objects and people can be missed. It is an observed-geometry estimate,
+not reconstructed clearance. Both modes retain the initial demo heading and
+continuous chevrons, with no map tap or checkpoint confirmation.
+
+Apple requires capability checks for scene depth and mesh reconstruction.
 [Apple scene reconstruction capability](<https://developer.apple.com/documentation/arkit/arworldtrackingconfiguration/supportsscenereconstruction(_:)>),
 [ARKit scene depth](https://developer.apple.com/documentation/arkit/arframe/scenedepth).
 

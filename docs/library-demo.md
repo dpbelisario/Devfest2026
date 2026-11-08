@@ -5,14 +5,18 @@ Central Library is building **01** at the fixed demo position. Open its
 on iOS and Android, with no floor picker, checkpoint, alignment button or
 confirmation step. The destination label is **Exit · 2F entrance**. Five animated
 white chevrons match the normal AR screen and update continuously around local
-depth observations. Amber chevrons show orientation only while depth is unknown;
+sensor observations. Amber chevrons show orientation only while depth is unknown;
 blocked/uncertain observations never produce a forward instruction.
 
 For this explicitly requested demo, the opening camera direction is assumed to
 point toward the exit and is retained in the AR session as the phone turns.
 This is not a measured bearing to the entrance. Opening elsewhere or facing the
 wrong direction produces the wrong goal. It does not locate a seat, change floors,
-solve a maze or confirm arrival. iOS requires LiDAR; Android requires ARCore Depth.
+solve a maze or confirm arrival. iOS automatically uses LiDAR when supported, otherwise the restored ARKit
+camera-feature/vertical-plane fallback. Android automatically prefers ARCore
+Depth (which can work without LiDAR), otherwise camera features/vertical planes.
+ARKit/ARCore tracking support is still required. Camera fallback estimates are
+weaker and can miss blank walls, glass and low objects.
 After backgrounding, a new session assumes the new opening direction.
 
 Previous localization and map tools remain separate: **Details → Library floor

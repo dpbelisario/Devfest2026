@@ -4,7 +4,7 @@
 ARCore 1.48 dependency and processes observations on the device. It does not call
 Gemini, create Cloud Anchors or send camera frames to the backend. Google Play
 Services for AR must be installed; the activity handles its install request,
-camera permission, unsupported Depth mode, tracking failures and lifecycle
+camera permission, automatic camera fallback when Depth is unsupported, tracking failures and lifecycle
 cleanup. It displays camera-relative arrows using observations in the current
 view. This is an experimental direction check, not an autonomous navigation or
 collision-prevention system. It can start without a floor-map checkpoint.
@@ -12,7 +12,8 @@ collision-prevention system. It can start without a floor-map checkpoint.
 The screen enables `Config.DepthMode.AUTOMATIC` only after
 `Session.isDepthModeSupported` succeeds. Android Depth combines depth from camera
 motion with a hardware depth sensor when available; a dedicated depth sensor is
-not required on every supported phone. Support varies by device.
+not required on every supported phone. Support varies by device. Unsupported Depth
+automatically selects the camera-feature/vertical-plane path, with the same UI.
 [Google's Depth guide](https://developers.google.com/ar/develop/java/depth/developer-guide).
 
 The OpenGL preview uses an external camera texture. Both the camera quad and the
@@ -81,3 +82,17 @@ checks do not validate physical sensing. Test preview orientation, actual device
 depth support, scene lighting, wall/shelf observations, phone tilt, app background
 and return, and the user-confirmed reroute flow on physical phones before relying
 on this feature in the library.
+
+## Automatic camera fallback
+
+Without Depth support, enable ARCore horizontal/vertical plane detection. Sample
+confidence-filtered point-cloud features in left/centre/right camera sectors
+and tracked vertical-plane hit tests. Point clouds older than200ms are discarded;
+repeated timestamps cannot accumulate feature-only evidence. Near means six
+close points or a close plane (<1.2m). Farther requires six points >1.5m or a
+farther plane, no observed close point, and no plane at/below1.5m. No observations
+remain unknown. Directions share the depth classifier's timing/turn/stop gates.
+
+This adapts the previous iOS camera fallback, retaining its conservative observed
+surface policy. It cannot infer empty space from missing points and can miss
+glass, blank walls, low objects or people. No extra SDK/model/cloud API is added.

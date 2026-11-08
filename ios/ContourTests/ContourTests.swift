@@ -2,6 +2,17 @@ import XCTest
 @testable import Contour
 
 final class ContourTests: XCTestCase {
+    func testCameraFallbackRequiresActualFeaturesOrPlane() {
+        XCTAssertEqual(ObstacleProbe.cameraEvidence([]),.unknown)
+        XCTAssertEqual(ObstacleProbe.cameraEvidence(Array(repeating:0.8,count:6)),.near)
+        XCTAssertEqual(ObstacleProbe.cameraEvidence(Array(repeating:2.5,count:6)),.farther)
+        XCTAssertEqual(ObstacleProbe.cameraEvidence([0.8]+Array(repeating:2.5,count:6),planeDistance:3),.unknown)
+        XCTAssertEqual(ObstacleProbe.cameraEvidence([],planeDistance:0.8),.near)
+        XCTAssertEqual(ObstacleProbe.cameraEvidence([],planeDistance:3),.farther)
+        XCTAssertEqual(ObstacleProbe.cameraEvidence(Array(repeating:3,count:6),planeDistance:0.8),.near)
+        XCTAssertEqual(ObstacleProbe.cameraEvidence(Array(repeating:3,count:6),planeDistance:1.3),.unknown)
+        XCTAssertEqual(ObstacleProbe.cameraEvidence([.nan,0],planeDistance:.nan),.unknown)
+    }
     func testContinuousDemoDirectionRequiresObservedSide() {
         XCTAssertEqual(ObstacleProbe.guidance(center:.farther,left:.unknown,right:.unknown,relative:0),"forward")
         XCTAssertEqual(ObstacleProbe.guidance(center:.farther,left:.farther,right:.near,relative:1),"left")

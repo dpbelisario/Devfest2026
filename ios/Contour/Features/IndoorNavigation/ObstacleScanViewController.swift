@@ -16,6 +16,16 @@ enum ObstacleProbe {
     static func closeFeatures(_ points: [SIMD3<Float>]) -> Bool {
         points.filter { abs($0.x) < 0.35 && abs($0.y) < 0.35 && $0.z < -0.25 && $0.z > -1.2 }.count >= 6
     }
+    static func cameraEvidence(_ depths:[Float], planeDistance:Float? = nil)->Evidence {
+        let valid = depths.filter { $0.isFinite && $0 > 0.25 && $0 < 5 }
+        let close = valid.filter { $0 < 1.2 }.count
+        let plane = planeDistance.flatMap { $0.isFinite && $0 > 0.25 && $0 < 5 ? $0 : nil }
+        if close >= 6 || (plane.map { $0 < 1.2 } ?? false) { return .near }
+        // Sparse farther points cannot rule out even a small observed close obstacle.
+        if close > 0 || (plane.map { $0 <= 1.5 } ?? false) { return .unknown }
+        if valid.filter({$0 > 1.5}).count >= 6 || (plane.map { $0 > 1.5 } ?? false) { return .farther }
+        return .unknown
+    }
     static func cue(center: Evidence, left: Evidence, right: Evidence) -> String {
         if center == .farther { return "forward" }
         if center == .near {
@@ -44,6 +54,7 @@ final class ObstacleScanViewController: UIViewController, ARSessionDelegate, ARS
     var exitDemo = false
     var completion: ((String, String) -> Void)?
     private let scene = ARSCNView()
+    private let usesDepth = ARWorldTrackingConfiguration.supportsFrameSemantics(.sceneDepth)
     private let status = UILabel()
     private let arrow = UILabel()
     private let review = UIButton(type:.system)
@@ -64,7 +75,7 @@ final class ObstacleScanViewController: UIViewController, ARSessionDelegate, ARS
         scene.delegate = self
         view.addSubview(scene)
         let heading = UILabel()
-        heading.text = "Library exit AR · LiDAR"
+        heading.text = usesDepth ? "Library exit AR · LiDAR" : "Library exit AR · Camera"
         heading.textColor = .white
         heading.font = .preferredFont(forTextStyle: .headline)
         status.textColor = .white
@@ -126,11 +137,13 @@ final class ObstacleScanViewController: UIViewController, ARSessionDelegate, ARS
     deinit { for observer in observers { NotificationCenter.default.removeObserver(observer) } }
 
     private func start() {
-        guard ARWorldTrackingConfiguration.isSupported, ARWorldTrackingConfiguration.supportsFrameSemantics(.sceneDepth) else { status.text = "This exit AR demo requires an iPhone with LiDAR. Use Library floor maps on this device."; return }
+        guard ARWorldTrackingConfiguration.isSupported else { status.text = "AR camera tracking is unavailable on this phone. Use Library floor maps."; return }
         let config = ARWorldTrackingConfiguration()
         config.planeDetection = [.horizontal, .vertical]
-        config.frameSemantics.insert(.sceneDepth)
-        if ARWorldTrackingConfiguration.supportsSceneReconstruction(.mesh) { config.sceneReconstruction = .mesh }
+        if usesDepth {
+            config.frameSemantics.insert(.sceneDepth)
+            if ARWorldTrackingConfiguration.supportsSceneReconstruction(.mesh) { config.sceneReconstruction = .mesh }
+        }
         goalYaw = nil
         nearFrames = 0; review.isEnabled = false; cueFrames = 0; stableCue = "scan"
         scene.session.run(config, options: [.resetTracking, .removeExistingAnchors])
@@ -160,7 +173,8 @@ final class ObstacleScanViewController: UIViewController, ARSessionDelegate, ARS
         let relative = atan2(sin(goalYaw-heading),cos(goalYaw-heading))
         renderArrow(frame, heading:heading, relative:relative, cue:"scan")
         var evidence = [ObstacleProbe.Evidence](repeating: .unknown, count: 3)
-        if let depth = frame.sceneDepth {
+        if usesDepth {
+            guard let depth = frame.sceneDepth else { nearFrames=0;review.isEnabled=false;cueFrames=0;stableCue="scan";status.text="Waiting for LiDAR depth. Scan slowly.";return }
             let buffer = depth.depthMap
             CVPixelBufferLockBaseAddress(buffer, .readOnly)
             if let confidence = depth.confidenceMap { CVPixelBufferLockBaseAddress(confidence, .readOnly) }
@@ -189,7 +203,32 @@ final class ObstacleScanViewController: UIViewController, ARSessionDelegate, ARS
                 }
             }
             reason = "lidar-depth"
-        } else { nearFrames = 0; review.isEnabled = false; cueFrames = 0; stableCue = "scan"; status.text = "Starting direction assumed · waiting for LiDAR depth. Scan slowly."; return }
+        } else {
+            // Restored from the earlier camera-only branch; unobserved surfaces remain unknown.
+            let cameraFromWorld = frame.camera.viewMatrix(for:.portrait)
+            let points = frame.rawFeaturePoints?.points.map { point -> SIMD3<Float> in
+                let local = cameraFromWorld * SIMD4<Float>(point.x,point.y,point.z,1)
+                return SIMD3<Float>(local.x,local.y,local.z)
+            } ?? []
+            for sector in 0..<3 {
+                let depths = points.filter { point in
+                    let depth = -point.z
+                    guard depth > 0.25,depth < 5,abs(point.y)<0.4 else {return false}
+                    let ratio=point.x/depth
+                    return sector == 0 ? ratio < -0.15 && ratio > -0.6 : sector == 2 ? ratio > 0.15 && ratio < 0.6 : abs(ratio)<=0.15
+                }.map { -$0.z }
+                var distance:Float?
+                if let query=scene.raycastQuery(from:CGPoint(x:scene.bounds.width*(0.25+Double(sector)*0.25),y:scene.bounds.midY),allowing:.existingPlaneGeometry,alignment:.vertical) {
+                    let camera=frame.camera.transform.columns.3
+                    distance=scene.session.raycast(query).map { hit in
+                        let target=hit.worldTransform.columns.3
+                        return simd_distance(SIMD3<Float>(camera.x,camera.y,camera.z),SIMD3<Float>(target.x,target.y,target.z))
+                    }.filter {$0 > 0.25 && $0 < 5}.min()
+                }
+                evidence[sector]=ObstacleProbe.cameraEvidence(depths,planeDistance:distance)
+            }
+            reason="camera-features-or-plane"
+        }
         nearFrames = evidence[1] == .near ? nearFrames+1 : 0
         review.isEnabled = nearFrames >= 3
         let cue = ObstacleProbe.guidance(center:evidence[1],left:evidence[0],right:evidence[2],relative:relative)
@@ -198,6 +237,7 @@ final class ObstacleScanViewController: UIViewController, ARSessionDelegate, ARS
         let displayed = cueFrames >= 3 ? cue : "scan"
         arrow.text = ["forward":"Continue ahead", "left":"Turn left", "right":"Turn right", "stop":"Stop", "scan":"Scan slowly"][displayed]
         status.text = displayed == "stop" ? "Nearby directions blocked. Check your surroundings." : displayed == "scan" ? "Checking depth · direction is a demo assumption." : "Exit · 2F entrance · demo direction. Check the real path as you move."
+        if !usesDepth { status.text = (status.text ?? "") + " Camera estimate; blank walls/glass can be missed." }
         renderArrow(frame,heading:heading,relative:relative,cue:displayed)
         if evidence[1] == .near && displayed == "scan" { directionArrow.isHidden = true }
     }

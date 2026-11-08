@@ -28,6 +28,7 @@ import androidx.core.view.WindowInsetsCompat
 import com.google.ar.core.ArCoreApk
 import com.google.ar.core.Config
 import com.google.ar.core.Coordinates2d
+import com.google.ar.core.Plane
 import com.google.ar.core.Frame
 import com.google.ar.core.Session
 import com.google.ar.core.TrackingState
@@ -49,6 +50,8 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer {
     private lateinit var message: TextView
     private lateinit var arrow: TextView
     private lateinit var chevrons: View
+    private var usesDepth = false
+    private lateinit var headingLabel: TextView
     private var goalYaw: Float? = null
     private var arrowRadians = 0f
     private var arrowSupported = false
@@ -131,12 +134,12 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer {
             }
         }
         root.addView(chevrons,FrameLayout.LayoutParams(-1,-1))
-        val instruction = TextView(this).apply {
+        headingLabel = TextView(this).apply {
             text = "3D AR · Library exit\nExit · 2F entrance · demo"
             setTextColor(Color.WHITE); textSize = 19f
             setPadding(24, 24, 24, 24); setBackgroundColor(0xCC000000.toInt())
         }
-        root.addView(instruction, FrameLayout.LayoutParams(-1, -2, Gravity.TOP))
+        root.addView(headingLabel, FrameLayout.LayoutParams(-1, -2, Gravity.TOP))
         arrow = TextView(this).apply {
             text = "Scan slowly"; textSize = 22f; gravity = Gravity.CENTER
             setTextColor(Color.WHITE); setShadowLayer(5f, 0f, 2f, Color.BLACK)
@@ -200,17 +203,14 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer {
                     return
                 }
                 val created = Session(this)
-                if (!created.isDepthModeSupported(Config.DepthMode.AUTOMATIC)) {
-                    created.close()
-                    showUnavailable("Depth scanning is unavailable on this phone. Check the path yourself.", "depth-unsupported")
-                    return
-                }
+                usesDepth = created.isDepthModeSupported(Config.DepthMode.AUTOMATIC)
                 session = created
                 created.configure(created.config.apply {
-                    depthMode = Config.DepthMode.AUTOMATIC
-                    planeFindingMode = Config.PlaneFindingMode.DISABLED
+                    depthMode = if(usesDepth) Config.DepthMode.AUTOMATIC else Config.DepthMode.DISABLED
+                    planeFindingMode = if(usesDepth) Config.PlaneFindingMode.DISABLED else Config.PlaneFindingMode.HORIZONTAL_AND_VERTICAL
                     lightEstimationMode = Config.LightEstimationMode.DISABLED
                 })
+                headingLabel.text = "3D AR · Library exit\n" + if(usesDepth) "ARCore Depth · Exit on 2F" else "Camera estimate · Exit on 2F"
             }
             session?.resume()
             classifier.reset()
@@ -330,7 +330,7 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer {
                 }
                 return
             }
-            inspectDepth(frame)
+            if (usesDepth || now-lastUiAt >= 200) inspectDepth(frame)
         } catch (_: Exception) {
             showUnavailable("Camera tracking stopped. Return to the map and retry.", "tracking-unavailable")
         }
@@ -372,7 +372,12 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer {
             // shortcut: opening camera bearing is the demo exit direction, replace with registered library pose.
             if (goalYaw == null) goalYaw = heading
             relative = kotlin.math.atan2(kotlin.math.sin(goalYaw!!-heading),kotlin.math.cos(goalYaw!!-heading))
-            try {
+            if (!usesDepth) {
+                val observation=inspectCamera(frame,relative)
+                blocked=observation.possibleObstacle
+                direction=observation.direction
+                text="Camera estimate; blank walls/glass may be missed. Check the real path."
+            } else try {
                 frame.acquireDepthImage16Bits().use { image ->
                     sampleCoordinates.rewind(); sampleTextureCoordinates.rewind()
                     frame.transformCoordinates2d(Coordinates2d.OPENGL_NORMALIZED_DEVICE_COORDINATES, sampleCoordinates,
@@ -437,6 +442,40 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer {
                 }
             }
         }
+    }
+
+    private fun inspectCamera(frame:Frame,relative:Float):DepthObstacleClassifier.Observation {
+        val samples=Array(3) {mutableListOf<Float>()}
+        val planes=FloatArray(3) {Float.NaN}
+        var observedAt=frame.timestamp
+        val cloud=frame.acquirePointCloud()
+        try {
+            if(frame.timestamp-cloud.timestamp in 0L..200_000_000L) {
+                observedAt=cloud.timestamp
+                val points=cloud.points
+                val cameraFromWorld=frame.camera.displayOrientedPose.inverse()
+                while(points.remaining() >= 4) {
+                    val x=points.get();val y=points.get();val z=points.get();val confidence=points.get()
+                    if(!confidence.isFinite() || confidence < 0.5f) continue
+                    val p=cameraFromWorld.transformPoint(floatArrayOf(x,y,z))
+                    val depth=-p[2]
+                    if(depth !in 0.25f..5f || kotlin.math.abs(p[1]) > 0.4f) continue
+                    val ratio=p[0]/depth
+                    val sector=when {ratio in -0.6f..-0.15f -> 0;ratio in 0.15f..0.6f -> 2;kotlin.math.abs(ratio) < 0.15f -> 1;else -> continue}
+                    samples[sector].add(depth)
+                }
+            }
+        } finally {cloud.release()}
+        for(sector in 0..2) {
+            val distance=frame.hitTest(width*(0.25f+sector*0.25f),height*0.5f).filter {hit ->
+                val plane=hit.trackable as? Plane
+                plane != null && plane.trackingState == TrackingState.TRACKING && plane.type == Plane.Type.VERTICAL && plane.isPoseInPolygon(hit.hitPose)
+            }.map {it.distance}.filter {it > 0.25f && it < 5f}.minOrNull()
+            if(distance != null) {planes[sector]=distance;observedAt=frame.timestamp}
+        }
+        // Sparse camera geometry is only observed surface evidence, never proof of clearance.
+        return classifier.updateCamera(samples[0].toFloatArray(),samples[1].toFloatArray(),samples[2].toFloatArray(),planes,
+            frame.timestamp,observedAt,true,-frame.camera.pose.zAxis[1],relative)
     }
 
     private fun compileShader(type: Int, source: String): Int {
