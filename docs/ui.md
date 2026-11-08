@@ -65,9 +65,13 @@ See [live-data.md](live-data.md) for the API.
   line, not a route. **Directions** opens an in-app walking route preview with distance,
   estimated time and route steps. See [in-app-directions.md](in-app-directions.md) for requirements
   and checks.
-- **Location.** The app starts at a demo position (Nagoya University). Location is requested only
-  when the user taps the locate button, opens 3D AR or asks the assistant. Positions outside
-  Nagoya keep the demo position. The Android shell grants location only to our own page origins.
+- **Location.** The map requests live location on entry. Nagoya University is only the initial
+  preview viewport; the position dot and dotted bearing line remain hidden until a fresh fix.
+  The first fix centers the map; ongoing updates move the dot and selected line origin without
+  replacing the destination. Outside-Nagoya positions are supported, while the evacuation
+  dataset and walking routes remain Nagoya-specific. Waiting/unavailable status is shown.
+  The Android shell grants location only to our own page origins.
+  See [live-location-fix.md](live-location-fix.md) for checks and local iPhone configuration.
 - **3D AR.** The arrow points from the current GPS position to the chosen site and updates while
   walking (distance, "You're near the site" within 25 m, low-accuracy warning above 50 m).
   Heading comes from the compass; without one, a slider simulates turning.

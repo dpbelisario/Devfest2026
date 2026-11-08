@@ -1,6 +1,7 @@
 import AVFoundation
 import CoreLocation
 import Speech
+import SwiftUI
 import UIKit
 import UserNotifications
 import WebKit
@@ -16,6 +17,8 @@ final class ContourViewController: UIViewController, WKNavigationDelegate, WKUID
     private var speechRequest: SFSpeechAudioBufferRecognitionRequest?
     private var pendingAlert: ContourAlert?
     private var pageReady = false
+    private var overlayTransferTask: Task<Void, Never>?
+    private var returningFromOverlay = false
     private var usingFallback = false
     private var timeout: DispatchWorkItem?
     private var microphoneTapInstalled = false
@@ -31,10 +34,14 @@ final class ContourViewController: UIViewController, WKNavigationDelegate, WKUID
         view.backgroundColor = .systemBackground
         let config = WKWebViewConfiguration()
         config.userContentController.add(self, name: "contour")
-        if let script = Bundle.main.url(forResource: "bridge", withExtension: "js"),
-           let source = try? String(contentsOf: script, encoding: .utf8) {
-            config.userContentController.addUserScript(WKUserScript(source: source, injectionTime: .atDocumentStart, forMainFrameOnly: true))
+        for resource in ["bridge", "native-floor-overlay"] {
+            if let script = Bundle.main.url(forResource: resource, withExtension: "js"),
+               let source = try? String(contentsOf: script, encoding: .utf8) {
+                config.userContentController.addUserScript(WKUserScript(source: source, injectionTime: .atDocumentStart, forMainFrameOnly: true))
+            }
         }
+        NotificationCenter.default.addObserver(self, selector: #selector(refreshSavedFloorOverlay),
+            name: NativeFloorOverlayTransfer.savedNotification, object: nil)
         config.allowsInlineMediaPlayback = true
         web = WKWebView(frame: .zero, configuration: config)
         web.navigationDelegate = self
@@ -42,11 +49,33 @@ final class ContourViewController: UIViewController, WKNavigationDelegate, WKUID
         web.customUserAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 Mobile ContourApp/1.0 ContourIOS/1.0"
         web.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(web)
+        let overlayBar = UIView()
+        overlayBar.backgroundColor = .secondarySystemBackground
+        overlayBar.translatesAutoresizingMaskIntoConstraints = false
+        let overlayButton = UIButton(type: .system)
+        var overlayConfiguration = UIButton.Configuration.plain()
+        overlayConfiguration.title = "Floor overlay"
+        overlayConfiguration.image = UIImage(systemName: "square.3.layers.3d")
+        overlayConfiguration.imagePadding = 8
+        overlayButton.configuration = overlayConfiguration
+        overlayButton.accessibilityIdentifier = "nativeFloorOverlayButton"
+        overlayButton.translatesAutoresizingMaskIntoConstraints = false
+        overlayButton.addTarget(self, action: #selector(openFloorOverlay), for: .touchUpInside)
+        overlayBar.addSubview(overlayButton)
+        view.addSubview(overlayBar)
         NSLayoutConstraint.activate([
             web.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor),
             web.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor),
             web.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
-            web.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor)
+            web.bottomAnchor.constraint(equalTo: overlayBar.topAnchor),
+            overlayBar.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor),
+            overlayBar.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor),
+            overlayBar.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
+            overlayBar.heightAnchor.constraint(equalToConstant: 48),
+            overlayButton.leadingAnchor.constraint(equalTo: overlayBar.leadingAnchor),
+            overlayButton.trailingAnchor.constraint(equalTo: overlayBar.trailingAnchor),
+            overlayButton.topAnchor.constraint(equalTo: overlayBar.topAnchor),
+            overlayButton.bottomAnchor.constraint(equalTo: overlayBar.bottomAnchor)
         ])
         location.delegate = self
         location.desiredAccuracy = kCLLocationAccuracyBest
@@ -56,6 +85,48 @@ final class ContourViewController: UIViewController, WKNavigationDelegate, WKUID
             timeout = task
             DispatchQueue.main.asyncAfter(deadline: .now() + 8, execute: task)
         } else { fallBack() }
+    }
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        let focus = returningFromOverlay
+        returningFromOverlay = false
+        syncSavedFloorOverlay(focus: focus)
+    }
+
+    @objc private func refreshSavedFloorOverlay() { syncSavedFloorOverlay(focus: true) }
+
+    private func syncSavedFloorOverlay(focus: Bool) {
+        overlayTransferTask?.cancel()
+        guard pageReady, isOurs(web.url) else { return }
+        let expectedURL = web.url
+        overlayTransferTask = Task { [weak self] in
+            do {
+                let json = try await NativeFloorOverlayTransfer.json()
+                guard let self, !Task.isCancelled, self.pageReady,
+                      self.web.url == expectedURL, self.isOurs(self.web.url) else { return }
+                _ = try await self.web.callAsyncJavaScript(
+                    "return window.ContourNativeFloorOverlay?.apply(JSON.parse(json), focus) ?? false;",
+                    arguments: ["json": json, "focus": focus], in: nil, in: .page)
+            } catch {
+                // Keep the existing page intact on storage/navigation failure; the native editor reports disk errors.
+                NSLog("Saved floor overlay could not be restored: %@", error.localizedDescription)
+            }
+        }
+    }
+
+    @objc private func openFloorOverlay() {
+        guard presentedViewController == nil else { return }
+        if #available(iOS 17.0, *) {
+            returningFromOverlay = true
+            let editor = UIHostingController(rootView: NativeFloorOverlay())
+            editor.modalPresentationStyle = .fullScreen
+            present(editor, animated: true)
+        } else {
+            let notice = UIAlertController(title: "Floor overlay", message: "The native editor requires iOS 17 or later.", preferredStyle: .alert)
+            notice.addAction(UIAlertAction(title: "OK", style: .default))
+            present(notice, animated: true)
+        }
     }
 
     private func fallBack() {
@@ -91,6 +162,7 @@ final class ContourViewController: UIViewController, WKNavigationDelegate, WKUID
 
     func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
         pageReady = false
+        overlayTransferTask?.cancel()
         sessionGeneration += 1
         stopDeviceActivity()
     }
@@ -99,6 +171,8 @@ final class ContourViewController: UIViewController, WKNavigationDelegate, WKUID
         guard isOurs(web.url) else { return }
         timeout?.cancel()
         pageReady = true
+        startLocationIfAllowed()
+        syncSavedFloorOverlay(focus: false)
         refreshNotificationStatus()
         deliverAlert()
         openLaunchDemoIfReady()
@@ -237,7 +311,10 @@ final class ContourViewController: UIViewController, WKNavigationDelegate, WKUID
     private func startLocationIfAllowed() {
         guard requestingLocation else { return }
         switch location.authorizationStatus {
-        case .authorizedWhenInUse, .authorizedAlways: location.startUpdatingLocation()
+        case .authorizedWhenInUse, .authorizedAlways:
+            location.startUpdatingLocation()
+            // A location can arrive before WebKit finishes loading. Replay a fresh real fix once callbacks are ready.
+            if let fix = location.location { locationManager(location, didUpdateLocations: [fix]) }
         case .denied, .restricted: call("contourIOSLocationError", [1, "Location permission denied."])
         default: break
         }

@@ -18,7 +18,11 @@
       ? Math.max(0, options.timeout)
       : 30000;
     const timer = setTimeout(() => {
-      remove(id);
+      if (!watch) remove(id);
+      else {
+        const entry = positions.get(id);
+        if (entry) entry.timer = null;
+      }
       if (typeof error === "function")
         error({ code: 3, message: "Location request timed out." });
     }, timeout);
@@ -47,7 +51,12 @@
   };
   window.contourIOSLocationError = (code, message) => {
     for (const [id, entry] of [...positions]) {
-      remove(id);
+      // A temporary error must not silently dispose the ongoing location watch.
+      if (!entry.watch || code === 1) remove(id);
+      else {
+        clearTimeout(entry.timer);
+        entry.timer = null;
+      }
       if (typeof entry.error === "function") entry.error({ code, message });
     }
   };

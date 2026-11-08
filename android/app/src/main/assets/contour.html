@@ -1297,7 +1297,7 @@ window.ContourLibrary = {
   const inNagoya = ll => ll[0] > NAGOYA_BOX[0][0] && ll[0] < NAGOYA_BOX[1][0] && ll[1] > NAGOYA_BOX[0][1] && ll[1] < NAGOYA_BOX[1][1];
   const HAZ_API = { earthquake: "eq", tsunami: "tsunami", flood: "flood", inlandFlood: "inland", stormSurge: "surge", landslide: "slide", fire: "fire", volcano: "volcano" };
   const API_HAZ = Object.fromEntries(Object.entries(HAZ_API).map(([a, b]) => [b, a]));
-  let HERE = USER, hereSource = "demo", hereAcc = 0, live = false, dataset = null, hazard = "", loadedAt = null, watchId = null;
+  let HERE = USER, hereSource = "demo", hereAcc = 0, locationState = "waiting", live = false, dataset = null, hazard = "", loadedAt = null, watchId = null;
   const DEMO = RAW.map(p => ({ ...p, ll: [USER[0] + p.d[0], USER[1] + p.d[1]] }));
   const siteRaw = s => ({ id: s.id, name: s.name, jp: s.address, ll: [s.latitude, s.longitude], cap: null, loc: s.address, haz: s.disasters.map(d => HAZ_API[d]).filter(Boolean), live: true });
   const placePoints = list => list.map(p => { const m = dist(HERE, p.ll); return { ...p, m, brg: bearing(HERE, p.ll), walk: walkMin(m) }; })
@@ -1458,6 +1458,8 @@ window.ContourLibrary = {
     "status.demo": ["Demo data", "デモデータ", "演示数据", "데모 데이터"],
     "status.off": ["Demo data · offline", "デモデータ（オフライン）", "演示数据 · 离线", "데모 데이터 · 오프라인"],
     "status.gps": ["your location", "現在地", "您的位置", "현재 위치"],
+    "status.locating": ["Waiting for location…", "現在地を取得中…", "正在获取位置…", "위치 확인 중…"],
+    "status.nolocation": ["Location unavailable", "現在地を取得できません", "无法获取位置", "위치를 확인할 수 없음"],
     "live.none": ["No designated site within 4 km", "4 km以内に該当する避難場所はありません", "4 公里内没有符合的避难场所", "4km 이내에 해당 대피 장소가 없습니다"],
     "live.fail": ["Couldn't load official data. Showing demo points.", "公式データを読み込めません。デモ地点を表示しています。", "无法加载官方数据，显示演示地点。", "공식 데이터를 불러올 수 없어 데모 지점을 표시합니다."],
     "loc.outside": ["You're outside Nagoya, the area this data covers. Staying at the demo position.", "名古屋市外のため、デモ位置のままにします。", "您不在名古屋市内（数据范围外），保持演示位置。", "나고야시 밖이라 데모 위치를 유지합니다."],
@@ -1951,8 +1953,8 @@ window.ContourLibrary = {
   new CachedTiles("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxNativeZoom: 17, maxZoom: 18, attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors' }).addTo(map);
   map.setView(USER, 16);
 
-  const ring = L.circle(USER, { radius: 70, stroke: false, fillColor: "#2b88ff", fillOpacity: 0.12, interactive: false }).addTo(map);
-  const me = L.marker(USER, { icon: L.divIcon({ className: "", html: '<div class="me"><b></b><i></i></div>', iconSize: [22, 22], iconAnchor: [11, 11] }), keyboard: false, interactive: false, zIndexOffset: 500 }).addTo(map);
+  const ring = L.circle(USER, { radius: 70, stroke: false, fillColor: "#2b88ff", fillOpacity: 0.12, interactive: false });
+  const me = L.marker(USER, { icon: L.divIcon({ className: "", html: '<div class="me"><b></b><i></i></div>', iconSize: [22, 22], iconAnchor: [11, 11] }), keyboard: false, interactive: false, zIndexOffset: 500 });
 
   const routeCasing = L.polyline([], { color: "#ffffff", weight: 8, opacity: 0.9, lineCap: "round", lineJoin: "round", interactive: false }).addTo(map);
   const route = L.polyline([], { color: "#178049", weight: 4.5, lineCap: "round", lineJoin: "round", interactive: false }).addTo(map);
@@ -2115,6 +2117,7 @@ window.ContourLibrary = {
   // A dotted selection connection is never presented as a street-following route.
   function drawRoute(p) {
     if (walkingPoint) return;
+    if (hereSource !== "gps") { route.setLatLngs([]); routeCasing.setLatLngs([]); return; }
     routeCasing.setLatLngs([HERE, p.ll]); route.setLatLngs([HERE, p.ll]);
     route.setStyle({ dashArray: "1 9" }); routeCasing.setStyle({ dashArray: "1 9" });
   }
@@ -2759,7 +2762,7 @@ window.ContourLibrary = {
   }
   // Everything that shows a place name: cards, detail sheet, 3D AR, AR picker, attendance sheet, walking panel.
   // Also runs when a machine translation of an official site name arrives.
-  function renderNames() {
+  function renderLocationDetails() {
     renderWalking();
     if (sheetState === "open" && POINTS[sheetIdx]) { fillDetail(POINTS[sheetIdx]); relayoutSheet(); }
     POINTS.forEach((p, i) => {
@@ -2769,7 +2772,11 @@ window.ContourLibrary = {
       cards[i].setAttribute("aria-label", `${pTitle(p)}, ${fmtDist(p.m)}, ${t("card.walk", { n: p.walk })}`);
     });
     if (arPoint) { $("arName").textContent = pTitle(arPoint); $("arJp").textContent = pSub(arPoint); }
-    renderShelterOptions(); renderAtt(); renderPick(); renderAlerts();
+    renderPick();
+  }
+  function renderNames() {
+    renderLocationDetails();
+    renderShelterOptions(); renderAtt(); renderAlerts();
     renderAlertScreen(); renderAlertSetup(); renderBuildingList();
   }
 
@@ -2799,15 +2806,16 @@ window.ContourLibrary = {
   function setLive(on) {
     live = on;
     if (on) {
-      map.setMinZoom(12); map.setMaxBounds(L.latLngBounds(NAGOYA_BOX).pad(0.05));
+      map.setMinZoom(2); map.setMaxBounds(null);
       map.removeLayer(gatherLayer); $("gatherToggle").hidden = true;
     }
     renderStatus();
   }
   function renderStatus() {
     const el = $("statusText"); if (!el) return;
-    if (mode === "student") { el.textContent = t("status.campus"); $("status").classList.remove("live"); return; }
-    el.textContent = live ? t("status.live") + (hereSource === "gps" ? " · " + t("status.gps") : "") : t(loadedAt === false ? "status.off" : "status.demo");
+    const locationLabel = locationState === "unavailable" ? t("status.nolocation") : hereSource === "gps" ? t("status.gps") : t("status.locating");
+    if (mode === "student") { el.textContent = t("status.campus") + " · " + locationLabel; $("status").classList.remove("live"); return; }
+    el.textContent = (live ? t("status.live") : t(loadedAt === false ? "status.off" : "status.demo")) + " · " + locationLabel;
     $("status").classList.toggle("live", live);
   }
   let sitesSeq = 0, sitesFrom = null;
@@ -2828,33 +2836,54 @@ window.ContourLibrary = {
       if (!live) { loadedAt = false; renderStatus(); if(mode !== "student")say(t("live.fail")); }
     }
   }
-  // Ask for the real position only when a feature needs it (locate, AR, assistant).
+  // The map requests live location on entry. The fixed campus point is only a preview viewport.
   function onPosition(pos) {
-    const ll = [pos.coords.latitude, pos.coords.longitude];
-    if (!inNagoya(ll)) return false;
-    HERE = ll; hereSource = "gps"; hereAcc = pos.coords.accuracy || 0;
+    const coords = pos && pos.coords;
+    if (!coords || !Number.isFinite(coords.latitude) || Math.abs(coords.latitude) > 90 ||
+        !Number.isFinite(coords.longitude) || Math.abs(coords.longitude) > 180 ||
+        !Number.isFinite(coords.accuracy) || coords.accuracy < 0 ||
+        !Number.isFinite(pos.timestamp) || Date.now() - pos.timestamp > 30000 || pos.timestamp - Date.now() > 5000) return false;
+    const firstFix = hereSource !== "gps";
+    HERE = [coords.latitude, coords.longitude]; hereSource = "gps"; hereAcc = coords.accuracy; locationState = "gps";
+    map.setMinZoom(2); map.setMaxBounds(null);
+    if (!map.hasLayer(me)) me.addTo(map);
+    if (!map.hasLayer(ring)) ring.addTo(map);
     me.setLatLng(HERE); ring.setLatLng(HERE); ring.setRadius(Math.max(15, Math.min(hereAcc, 300)));
-    renderStatus();
+    POINTS.forEach(p => { p.m = dist(HERE, p.ll); p.brg = bearing(HERE, p.ll); p.walk = walkMin(p.m); });
+    renderStatus(); renderLocationDetails();
+    if (firstFix) flyHere();
     if (arPoint) arPlace();
     if (walkingData && dist(walkingData.origin, HERE) > 40) {
       walkingData = null; walkingMessage = "walk.moved";
       route.setLatLngs([]); routeCasing.setLatLngs([]); renderWalking();
     }
+    // This is the straight selection bearing; leave an active street-following route alone.
+    if (!walkingPoint && POINTS[sel]) drawRoute(POINTS[sel]);
     if (live && sitesFrom && dist(sitesFrom, HERE) > 150 && sheetState === "closed" && ar.hidden) loadSites({ fit: false, keepId: POINTS[sel] && POINTS[sel].id });
     return true;
+  }
+  function ensureLocationWatch() {
+    if (watchId != null || !navigator.geolocation) return;
+    watchId = navigator.geolocation.watchPosition(onPosition, error => {
+      if (error.code === 1) watchId = null;
+      locationState = "unavailable"; renderStatus();
+    }, { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 });
   }
   function useGps({ quiet = false } = {}) {
     return new Promise(resolve => {
       if (!navigator.geolocation) { if (!quiet) say(t("loc.denied")); resolve(false); return; }
+      ensureLocationWatch();
       navigator.geolocation.getCurrentPosition(pos => {
-        if (!onPosition(pos)) { if (!quiet) say(t("loc.outside")); resolve(false); return; }
+        if (!onPosition(pos)) { resolve(false); return; }
         if (!quiet) say(t("loc.ok", { a: Math.round(hereAcc) }));
-        if (watchId == null) watchId = navigator.geolocation.watchPosition(onPosition, () => {}, { enableHighAccuracy: true, maximumAge: 5000 });
-        if (live || loadedAt == null) loadSites({ fit: false }); else loadSites();
+        loadSites({ fit: false, keepId: POINTS[sel] && POINTS[sel].id });
         resolve(true);
-      }, () => { if (!quiet) say(t("loc.denied")); resolve(false); }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 15000 });
+      }, () => { if (hereSource !== "gps") { locationState = "unavailable"; renderStatus(); } if (!quiet) say(t("loc.denied")); resolve(false); }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 5000 });
     });
   }
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) ensureLocationWatch();
+  });
   function renderHz() {
     const keys = ["", "eq", "tsunami", "flood", "inland", "surge", "slide", "fire"];
     $("hzFilter").innerHTML = keys.map(k => `<button type="button" data-hz="${k}" aria-pressed="${k === hazard}">${k ? t("haz." + k) : t("hz.all")}</button>`).join("");
@@ -3888,7 +3917,7 @@ window.ContourLibrary = {
   requestAnimationFrame(() => {
     select(0, { from: "init", pan: false });
     fitNearest(false);
-    loadSites();
+    useGps({ quiet: true }).then(ok => { if (!ok) loadSites({ fit: false }); });
     loadAlerts();
   });
   setInterval(() => { if (!document.hidden) loadAlerts(); }, 120000);

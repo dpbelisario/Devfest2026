@@ -86,3 +86,36 @@ test("obstacle scanning uses the native camera bridge without location requests"
   assert.equal(sent.at(-1).action, "stopObstacleScan");
   assert.ok(!sent.some((message) => message.action === "locationStart"));
 });
+
+test("location watches survive temporary errors and initial timeout", () => {
+  for (const temporary of ["unavailable", "timeout"]) {
+    const { context: p, sent, timers } = page();
+    let fixes = 0,
+      errors = 0;
+    const id = p.navigator.geolocation.watchPosition(
+      () => fixes++,
+      () => errors++,
+    );
+    if (temporary === "unavailable")
+      p.contourIOSLocationError(2, "Temporary error");
+    else [...timers.values()][0]();
+    assert.equal(errors, 1);
+    assert.ok(!sent.some((message) => message.action === "locationStop"));
+    p.contourIOSLocation({ coords: { latitude: 35, longitude: 137 } });
+    assert.equal(fixes, 1);
+    p.navigator.geolocation.clearWatch(id);
+    assert.equal(sent.at(-1).action, "locationStop");
+  }
+});
+test("location watch permission denial stops native updates", () => {
+  const { context: p, sent } = page();
+  let fixes = 0;
+  p.navigator.geolocation.watchPosition(
+    () => fixes++,
+    () => {},
+  );
+  p.contourIOSLocationError(1, "Denied");
+  p.contourIOSLocation({ coords: { latitude: 35, longitude: 137 } });
+  assert.equal(fixes, 0);
+  assert.equal(sent.at(-1).action, "locationStop");
+});
