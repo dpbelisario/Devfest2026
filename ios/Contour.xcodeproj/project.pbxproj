@@ -1,5 +1,7 @@
 // !$*UTF8*$!
 { archiveVersion = 1; classes = {}; objectVersion = 56; objects = {
+AF991032AF991032AF991032 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Contour/Features/IndoorNavigation/ObstacleScanViewController.swift"; sourceTree = "<group>"; };
+BF991032BF991032BF991032 = { isa = PBXBuildFile; fileRef = AF991032AF991032AF991032; };
 B3E3D21BBCC4095C937F89E2 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Contour/App/AlertHaptics.swift"; sourceTree = "<group>"; };
 A53AEA9E5207D4963AA0FCD4 = { isa = PBXBuildFile; fileRef = B3E3D21BBCC4095C937F89E2; };
 F55075BDA2FB460214DAFFC3 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Contour/App/AppDelegate.swift"; sourceTree = "<group>"; };
@@ -18,7 +20,7 @@ A172CEDCAE47474B615C54D5 = { isa = PBXFileReference; explicitFileType = wrapper.
 9F86D081884C7D659A2FEAA0 = { isa = PBXFileReference; explicitFileType = wrapper.cfbundle; path = ContourTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 0A3E27B8CA818264D75C8D81 = { isa = PBXGroup; children = (A172CEDCAE47474B615C54D5,9F86D081884C7D659A2FEAA0,); name = Products; sourceTree = "<group>"; };
 0D6E4079E36703EBD37C0072 = { isa = PBXGroup; children = (C1647021DB89A097807BE64F,C8C3639906D50F53F81E30C2,D37B9395C2BAF168F977CE9F,0A3E27B8CA818264D75C8D81,); sourceTree = "<group>"; };
-878A52FC5FF6A57D50B7B870 = { isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (D52BA51CB3FFFB602DC87CD7,A53AEA9E5207D4963AA0FCD4,B26EC278AFCF398F21AD4E47,B1DA8BF96DB7C6482E82F920,0E7DB9C194490657D1A0BB1B,); runOnlyForDeploymentPostprocessing = 0; };
+878A52FC5FF6A57D50B7B870 = { isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (D52BA51CB3FFFB602DC87CD7,A53AEA9E5207D4963AA0FCD4,BF991032BF991032BF991032,B26EC278AFCF398F21AD4E47,B1DA8BF96DB7C6482E82F920,0E7DB9C194490657D1A0BB1B,); runOnlyForDeploymentPostprocessing = 0; };
 41D311A605520FC7B8B9A980 = { isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (3158BC8E12D8909B7B6B3AFC,3F45B08E41B319196896CD01,9762E90C6D16123DEF5CAB69,); runOnlyForDeploymentPostprocessing = 0; };
 E2AA269EB967A8853A258BFA = { isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
 587854A59EFBF8969CAFD37F = { isa = PBXBuildFile; fileRef = D37B9395C2BAF168F977CE9F; };
@@ -52,7 +54,7 @@ CBEB3210E1FBC26FD1FDAACA = { isa = PBXGroup; children = (912A95E9EF6E9B366D5A125
 BDC088FCEE6A7CF85517019B = { isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "Contour/Features/Calibration/README.md"; sourceTree = SOURCE_ROOT; };
 46D45370A32CC5A52BEEE3AC = { isa = PBXGroup; children = (BDC088FCEE6A7CF85517019B,); name = "Calibration"; sourceTree = "<group>"; };
 F987147B15A62C9266014BFC = { isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "Contour/Features/IndoorNavigation/README.md"; sourceTree = SOURCE_ROOT; };
-9FF1052F345C6393C15C2B39 = { isa = PBXGroup; children = (F987147B15A62C9266014BFC,); name = "IndoorNavigation"; sourceTree = "<group>"; };
+9FF1052F345C6393C15C2B39 = { isa = PBXGroup; children = (AF991032AF991032AF991032,F987147B15A62C9266014BFC,); name = "IndoorNavigation"; sourceTree = "<group>"; };
 B44E6904EC70884DDAC38141 = { isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "Contour/Positioning/README.md"; sourceTree = SOURCE_ROOT; };
 AC17BE65805F38BB4F4D5B8C = { isa = PBXGroup; children = (B44E6904EC70884DDAC38141,); name = "Positioning"; sourceTree = "<group>"; };
 683E7BC285760349F85E7859 = { isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "Contour/Routing/README.md"; sourceTree = SOURCE_ROOT; };

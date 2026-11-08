@@ -75,3 +75,12 @@ test("notification status and earthquake test use the native bridge", () => {
   assert.equal(sent.at(-1).action, "testAlert");
   assert.equal(sent.at(-1).delayMs, 5000);
 });
+
+test("obstacle scanning uses the native camera bridge without location requests", () => {
+  const { context: p, sent } = page();
+  p.ContourBridge.startObstacleScan();
+  assert.equal(sent.at(-1).action, "startObstacleScan");
+  p.ContourBridge.stopObstacleScan();
+  assert.equal(sent.at(-1).action, "stopObstacleScan");
+  assert.ok(!sent.some((message) => message.action === "locationStart"));
+});

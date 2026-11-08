@@ -39,6 +39,7 @@ export function findIndoorRoute(
   from: string,
   to: string,
   avoidStairs: boolean,
+  blockedEdges: { from: string; to: string }[] = [],
 ): IndoorRoute | undefined {
   const nodes = new Map(building.nodes.map((node) => [node.id, node]));
   if (!nodes.has(from) || !nodes.has(to)) return undefined;
@@ -59,6 +60,14 @@ export function findIndoorRoute(
     pending.delete(current);
     if (current === to) break;
     for (const edge of building.edges) {
+      if (
+        blockedEdges.some(
+          (blocked) =>
+            (blocked.from === edge.from && blocked.to === edge.to) ||
+            (blocked.to === edge.from && blocked.from === edge.to),
+        )
+      )
+        continue;
       if (avoidStairs && edge.kind === "stairs") continue;
       const next =
         edge.from === current

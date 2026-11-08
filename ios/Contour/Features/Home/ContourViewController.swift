@@ -10,6 +10,7 @@ final class ContourViewController: UIViewController, WKNavigationDelegate, WKUID
     private let location = CLLocationManager()
     private let haptics = AlertHaptics()
     private let audio = AVAudioEngine()
+    private weak var obstacleScanner: ObstacleScanViewController?
     private var speechTask: SFSpeechRecognitionTask?
     private var speechRequest: SFSpeechAudioBufferRecognitionRequest?
     private var pendingAlert: ContourAlert?
@@ -118,6 +119,25 @@ final class ContourViewController: UIViewController, WKNavigationDelegate, WKUID
         decisionHandler(ours && type == .camera ? .prompt : .deny)
     }
 
+    private func startObstacleScan() {
+        guard presentedViewController == nil, UIApplication.shared.applicationState == .active else { return }
+        let generation = sessionGeneration
+        AVCaptureDevice.requestAccess(for: .video) { [weak self] granted in
+            DispatchQueue.main.async {
+                guard let self, self.pageReady, generation == self.sessionGeneration, self.presentedViewController == nil, UIApplication.shared.applicationState == .active else { return }
+                guard granted else { self.call("contourObstacle", [["status": "unknown", "reason": "camera-denied"]]); return }
+                let scanner = ObstacleScanViewController()
+                scanner.modalPresentationStyle = .fullScreen
+                scanner.completion = { [weak self] status, reason in
+                    guard let self, generation == self.sessionGeneration else { return }
+                    self.call("contourObstacle", [["status": status, "reason": reason, "source": "ios-native"]])
+                }
+                self.obstacleScanner = scanner
+                self.present(scanner, animated: true)
+            }
+        }
+    }
+
     private func call(_ name: String, _ arguments: [Any]) {
         guard pageReady, isOurs(web.url), let data = try? JSONSerialization.data(withJSONObject: arguments),
               let json = String(data: data, encoding: .utf8) else { return }
@@ -184,6 +204,8 @@ final class ContourViewController: UIViewController, WKNavigationDelegate, WKUID
         guard message.frameInfo.isMainFrame, isOurs(message.frameInfo.securityOrigin), isOurs(web.url),
               let body = message.body as? [String: Any], let action = body["action"] as? String else { return }
         switch action {
+        case "startObstacleScan": startObstacleScan()
+        case "stopObstacleScan": obstacleScanner?.pause(); obstacleScanner?.dismiss(animated: false)
         case "locationStart":
             requestingLocation = true
             location.requestWhenInUseAuthorization()
@@ -278,6 +300,7 @@ final class ContourViewController: UIViewController, WKNavigationDelegate, WKUID
     }
 
     func stopDeviceActivity() {
+        obstacleScanner?.pause()
         sessionGeneration += 1
         haptics.stop()
         stopSpeech()

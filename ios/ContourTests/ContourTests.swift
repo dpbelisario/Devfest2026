@@ -2,6 +2,25 @@ import XCTest
 @testable import Contour
 
 final class ContourTests: XCTestCase {
+    func testRelativeObstacleDirectionsStopOnUnknownEvidence() {
+        XCTAssertEqual(ObstacleProbe.cue(center: .farther, left: .unknown, right: .unknown), "forward")
+        XCTAssertEqual(ObstacleProbe.cue(center: .near, left: .farther, right: .near), "left")
+        XCTAssertEqual(ObstacleProbe.cue(center: .near, left: .near, right: .farther), "right")
+        XCTAssertEqual(ObstacleProbe.cue(center: .near, left: .near, right: .near), "stop")
+        XCTAssertEqual(ObstacleProbe.cue(center: .near, left: .unknown, right: .unknown), "scan")
+        XCTAssertEqual(ObstacleProbe.cue(center: .unknown, left: .farther, right: .farther), "scan")
+    }
+    func testObstacleEvidenceNeverTreatsMissingDepthAsClear() {
+        XCTAssertFalse(ObstacleProbe.closeDepth([]))
+        XCTAssertFalse(ObstacleProbe.closeDepth(Array(repeating: .nan, count: 40)))
+        XCTAssertFalse(ObstacleProbe.closeDepth(Array(repeating: 0, count: 40)))
+        XCTAssertTrue(ObstacleProbe.closeDepth(Array(repeating: 0.8, count: 40)))
+        XCTAssertFalse(ObstacleProbe.closeDepth(Array(repeating: 2.5, count: 40)))
+        XCTAssertFalse(ObstacleProbe.closeFeatures([SIMD3<Float>(0, 0, -0.6)]))
+        XCTAssertTrue(ObstacleProbe.closeFeatures(Array(repeating: SIMD3<Float>(0.1, 0, -0.6), count: 6)))
+        XCTAssertFalse(ObstacleProbe.closeFeatures(Array(repeating: SIMD3<Float>(1.2, 0, -0.6), count: 20)))
+    }
+
     func testKnownKindsUseSharedKotlinAndUnknownKindIsRejected() {
         for kind in ["eew", "tsunami", "special", "evac", "alert"] {
             XCTAssertEqual(ContourAlert(payload: ["kind": kind])?.kind, kind)

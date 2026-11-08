@@ -30,7 +30,7 @@ Buildings that have a real floor plan in the indoor catalog (Engineering Buildin
    simulation, the true position (hollow circle). **I'm here** + a tap on the plan resets the
    position; the floor button (top right) sets the floor by hand.
 
-All texts are in English, 日本語, 中文 and 한국어. Everything except the 3D library runs offline.
+All texts are in English, 日本語, 中文 and 한국어. The 3D library is bundled with the page and the sample map/3D view works offline.
 
 ## How the position is estimated
 
@@ -79,8 +79,7 @@ while running, and magnetic disturbance from steel, will do worse.
 - Page: the "Indoor navigation" block at the end of `android/app/src/main/assets/contour.html`
   (`window.ContourIndoor`: `open(mode, { building, after })`, `close()`, `back()`, `relang()`; `after.run()`
   starts once the exit is reached). The entry points are `goAR()`, `checkNear()` and the `#indoorBtn`
-  handler in the main script. The 3D view uses three.js
-  r128 from cdnjs, loaded when first needed; without the internet the map view is shown instead.
+  handler in the main script. The 3D view uses bundled Three.js r128; its MIT notice is included in the shared HTML.
 - App: `android/app/src/main/java/com/contour/app/indoor/IndoorSensors.kt` (barometer) and the bridge
   calls `ContourBridge.startIndoor()` / `stopIndoor()` in `WebUiActivity.kt`. The page receives
   `window.contourIndoor({ p: hPa })`. Readings stop while the app is in the background.
@@ -92,7 +91,7 @@ while running, and magnetic disturbance from steel, will do worse.
    `buildWalls()` (metres) and set `PLAN_NORTH` (the compass bearing of the plan's +y axis).
 3. Walk the building and compare the estimate with known points before showing routes as guidance.
 4. Optional improvements: snap to corners and stairs (landmarks), magnetic or Wi-Fi fingerprints,
-   bundle three.js for fully offline use.
+   survey and register camera/depth geometry to the floor plan.
 
 ## Check on a phone
 

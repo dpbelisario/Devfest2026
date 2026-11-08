@@ -67,6 +67,22 @@ class WebUiActivity : ComponentActivity() {
             pendingCamera = null
         }
 
+    private var obstaclePageUrl: String? = null
+    private val obstacleScan = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        val expected = obstaclePageUrl
+        obstaclePageUrl = null
+        if (!pageReady || expected == null || web.url != expected || !isOurs(Uri.parse(expected).host)) return@registerForActivityResult
+        val status = if (result.resultCode == RESULT_OK && result.data?.getStringExtra(com.contour.app.ar.ObstacleScanActivity.EXTRA_STATUS) == "blocked") "blocked" else "unknown"
+        val payload = org.json.JSONObject().put("status", status).put("reason", result.data?.getStringExtra(com.contour.app.ar.ObstacleScanActivity.EXTRA_REASON) ?: "cancelled").put("source", "android-native")
+        web.evaluateJavascript("window.contourObstacle && window.contourObstacle($payload)", null)
+    }
+
+    private fun startObstacleScan() {
+        if (!pageReady || !isOurs(web.url?.let { Uri.parse(it).host }) || obstaclePageUrl != null) return
+        obstaclePageUrl = web.url
+        obstacleScan.launch(Intent(this, com.contour.app.ar.ObstacleScanActivity::class.java))
+    }
+
     // ----- Emergency pop-up: an alert waiting for the page, and the page's load state.
     private var pendingAlert: org.json.JSONObject? = null
     private var pageReady = false
@@ -177,6 +193,9 @@ class WebUiActivity : ComponentActivity() {
                 )
             }
         }
+
+        @android.webkit.JavascriptInterface
+        fun startObstacleScan() { activity.runOnUiThread { activity.startObstacleScan() } }
 
         // ----- Emergency pop-up setup page
 

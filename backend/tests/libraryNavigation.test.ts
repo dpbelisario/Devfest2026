@@ -114,3 +114,32 @@ test("phone arrow requires calibration, fresh heading, fresh checkpoint and the 
   assert.equal(arrow(a, b, 90, 0, 71000, 10000, 71000), null);
   assert.equal(arrow(a, { ...b, floor: 3 }, 90, 0, 10000, 10000, 10000), null);
 });
+
+test("blocked edges are excluded in either direction and exhausted paths stay unavailable", () => {
+  const blocked = [{ from: "lib-2-service", to: "lib-2-hall" }];
+  for (const pair of [
+    blocked,
+    blocked.map((e) => ({ from: e.to, to: e.from })),
+  ]) {
+    const route = findIndoorRoute(
+      library,
+      "lib-2-service",
+      "lib-2-exit",
+      false,
+      pair,
+    )!;
+    assert.ok(route);
+    assert.ok(route.nodes.some((n) => n.id === "lib-2-se"));
+    assert.ok(
+      !route.edges.some(
+        (e) => e.from === "lib-2-service" && e.to === "lib-2-hall",
+      ),
+    );
+  }
+  assert.equal(
+    findIndoorRoute(library, "lib-2-service", "lib-2-exit", false, [
+      { from: "lib-2-hall", to: "lib-2-exit" },
+    ]),
+    undefined,
+  );
+});

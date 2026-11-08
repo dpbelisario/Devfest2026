@@ -1,7 +1,13 @@
 # Central Library exit and stairs preview
 
 Central Library is building **01** at the fixed demo position. GPS mode orders
-buildings by actual distance. Open its **Library floor maps** button.
+buildings by actual distance. Open its **Indoor exit / obstacle AR** action (or Details → Library floor maps).
+The library card opens indoor guidance directly; other buildings retain their
+outdoor directions. **Relative obstacle arrows · demo** starts without a known
+position. It reacts to the camera view and does not know which direction the
+library exit lies. See [obstacle-avoidance-ar.md](obstacle-avoidance-ar.md).
+**3D floor-plan preview** places the official image and inferred checkpoints in a
+rotatable 3D scene. It does not reconstruct walls/shelves or register the camera.
 
 1. Select your current floor: B1, 1F, 2F, 3F or 4F.
 2. Optionally tap **Identify a landmark · take photo**. The photo is sent to

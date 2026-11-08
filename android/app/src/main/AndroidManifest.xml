@@ -33,6 +33,7 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity android:name=".ar.ObstacleScanActivity" android:exported="false" android:screenOrientation="portrait" android:theme="@style/Theme.Contour.Ui" />
         <!-- Original Compose scaffold (destination list, route preview). Not the launcher any more;
              start it with: adb shell am start -n com.contour.app/.MainActivity -->
         <activity android:name=".MainActivity" android:exported="true" />

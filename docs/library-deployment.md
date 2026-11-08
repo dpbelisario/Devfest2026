@@ -75,3 +75,13 @@ online page so the bundled fallback is exercised. Compare hosted HTML and APK /
 iPhone bundled `contour.html` byte-for-byte for the same commit. Record the commit,
 Cloud Build IDs, Firebase release/version, iPhone build/install result and field
 walk results on GitHub issue #3. An installed build does not prove route accuracy.
+
+## Relative obstacle-arrow release
+
+The standalone camera demo lives on `release/obstacle-avoidance-ar`. Open the
+library card's **Indoor exit / obstacle AR** action, then **Relative obstacle
+arrows · demo**. No checkpoint or cloud localization is needed for this local
+experiment. The native shell must be rebuilt/installed; a hosted HTML update
+alone cannot add ARKit/ARCore code. Both shells share the same entry and floor
+preview. Three.js r128 is bundled with its MIT notice for offline 3D previews.
+See [obstacle-avoidance-ar.md](obstacle-avoidance-ar.md) for sensing limits.
