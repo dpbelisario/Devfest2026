@@ -8,21 +8,22 @@ solve a maze, prove a complete route clear or locate the phone on the map.
 ## Implemented flow
 
 1. Open **01 Central Library → 3D AR directions**. Camera permission and native
-   tracking are required; the general exit goal also needs location and compass.
-2. Transform the pictured 2F Entrance Hall doors through the supported saved
-   image's alignment. Shared Kotlin geometry supplies both native apps. iOS uses
-   the phone's saved alignment; Android uses its exported snapshot.
-3. A fresh, bounded-accuracy GPS fix establishes an approximate starting bearing;
-   camera AR motion tracks displacement from it. iOS uses north-aligned ARKit;
-   Android calibrates ARCore's local heading against the back-camera direction
-   from the rotation sensor and magnetic declination. Unusable sensors hide the
-   goal; they do not prevent local obstacle detection.
-4. The top **Floor guess · 2F · Edit** and **Exit guess · direction · Edit**
-   controls stay in the camera screen. The floor starts at the hardcoded 2F demo
-   assumption; changing it changes displayed floor metadata, not the route or
-   stair selection. The direction shows the current relative exit estimate.
-   Tap it to use **Ahead**, **Right**, **Left**, **Behind**, or restore the map
-   estimate. A manual direction is anchored to the camera heading at selection.
+   tracking are required. The start is explicitly assumed; a usable compass is
+   optional and a heading guess can be edited.
+2. The top **Start guess · Edit** defaults to the image-inferred north-east
+   aisle on 2F. It can be corrected to the south-east aisle, Service Desk public
+   side or Entrance Hall. Shared Kotlin guidance targets the next passage point,
+   then the same digitized final Entrance Hall doors. iOS uses this phone's saved
+   image width/aspect/rotation; Android uses the exported snapshot.
+3. A usable compass registers map orientation; otherwise the opening camera is
+   assumed to face the first segment. **Next guess · Edit** corrects the route's
+   rotation. GPS is not required to initialize this explicitly assumed start.
+   AR displacement estimates progress; advancing requires both proximity and
+   lateral alignment to the incoming segment, not just guessed distance.
+4. The floor still starts at hardcoded **2F guess**. A different selected floor
+   pauses this native iteration; changing its label does not create a stairs
+   route. See [library-waypoint-demo.md](library-waypoint-demo.md) for the exact
+   unsurveyed path and coordinate assumptions.
 5. The movement label uses **Move straight**, **Move left**, **Move right**,
    **Turn around**, **Stop**, or **Hold**. Verbose technical depth messages are
    hidden during normal scanning; camera/service startup failures remain visible.
@@ -30,12 +31,12 @@ solve a maze, prove a complete route clear or locate the phone on the map.
    side is near or unknown. A turn toward the exit requires farther evidence in
    that side sector as well as the front. A close front surface overrides forward
    and can suggest an observed farther side. Missing observations show **Hold**
-   without a walking arrow. A turn-around is rotation in place, not a checked path.
+   with an amber, camera-relative arrow preview. A turn-around is rotation in place, not a checked path.
    Chevrons stay centred and point straight while following the aisle.
 
-The goal is an approximate map/GPS bearing, not a verified indoor localization
-result. The image door position and geographic alignment are unsurveyed. Opening
-in a different floor, GPS drift, magnetism, unobserved obstacles or closed doors
+The goal is an image-inferred waypoint from an assumed start, not a verified
+indoor localization result. The image door position and geographic alignment are unsurveyed. Opening
+on a different floor, a wrong guessed start, magnetism, unobserved obstacles or closed doors
 can make it wrong. No full route, maze, floor, stairs or arrival is established.
 A turn-around cue asks you to rotate in place; it does not indicate a checked
 walking route behind you. Readable repeated room signs and ordinary shelves do
@@ -82,7 +83,7 @@ planes must contain the ray hit. Features/planes share the depth path's sustaine
 observation, stale/repeated frame and tilt gates. Sensor selection happens at
 session creation, with no extra user setup. The fallback is weaker: glass, blank
 surfaces, low objects and people can be missed. It is an observed-geometry estimate,
-not reconstructed clearance. Both modes use the estimated entrance goal and continuous chevrons, with no
+not reconstructed clearance. Both modes use the image-inferred next-waypoint goal and continuous chevrons, with no
 map tap or checkpoint confirmation. Unknown geometry never permits forward walking.
 
 Apple requires capability checks for scene depth and mesh reconstruction.
@@ -138,3 +139,10 @@ straight-to-opening transition, permission
 denial, foreground/background transitions, a visible wall/shelf, a low obstacle,
 glass, changes in lighting, and opening bearing consistency. These
 checks remain required before depending on this feature in the field.
+
+Arrow rendering uses the same five camera-relative chevrons on iOS and Android.
+The preview is visible while tracking/GPS/nearby surface observations initialize;
+it stays amber with Hold and does not claim walking clearance. Supported movement
+cues turn it white. A detected close obstruction with no supported detour suppresses
+it. iOS draws in screen coordinates so camera tilt or floor-plane projection cannot
+place all chevrons off screen. Heading/start remain explicitly editable assumptions.

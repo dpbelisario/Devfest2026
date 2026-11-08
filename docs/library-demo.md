@@ -4,42 +4,30 @@ Central Library is building **01**. Its ordinary **3D AR directions** card butto
 opens the native exit-arrow view directly, without a floor picker or checkpoint.
 AR buttons align at the bottom of every card even when names wrap.
 
-The goal is the pictured **Entrance Hall doors on 2F**, transformed through the
-saved floor image's rotation and ground dimensions. iOS loads this phone's saved
-alignment and verifies the exact supported image fingerprint; Android uses the
-same exported alignment snapshot in the shared Kotlin geometry. The opening
-camera direction is no longer assumed to be the exit goal. The camera screen's
-editable exit-direction control can override a bad map/compass estimate with a
-relative **Ahead**, **Right**, **Left**, or **Behind** direction.
+The native 2F iteration follows image-inferred aisle waypoints to the pictured
+**Entrance Hall doors**, instead of pointing straight at the exit through
+fixtures. Its top **Start guess · Edit** control defaults to the north-east aisle
+and can be changed to the south-east aisle, Service Desk public side or Entrance
+Hall. These are assumed starts, not camera/GPS localization. The final door stays
+at the existing digitized point on the exact saved image. The older catalog's
+schematic percentages are not used as native physical aisle positions.
 
-A fresh location fix and usable compass are required for the initial general
-bearing. Fixes worse than25m, outside150m of the target, or whose uncertainty
-could reverse the direction are rejected. AR motion then tracks displacement
-from that approximate starting fix. No surveyed indoor localization or floor
-identification is established. Poor location/compass hides goal guidance while
-local obstacle sensing continues. Near the estimated target the goal arrow is
-hidden; that does not confirm arrival.
+A usable compass can register the map heading. Otherwise the opening camera is
+assumed to face the first segment; **Next guess · Edit** corrects the whole path's
+rotation. GPS accuracy rejection no longer prevents the assumed-start demo from
+initializing. AR displacement estimates progress without per-checkpoint buttons.
+Advancement requires estimated target distance ≤1.5m and lateral distance to the
+incoming segment ≤0.75m; a sideways obstacle detour does not advance a nearby
+waypoint. Image scale, starts, gate openings and passages remain unsurveyed.
+**Check exit doors** at the path endpoint does not establish arrival.
 
-Top controls show **Floor guess · 2F · Edit** and the editable relative exit
-direction. The floor is a hardcoded demo guess, not detected from camera or GPS;
-changing it changes displayed metadata only. It does not start a stairs route or
-change the 2F Entrance Hall goal. The separate map flow below supplies stairs
-previews from a physically confirmed checkpoint.
-
-Movement labels are short: **Move straight**, **Move left**, **Move right**,
-**Turn around**, **Stop**, and **Hold**. An observed farther aisle ahead remains
-straight while the desired turn is near or unknown. A desired side turn requires
-farther evidence in that side and the front. Close front evidence overrides
-forward and may suggest an observed farther side; missing evidence hides the
-walking arrow. A turn-around means rotate in place, not walk into unchecked space
-behind. Chevrons remain centred; straight guidance points straight rather than
-rotating toward the exit through an observed side obstruction.
-
-iOS selects LiDAR when supported and otherwise camera features/vertical planes;
-Android prefers ARCore Depth and otherwise uses camera geometry. Missing/stale/
-tilted observations remain unknown and show **Hold**. Camera fallback can miss
-blank walls, glass, low objects and people. Farther surfaces are nearby sensor
-evidence, not proof of an opening, full aisle clearance or an exit route.
+Movement labels remain **Move straight**, **Move left**, **Move right**,
+**Turn around**, **Stop**, and **Hold**, with the existing sensor/obstacle guards.
+Unknown or stale geometry shows **Hold** with no walking arrow. The floor control
+still starts at the hardcoded **2F guess**. Other selected floors pause this native
+iteration with **2F demo only**; no native stairs guidance is added. See
+[library-waypoint-demo.md](library-waypoint-demo.md) for exact pixel coordinates
+and assumptions. The separate map flow below still supplies stairs previews.
 
 The surrounding main map has no automatic floor-plan overlay. On iOS,
 **Central Library → Details → Floor overlay**, or double-tapping its **Details**
@@ -129,3 +117,10 @@ blocked paths and a wrong floor. Record results in the coordination issue before
 claiming reliability. See [library-localization.md](library-localization.md) for
 camera localization research and [library-deployment.md](library-deployment.md)
 for the reproducible deployment flow.
+
+Arrow rendering uses the same five camera-relative chevrons on iOS and Android.
+The preview is visible while tracking/GPS/nearby surface observations initialize;
+it stays amber with Hold and does not claim walking clearance. Supported movement
+cues turn it white. A detected close obstruction with no supported detour suppresses
+it. iOS draws in screen coordinates so camera tilt or floor-plane projection cannot
+place all chevrons off screen. Heading/start remain explicitly editable assumptions.

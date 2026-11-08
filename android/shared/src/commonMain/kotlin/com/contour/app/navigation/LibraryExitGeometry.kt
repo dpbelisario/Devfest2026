@@ -3,6 +3,7 @@ package com.contour.app.navigation
 import kotlin.math.*
 
 data class ExitCoordinate(val latitude: Double, val longitude: Double)
+data class PlanOffset(val east: Double, val north: Double)
 
 /** The pictured 2F Entrance Hall doors, not the Peer Support label above them. */
 object LibraryExitGeometry {
@@ -15,13 +16,18 @@ object LibraryExitGeometry {
 
     fun entrance(latitude: Double, longitude: Double, width: Double, aspect: Double, angle: Double): ExitCoordinate {
         // shortcut: door centre digitized on this exact 1178x817 image; replace after an on-site survey.
-        val x = (1034.0 / 1178.0 - 0.5) * width
-        val y = (528.0 / 817.0 - 0.5) * width * aspect
+        val point = planOffset(1034.0 / 1178.0,528.0 / 817.0,width,aspect,angle)
+        return ExitCoordinate(latitude + point.north / 6378137 * 180 / PI,
+            longitude + point.east / (6378137 * cos(latitude * PI / 180)) * 180 / PI)
+    }
+
+    fun planOffset(imageX: Double,imageY: Double,width: Double,aspect: Double,angle: Double): PlanOffset {
+        val x = (imageX - 0.5) * width
+        val y = (imageY - 0.5) * width * aspect
         val a = angle * PI / 180
         val east = x * cos(a) - y * sin(a)
         val north = -(x * sin(a) + y * cos(a))
-        return ExitCoordinate(latitude + north / 6378137 * 180 / PI,
-            longitude + east / (6378137 * cos(latitude * PI / 180)) * 180 / PI)
+        return PlanOffset(east,north)
     }
 
     fun distance(latitude: Double, longitude: Double, target: ExitCoordinate): Double {

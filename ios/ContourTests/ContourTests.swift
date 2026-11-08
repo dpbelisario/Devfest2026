@@ -15,6 +15,21 @@ final class ContourTests: XCTestCase {
         XCTAssertTrue(controls.contains { ($0 as? UILabel)?.text == "Hold" })
     }
 
+    @MainActor func testArrowPreviewExistsBeforeLocationOrDepth() {
+        let scan = ObstacleScanViewController()
+        scan.loadViewIfNeeded()
+        func descendants(_ view:UIView)->[UIView] { [view]+view.subviews.flatMap(descendants) }
+        let preview=descendants(scan.view).first { $0.accessibilityIdentifier == "cameraArrows" } as? CameraArrowsView
+        XCTAssertNotNil(preview)
+        XCTAssertFalse(preview?.isHidden ?? true)
+        XCTAssertEqual(preview?.cue,"scan")
+        preview?.frame = CGRect(x:0,y:0,width:414,height:896)
+        let image=UIGraphicsImageRenderer(size:CGSize(width:414,height:896)).image { _ in preview?.draw(preview!.bounds) }
+        let pixels = image.cgImage?.dataProvider?.data
+        XCTAssertNotNil(pixels)
+        if let pixels { XCTAssertTrue((0..<CFDataGetLength(pixels)).contains { CFDataGetBytePtr(pixels)![$0] != 0 }) }
+    }
+
     func testCameraFallbackRequiresActualFeaturesOrPlane() {
         XCTAssertEqual(ObstacleProbe.cameraEvidence([]),.unknown)
         XCTAssertEqual(ObstacleProbe.cameraEvidence(Array(repeating:0.8,count:6)),.near)

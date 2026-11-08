@@ -20,7 +20,7 @@ import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.hardware.GeomagneticField
-import com.contour.app.navigation.LibraryExitGeometry
+import com.contour.app.navigation.LibraryWaypointGuidance
 import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
@@ -66,20 +66,20 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer, Sensor
     private lateinit var headingBubble: Button
     @Volatile private var manualGoalHeading = Float.NaN
     @Volatile private var currentHeading = Float.NaN
-    private var guessedFloor = "2F"
-    private var targetX: Float? = null
-    private var targetZ: Float? = null
+    @Volatile private var guessedFloor = "2F"
+    private val waypointGuide = LibraryWaypointGuidance()
+    private lateinit var startBubble: Button
+    @Volatile private var pendingStartId: String? = null
+    @Volatile private var manualRouteHeading = false
     @Volatile private var locationFix: Location? = null
     @Volatile private var compassHeading = Double.NaN
     @Volatile private var compassAt = 0L
     private val sensors by lazy { getSystemService(SENSOR_SERVICE) as SensorManager }
     private val locations by lazy { getSystemService(LOCATION_SERVICE) as LocationManager }
-    private val entrance = LibraryExitGeometry.entrance(LibraryExitGeometry.defaultLatitude,LibraryExitGeometry.defaultLongitude,
-        LibraryExitGeometry.defaultWidth,LibraryExitGeometry.defaultAspect,LibraryExitGeometry.defaultAngle)
     private var arrowRadians = 0f
     private var arrowSupported = false
     private var arrowStopped = false
-    private var previewReady = false
+    private var previewReady = true
     private lateinit var review: Button
     @Volatile private var session: Session? = null
     @Volatile private var running = false
@@ -213,22 +213,37 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer, Sensor
                     .setItems(floors) { _, index ->
                         guessedFloor = floors[index]
                         text = "Floor · $guessedFloor · Edit"
+                        startBubble.isEnabled = guessedFloor == "2F"
+                        pendingStartId = waypointGuide.startId
+                    }.setNegativeButton("Cancel",null).show()
+            }
+        }
+        startBubble = Button(this).apply {
+            text = "Start guess · North-east aisle · Edit"
+            setOnClickListener {
+                val starts = waypointGuide.starts
+                AlertDialog.Builder(this@ObstacleScanActivity).setTitle("Assumed 2F start")
+                    .setItems(starts.map {it.label}.toTypedArray()) { _, index ->
+                        pendingStartId = starts[index].id
+                        text = "Start guess · ${starts[index].label} · Edit"
                     }.setNegativeButton("Cancel",null).show()
             }
         }
         headingBubble = Button(this).apply {
-            text = "Exit direction · Edit"
+            text = "Next direction · Edit"
             isEnabled = false
             setOnClickListener {
-                val labels = arrayOf("Ahead","Right","Left","Behind","Use map estimate")
+                val labels = arrayOf("Ahead","Right","Left","Behind","Reset route estimate")
                 val offsets = floatArrayOf(0f,Math.PI.toFloat()/2,-Math.PI.toFloat()/2,Math.PI.toFloat())
-                AlertDialog.Builder(this@ObstacleScanActivity).setTitle("Exit direction from where you face")
+                AlertDialog.Builder(this@ObstacleScanActivity).setTitle("Next waypoint from where you face")
                     .setItems(labels) { _, index ->
-                        manualGoalHeading = if(index == 4) Float.NaN else currentHeading+offsets[index]
+                        if(index == 4) { pendingStartId = waypointGuide.startId; manualRouteHeading = false }
+                        else { manualGoalHeading = offsets[index]; manualRouteHeading = true }
                     }.setNegativeButton("Cancel",null).show()
             }
         }
         guesses.addView(floorBubble)
+        guesses.addView(startBubble)
         guesses.addView(headingBubble)
         root.addView(guesses,FrameLayout.LayoutParams(-1,-2,Gravity.TOP))
         arrow = TextView(this).apply {
@@ -313,12 +328,12 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer, Sensor
             }
             session?.resume()
             classifier.reset()
-            targetX=null;targetZ=null
-            manualGoalHeading=Float.NaN;currentHeading=Float.NaN;headingBubble.isEnabled=false
-            previewReady = false
+            waypointGuide.reset()
+            manualGoalHeading=Float.NaN;manualRouteHeading=false;currentHeading=Float.NaN;headingBubble.isEnabled=false
+            previewReady = true;arrowSupported = false;arrowStopped = false;arrowRadians = 0f
             possibleObstacle = false
             lastFrameTimestamp = 0L
-            arrow.text = "…"
+            arrow.text = "Hold"
             arrow.contentDescription = "Starting camera tracking"
             review.isEnabled = false
             message.text = "Finding Entrance Hall direction · obstacle scan active…"
@@ -332,7 +347,7 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer, Sensor
     override fun onPause() {
         running = false
         previewReady = false
-        targetX=null;targetZ=null
+        waypointGuide.reset()
         sensors.unregisterListener(this);locations.removeUpdates(this);compassHeading=Double.NaN
         possibleObstacle = false
         surface.onPause()
@@ -360,8 +375,8 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer, Sensor
             chevrons.invalidate()
             reason = resultReason
             message.visibility = View.VISIBLE
-        message.text = text
-            arrow.text = "…"
+            message.text = text
+            arrow.text = "Hold"
             arrow.contentDescription = "Depth unavailable"
             review.isEnabled = false
         }
@@ -422,10 +437,10 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer, Sensor
                 if (now - lastUiAt >= 200) {
                     lastUiAt = now
                     runOnUiThread {
-                        previewReady = false
+                        previewReady = true;arrowSupported = false;arrowRadians = 0f
                         chevrons.invalidate()
                         review.isEnabled = false
-                        arrow.text = "…"
+                        arrow.text = "Hold"
                         arrow.contentDescription = "Waiting for camera frame"
                         message.text = "Waiting for a new camera frame…"
                     }
@@ -472,24 +487,20 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer, Sensor
             poseReady = true
             val heading = kotlin.math.atan2(-camera.pose.zAxis[0],camera.pose.zAxis[2])
             val compassReady=compassHeading.isFinite() && SystemClock.elapsedRealtime()-compassAt < 3000
-            val fix=locationFix
-            if (targetX == null && compassReady && fix != null && SystemClock.elapsedRealtimeNanos()-fix.elapsedRealtimeNanos in 0L..10_000_000_000L) {
-                val bearing=LibraryExitGeometry.bearing(fix.latitude,fix.longitude,fix.accuracy.toDouble(),entrance)
-                if (bearing.isFinite()) {
-                    val distance=LibraryExitGeometry.distance(fix.latitude,fix.longitude,entrance).toFloat()
-                    val offset=(bearing-compassHeading).toFloat()
-                    val goal=heading+kotlin.math.atan2(kotlin.math.sin(offset),kotlin.math.cos(offset))
-                    targetX=camera.pose.tx()+distance*kotlin.math.sin(goal)
-                    targetZ=camera.pose.tz()-distance*kotlin.math.cos(goal)
-                }
-            }
-            relative=if (!intent.getBooleanExtra("exitDemo",false)) 0f else if (targetX != null && compassReady) {
-                val goal=kotlin.math.atan2(targetX!!-camera.pose.tx(),camera.pose.tz()-targetZ!!)
-                kotlin.math.atan2(kotlin.math.sin(goal-heading),kotlin.math.cos(goal-heading))
-            } else Float.NaN
-            if (targetX != null && kotlin.math.hypot(targetX!!-camera.pose.tx(),targetZ!!-camera.pose.tz()) < 4f) relative=Float.NaN
             currentHeading = heading
-            if(manualGoalHeading.isFinite()) relative = kotlin.math.atan2(kotlin.math.sin(manualGoalHeading-heading),kotlin.math.cos(manualGoalHeading-heading))
+            pendingStartId?.let { id ->
+                waypointGuide.selectStart(id)
+                pendingStartId = null; manualGoalHeading = Float.NaN; manualRouteHeading = false
+            }
+            relative = if(!intent.getBooleanExtra("exitDemo",false)) 0f else if(guessedFloor == "2F") {
+                waypointGuide.update(camera.pose.tx().toDouble(),camera.pose.tz().toDouble(),heading.toDouble(),
+                    if(compassReady) heading-compassHeading else Double.NaN).toFloat()
+            } else Float.NaN
+            if(manualGoalHeading.isFinite() && guessedFloor == "2F") {
+                waypointGuide.align(camera.pose.tx().toDouble(),camera.pose.tz().toDouble(),heading.toDouble(),manualGoalHeading.toDouble())
+                manualGoalHeading = Float.NaN
+                relative = waypointGuide.update(camera.pose.tx().toDouble(),camera.pose.tz().toDouble(),heading.toDouble()).toFloat()
+            }
             if (!usesDepth) {
                 val observation=inspectCamera(frame,relative)
                 blocked=observation.possibleObstacle
@@ -542,10 +553,10 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer, Sensor
                     message.text = if (intent.getBooleanExtra("exitDemo",false) && !relative.isFinite()) "Finding location/compass · obstacle scan active. Exit direction unavailable." else text
                     headingBubble.isEnabled = poseReady
                     val guessedDirection = if(!relative.isFinite()) "Unknown" else if(kotlin.math.abs(relative) < Math.PI/6) "Ahead" else "${Math.toDegrees(kotlin.math.abs(relative).toDouble()).toInt()}° ${if(relative > 0) "right" else "left"}"
-                    headingBubble.text = "Exit ${if(manualGoalHeading.isFinite()) "direction" else "guess"} · $guessedDirection · Edit"
-                    previewReady = poseReady && direction != DepthObstacleClassifier.Direction.SCAN
+                    headingBubble.text = "Next ${if(manualRouteHeading) "direction" else "guess"} · $guessedDirection · Edit"
+                    previewReady = true
                     arrowSupported = direction in listOf(DepthObstacleClassifier.Direction.FORWARD,DepthObstacleClassifier.Direction.CHECK_LEFT,DepthObstacleClassifier.Direction.CHECK_RIGHT)
-                    arrowStopped = direction == DepthObstacleClassifier.Direction.STOP
+                    arrowStopped = direction == DepthObstacleClassifier.Direction.STOP || (blocked && direction == DepthObstacleClassifier.Direction.SCAN)
                     arrowRadians = when (direction) {
                         DepthObstacleClassifier.Direction.CHECK_LEFT -> -Math.PI.toFloat()/3
                         DepthObstacleClassifier.Direction.CHECK_RIGHT -> Math.PI.toFloat()/3
@@ -563,6 +574,8 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer, Sensor
                         DepthObstacleClassifier.Direction.STOP -> "Stop"
                         DepthObstacleClassifier.Direction.SCAN -> "Hold"
                     }
+                    if(intent.getBooleanExtra("exitDemo",false) && waypointGuide.complete) arrow.text = "Check exit doors"
+                    else if(intent.getBooleanExtra("exitDemo",false) && guessedFloor != "2F") arrow.text = "2F demo only"
                     arrow.contentDescription = arrow.text
                     review.isEnabled = possibleObstacle
                 }
