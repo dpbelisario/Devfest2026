@@ -6,7 +6,7 @@ import SwiftUI
 
 final class GeographicOverlayTests: XCTestCase {
     @MainActor
-    func testCurrentAppHasVisibleNativeOverlayEntryAndPresentsEditor() throws {
+    func testMainMapUsesFullHeightAndSeparateActionPresentsEditor() throws {
         let delegate = try XCTUnwrap(UIApplication.shared.delegate as? AppDelegate)
         let root = try XCTUnwrap(delegate.window?.rootViewController as? ContourViewController)
         root.loadViewIfNeeded()
@@ -15,13 +15,10 @@ final class GeographicOverlayTests: XCTestCase {
             if let button = view as? UIButton, button.accessibilityIdentifier == "nativeFloorOverlayButton" { return button }
             return view.subviews.lazy.compactMap { findButton(in: $0) }.first
         }
-        let button = try XCTUnwrap(findButton(in: root.view))
-        XCTAssertFalse(button.isHidden)
-        XCTAssertGreaterThanOrEqual(button.bounds.height, 44)
-        let frame = button.convert(button.bounds, to: root.view)
-        XCTAssertTrue(root.view.safeAreaLayoutGuide.layoutFrame.contains(frame))
+        XCTAssertNil(findButton(in:root.view))
+        XCTAssertEqual(root.web.frame.maxY,root.view.safeAreaLayoutGuide.layoutFrame.maxY,accuracy:1)
         if #available(iOS 17.0, *) {
-            button.sendActions(for: .touchUpInside)
+            root.perform(NSSelectorFromString("openFloorOverlay"))
             XCTAssertTrue(root.presentedViewController is UIHostingController<NativeFloorOverlay>)
             root.dismiss(animated: false)
         }
