@@ -78,6 +78,8 @@ test("notification status and earthquake test use the native bridge", () => {
 
 test("obstacle scanning uses the native camera bridge without location requests", () => {
   const { context: p, sent } = page();
+  p.ContourBridge.startLibraryExitAR();
+  assert.equal(sent.at(-1).action, "startLibraryExitAR");
   p.ContourBridge.startObstacleScan();
   assert.equal(sent.at(-1).action, "startObstacleScan");
   p.ContourBridge.stopObstacleScan();

@@ -124,10 +124,10 @@ final class ContourViewController: UIViewController, WKNavigationDelegate, WKUID
     private func openLaunchDemoIfReady() {
         guard launchObstacleDemo, pageReady, UIApplication.shared.applicationState == .active else { return }
         launchObstacleDemo = false
-        startObstacleScan()
+        startObstacleScan(exitDemo: true)
     }
 
-    private func startObstacleScan() {
+    private func startObstacleScan(exitDemo: Bool = false) {
         guard presentedViewController == nil, UIApplication.shared.applicationState == .active else { return }
         let generation = sessionGeneration
         AVCaptureDevice.requestAccess(for: .video) { [weak self] granted in
@@ -135,6 +135,7 @@ final class ContourViewController: UIViewController, WKNavigationDelegate, WKUID
                 guard let self, self.pageReady, generation == self.sessionGeneration, self.presentedViewController == nil, UIApplication.shared.applicationState == .active else { return }
                 guard granted else { self.call("contourObstacle", [["status": "unknown", "reason": "camera-denied"]]); return }
                 let scanner = ObstacleScanViewController()
+                scanner.exitDemo = exitDemo
                 scanner.modalPresentationStyle = .fullScreen
                 scanner.completion = { [weak self] status, reason in
                     guard let self, generation == self.sessionGeneration else { return }
@@ -213,6 +214,7 @@ final class ContourViewController: UIViewController, WKNavigationDelegate, WKUID
         guard message.frameInfo.isMainFrame, isOurs(message.frameInfo.securityOrigin), isOurs(web.url),
               let body = message.body as? [String: Any], let action = body["action"] as? String else { return }
         switch action {
+        case "startLibraryExitAR": startObstacleScan(exitDemo: true)
         case "startObstacleScan": startObstacleScan()
         case "stopObstacleScan": obstacleScanner?.pause(); obstacleScanner?.dismiss(animated: false)
         case "locationStart":

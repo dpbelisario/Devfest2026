@@ -56,6 +56,7 @@
     if (window.onAlertSetupChanged) window.onAlertSetupChanged();
   };
   window.ContourBridge = {
+    startLibraryExitAR: () => send("startLibraryExitAR"),
     startObstacleScan: () => send("startObstacleScan"),
     stopObstacleScan: () => send("stopObstacleScan"),
     alertSetupStatus: () => JSON.stringify({ notifications }),

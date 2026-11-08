@@ -2,6 +2,13 @@ import XCTest
 @testable import Contour
 
 final class ContourTests: XCTestCase {
+    func testContinuousDemoDirectionRequiresObservedSide() {
+        XCTAssertEqual(ObstacleProbe.guidance(center:.farther,left:.unknown,right:.unknown,relative:0),"forward")
+        XCTAssertEqual(ObstacleProbe.guidance(center:.farther,left:.farther,right:.near,relative:1),"left")
+        XCTAssertEqual(ObstacleProbe.guidance(center:.farther,left:.unknown,right:.unknown,relative:1),"scan")
+        XCTAssertEqual(ObstacleProbe.guidance(center:.near,left:.near,right:.near,relative:0),"stop")
+        XCTAssertEqual(ObstacleProbe.guidance(center:.farther,left:.farther,right:.farther,relative:.nan),"scan")
+    }
     func testRelativeObstacleDirectionsStopOnUnknownEvidence() {
         XCTAssertEqual(ObstacleProbe.cue(center: .farther, left: .unknown, right: .unknown), "forward")
         XCTAssertEqual(ObstacleProbe.cue(center: .near, left: .farther, right: .near), "left")
@@ -11,6 +18,7 @@ final class ContourTests: XCTestCase {
         XCTAssertEqual(ObstacleProbe.cue(center: .unknown, left: .farther, right: .farther), "scan")
     }
     func testObstacleEvidenceNeverTreatsMissingDepthAsClear() {
+        XCTAssertEqual(ObstacleProbe.depthEvidence([0.8]+Array(repeating: 2.5,count:24)), .unknown)
         XCTAssertFalse(ObstacleProbe.closeDepth([]))
         XCTAssertFalse(ObstacleProbe.closeDepth(Array(repeating: .nan, count: 40)))
         XCTAssertFalse(ObstacleProbe.closeDepth(Array(repeating: 0, count: 40)))

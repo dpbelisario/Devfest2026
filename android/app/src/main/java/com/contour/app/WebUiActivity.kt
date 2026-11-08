@@ -77,10 +77,10 @@ class WebUiActivity : ComponentActivity() {
         web.evaluateJavascript("window.contourObstacle && window.contourObstacle($payload)", null)
     }
 
-    private fun startObstacleScan() {
+    private fun startObstacleScan(exitDemo: Boolean = false) {
         if (!pageReady || !isOurs(web.url?.let { Uri.parse(it).host }) || obstaclePageUrl != null) return
         obstaclePageUrl = web.url
-        obstacleScan.launch(Intent(this, com.contour.app.ar.ObstacleScanActivity::class.java))
+        obstacleScan.launch(Intent(this, com.contour.app.ar.ObstacleScanActivity::class.java).putExtra("exitDemo", exitDemo))
     }
 
     // ----- Emergency pop-up: an alert waiting for the page, and the page's load state.
@@ -193,6 +193,9 @@ class WebUiActivity : ComponentActivity() {
                 )
             }
         }
+
+        @android.webkit.JavascriptInterface
+        fun startLibraryExitAR() { activity.runOnUiThread { activity.startObstacleScan(exitDemo = true) } }
 
         @android.webkit.JavascriptInterface
         fun startObstacleScan() { activity.runOnUiThread { activity.startObstacleScan() } }

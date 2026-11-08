@@ -1321,7 +1321,7 @@ window.ContourLibrary = {
   // ----- language (English by default). Each entry: [en, ja, zh, ko]
   const LANGS = { en: { label: "English", loc: "en-US", i: 0 }, ja: { label: "日本語", loc: "ja-JP", i: 1 }, zh: { label: "中文", loc: "zh-CN", i: 2 }, ko: { label: "한국어", loc: "ko-KR", i: 3 } };
   const D = {
-    "lib.entry": ["Indoor exit / obstacle AR", "館内出口 / 障害物AR", "室内出口 / 避障AR", "실내 출구 / 장애물 AR"],
+    "lib.entry": ["3D AR · Library exit", "3D AR · 図書館出口", "3D AR · 图书馆出口", "3D AR · 도서관 출구"],
     "lib.level": ["Inside library · exit on 2F", "図書館内 · 出口は2F", "图书馆内 · 出口在2F", "도서관 내부 · 출구는2F"],
     "lib.relative": ["Relative obstacle arrows · demo (no location)", "相対障害物矢印 · デモ（測位なし）", "相对避障箭头 · 演示（无定位）", "상대 장애물 화살표 · 데모 (위치 추적 없음)"],
     "lib.plan3d": ["3D floor-plan preview", "3Dフロアマップ表示", "3D楼层地图预览", "3D 층별 지도 미리보기"],
@@ -2626,7 +2626,7 @@ window.ContourLibrary = {
   // nearest exit first, then 3D AR to the site once outside. No = 3D AR straight away.
   function goAR(p) {
     if (!p) return;
-    if (p.id === "library") { closeAR(); return openLibraryMaps(p); }
+    if (p.id === "library") { closeAR(); if (typeof window.ContourBridge?.startLibraryExitAR === "function") return ContourBridge.startLibraryExitAR(); if (typeof window.ContourBridge?.startObstacleScan === "function") return ContourBridge.startObstacleScan(); return openLibraryMaps(p); }
     if (mode !== "evac" || p.building || !hasIndoor()) return openAR(p);
     askQ({
       title: t("q.inside"), body: t("q.inside.b", { s: pTitle(p) }), yes: t("q.inside.yes"), no: t("q.inside.no"),

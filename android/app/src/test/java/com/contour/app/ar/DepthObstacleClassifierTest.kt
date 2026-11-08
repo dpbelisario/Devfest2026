@@ -37,6 +37,23 @@ class DepthObstacleClassifierTest {
         assertEquals(DepthObstacleClassifier.Direction.CHECK_RIGHT, stable(far, near, IntArray(25) { 5000 }).direction)
     }
 
+    @Test fun demoExitBearingOnlyTurnsTowardObservedSide() {
+        data class Case(val left:IntArray,val right:IntArray,val relative:Float,val expected:DepthObstacleClassifier.Direction)
+        for ((left, right, relative, expected) in listOf(
+            Case(far, near, 1f, DepthObstacleClassifier.Direction.CHECK_LEFT),
+            Case(unknown, unknown, 1f, DepthObstacleClassifier.Direction.SCAN),
+            Case(far, far, -1f, DepthObstacleClassifier.Direction.CHECK_LEFT),
+        )) {
+            val classifier = DepthObstacleClassifier()
+            var result = DepthObstacleClassifier.Observation(false, DepthObstacleClassifier.Direction.SCAN)
+            for (index in 0..2) {
+                val time = start + index*100_000_000L
+                result = classifier.update(left, far, right, time,time,true,0f,relative)
+            }
+            assertEquals(expected,result.direction)
+        }
+    }
+
     @Test fun aNewObstacleImmediatelyRemovesTheForwardArrow() {
         val classifier = DepthObstacleClassifier()
         for (index in 0..2) {

@@ -79,8 +79,7 @@ walk results on GitHub issue #3. An installed build does not prove route accurac
 ## Relative obstacle-arrow release
 
 The standalone camera demo lives on `release/obstacle-avoidance-ar`. Open the
-library card's **Indoor exit / obstacle AR** action, then **Relative obstacle
-arrows · demo**. No checkpoint or cloud localization is needed for this local
+library card's **3D AR · Library exit** action directly. No checkpoint or cloud localization is needed for this local
 experiment. The native shell must be rebuilt/installed; a hosted HTML update
 alone cannot add ARKit/ARCore code. Both shells share the same entry and floor
 preview. Three.js r128 is bundled with its MIT notice for offline 3D previews.
@@ -96,3 +95,27 @@ xcrun devicectl --timeout 30 device process launch --terminate-existing \
 
 This explicit launch uses the bundled page and opens the native scanner. Ordinary
 launches continue using the hosted page with bundled fallback.
+
+## LiDAR exit update
+
+The current iOS main action is **Library exit AR**, opening native ARKit directly.
+A LiDAR device is required; the XS Max camera fallback is disabled for this mode.
+The connected iPhone 14 Pro was paired with Developer Mode enabled; its signed
+build works with this Mac's Xcode16.4 despite reporting iOS27.0.1. This is a
+verified device-specific result, not a claim that all newer iOS devices work with
+that Xcode. No Xcode or OS upgrade was needed for this phone.
+
+The first usable camera pose automatically supplies the demo's assumed exit
+bearing. No map point, floor, alignment or checkpoint confirmation is requested.
+This is explicitly a local obstacle-arrow experiment; the true exit bearing and
+absolute floor-map pose are not measured. iOS uses LiDAR/ARKit; Android uses
+ARCore Depth. Both native shells must be rebuilt for the bridge and camera changes.
+
+To replicate: change the shared HTML/native sources, run `npm run build`, verify
+`git diff --check`, run native checks, commit the generated shared page and push
+owner `main`. Existing Cloud Build triggers publish Hosting and the Android APK
+to Firebase group `team-david`. Wait for SUCCESS and retrieve release metadata
+before announcing availability. Build/sign/install iOS with
+`scripts/install-ios-device.sh` onto the connected LiDAR phone. Free Personal Team
+signing cannot distribute an iOS IPA over Firebase OTA; installation stays local.
+The direct CLI launch above bypasses old hosted UI while deployment is pending.

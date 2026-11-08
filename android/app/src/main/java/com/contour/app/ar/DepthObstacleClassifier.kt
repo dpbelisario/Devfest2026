@@ -23,8 +23,9 @@ class DepthObstacleClassifier {
         depthTimestamp: Long,
         tracking: Boolean,
         forwardY: Float,
+        relativeGoal: Float = 0f,
     ): Observation {
-        if (!tracking || !forwardY.isFinite() || abs(forwardY) > 0.34f ||
+        if (!tracking || !relativeGoal.isFinite() || !forwardY.isFinite() || abs(forwardY) > 0.34f ||
             depthTimestamp <= 0 || frameTimestamp - depthTimestamp !in 0L..200_000_000L ||
             depthTimestamp < lastDepthTimestamp) {
             reset()
@@ -48,7 +49,16 @@ class DepthObstacleClassifier {
             nearFrames++
         }
         val next = when {
-            ahead.farther -> Direction.FORWARD
+            ahead.farther && abs(relativeGoal) <= Math.PI.toFloat()/6 -> Direction.FORWARD
+            ahead.farther -> {
+                val desired = if (relativeGoal > 0) rightView else leftView
+                val other = if (relativeGoal > 0) leftView else rightView
+                when {
+                    desired.farther -> if (relativeGoal > 0) Direction.CHECK_RIGHT else Direction.CHECK_LEFT
+                    desired.near && other.farther -> if (relativeGoal > 0) Direction.CHECK_LEFT else Direction.CHECK_RIGHT
+                    else -> Direction.SCAN
+                }
+            }
             !ahead.near -> Direction.SCAN
             leftView.farther && rightView.farther ->
                 if (leftView.lowerDepth >= rightView.lowerDepth) Direction.CHECK_LEFT else Direction.CHECK_RIGHT

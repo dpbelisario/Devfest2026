@@ -7,31 +7,31 @@ solve a maze, prove a complete route clear or locate the phone on the map.
 
 ## Implemented flow
 
-1. Open the native direction demo from the library screen. No checkpoint is
-   required for the local camera-relative experiment. A rough location such as
-   “top right” is not treated as a calibrated camera pose.
-2. Release the WebView camera and open the native view. The native
-   view handles permission/support checks and displays the camera. Move the
-   phone slowly while keeping it level and facing the passage in question.
-3. Wait for usable observations. On supported Android, sustained farther centre
-   depth allows a relative forward arrow. A near centre suppresses that arrow;
-   farther side observations can suggest **Check left/right**. Near surfaces on
-   both sides produce **Stop**. Unknown observations ask the user to scan. These
-   cues suggest where to look, not a command to walk blindly.
-4. Optionally return to the library map for a longer reroute. Confirm the actual
-   current checkpoint and the passage that is blocked. The
-   map request excludes that graph edge in both directions and searches the
-   existing route graph again. The sensor cannot select the map edge for the user.
-5. If an alternate plan exists, review it and recheck the directional alignment.
-   If no route remains, keep navigation paused. An HTTP 422 no-path result does
-   not justify following the excluded passage or inventing a connection.
+1. Open **01 Central Library → 3D AR · Library exit**. Native camera permission
+   and device capability checks are the only prerequisites. No extra setup UI.
+2. On the first usable level camera pose, retain its world heading as the
+   assumed exit direction. Animated chevrons appear immediately, amber while
+   waiting for depth, then white when current observations support the cue.
+3. Continuous depth updates suppress forward guidance at an observed blocker,
+   choose left/right only with farther observations on the chosen side, and
+   stop when sampled directions are blocked. Turning the phone updates the
+   retained goal's relative direction. Unknown/stale/tilted tracking pauses
+   walking guidance; interruptions reset the AR session and assumed heading.
+4. Close to return. No checkpoint or per-obstacle confirmation is required.
 
-The scan arrows are relative to the current camera view. They are not registered
-to a world waypoint or library destination. They only react to the local view;
-a turn may reveal another obstacle or a dead end. There is no automatic back
-arrow because the rear is unobserved. Map-route direction resumes only through
-the existing checkpoint/heading checks after returning. The official drawing
-and graph edges remain plan previews until surveyed.
+The initial bearing is a user-authorized demo assumption, not a localization
+result. The phone cannot know where the library entrance is from a floor image
+or LiDAR alone. The chevrons reuse the normal AR design: five pulsing chevrons
+on a camera-relative 3D plane on iOS and a perspective camera overlay on Android.
+The local detector does not solve a maze or certify passage. No automatic rear
+arrow is generated because the rear is unobserved.
+
+The previous map/photo/checkpoint tools remain in **Details → Library floor
+maps**, with optional obstacle review and server-validated blocked-edge reroutes.
+That separate flow still needs a physically confirmed checkpoint and manually
+calibrated heading. No code automatically fuses a photo candidate, IndoorAtlas's
+Room221 pose or an uncaptured Cloud Anchor into the demo. A surveyed and registered
+library pose would be needed to replace the startup assumption.
 
 ## What each phone measures
 
@@ -49,16 +49,18 @@ support Depth, or that Depth detects every obstruction.
 [ARCore Depth](https://developers.google.com/ar/develop/depth),
 [Android Depth guide](https://developers.google.com/ar/develop/java/depth/developer-guide).
 
-iPhone uses a native ARKit session. On a supported LiDAR device, scene depth can
-provide denser measurements, gated by device capability, depth confidence and
-freshness. The XS Max has no LiDAR, so its implementation uses sparse tracked
-feature points and detected vertical-plane geometry as a weaker indication of
-a nearby surface. Plain shelves, glass, small objects, moving people and surfaces
-without reliable features may be missed. Sparse geometry is not a dense scan.
-Apple requires a LiDAR-capable device for scene reconstruction and requires
-checking support before enabling it.
-[Apple capability requirement](<https://developer.apple.com/documentation/arkit/arworldtrackingconfiguration/supportsscenereconstruction(_:)>),
-[plane-geometry raycast target](https://developer.apple.com/documentation/arkit/arraycastquery/target-swift.enum/existingplanegeometry).
+iPhone requires LiDAR for the current native exit demo. ARKit scene depth
+checks left/centre/right, requiring high-confidence samples and a fresh,
+normally tracked, nearly level frame. Scene reconstruction shows nearby surfaces
+as a translucent mesh; the arrow is a SceneKit object. No map tap, face-checkpoint
+alignment or per-waypoint confirmation exists on this demo screen.
+
+The iPhone 14 Pro supports this mode. The XS Max is now explicitly unsupported:
+its former sparse camera fallback was removed from the exit demo. No opaque
+surface is treated as free when depth is missing. Apple requires capability
+checks for scene depth and mesh reconstruction.
+[Apple scene reconstruction capability](<https://developer.apple.com/documentation/arkit/arworldtrackingconfiguration/supportsscenereconstruction(_:)>),
+[ARKit scene depth](https://developer.apple.com/documentation/arkit/arframe/scenedepth).
 
 On both platforms, the distance is relative to the camera, not the user's body
 or a mapped door. An obstacle outside the sampled view, below the sampled region
@@ -102,7 +104,7 @@ edge exclusions, an alternate library route and no-path handling. Direction test
 cover observed forward space, left/right checks, blocked sides, unknown depth,
 and immediate removal of a forward arrow when a near surface appears. Build/lint and
 simulator checks cannot establish physical obstacle detection. Test the actual
-XS Max and supported Android at the library: preview orientation, permission
+LiDAR iPhone and supported Android at the library: preview orientation, permission
 denial, foreground/background transitions, a visible wall/shelf, a low obstacle,
-glass, changes in lighting, and confirmation of the correct map segment. These
+glass, changes in lighting, and opening bearing consistency. These
 checks remain required before depending on this feature in the field.

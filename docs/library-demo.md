@@ -1,13 +1,29 @@
 # Central Library exit and stairs preview
 
-Central Library is building **01** at the fixed demo position. GPS mode orders
-buildings by actual distance. Open its **Indoor exit / obstacle AR** action (or Details → Library floor maps).
-The library card opens indoor guidance directly; other buildings retain their
-outdoor directions. **Relative obstacle arrows · demo** starts without a known
-position. It reacts to the camera view and does not know which direction the
-library exit lies. See [obstacle-avoidance-ar.md](obstacle-avoidance-ar.md).
-**3D floor-plan preview** places the official image and inferred checkpoints in a
-rotatable 3D scene. It does not reconstruct walls/shelves or register the camera.
+Central Library is building **01** at the fixed demo position. Open its
+**3D AR · Library exit** button. This directly opens the native exit-arrow demo
+on iOS and Android, with no floor picker, checkpoint, alignment button or
+confirmation step. The destination label is **Exit · 2F entrance**. Five animated
+white chevrons match the normal AR screen and update continuously around local
+depth observations. Amber chevrons show orientation only while depth is unknown;
+blocked/uncertain observations never produce a forward instruction.
+
+For this explicitly requested demo, the opening camera direction is assumed to
+point toward the exit and is retained in the AR session as the phone turns.
+This is not a measured bearing to the entrance. Opening elsewhere or facing the
+wrong direction produces the wrong goal. It does not locate a seat, change floors,
+solve a maze or confirm arrival. iOS requires LiDAR; Android requires ARCore Depth.
+After backgrounding, a new session assumes the new opening direction.
+
+Previous localization and map tools remain separate: **Details → Library floor
+maps** opens official maps, manually confirmed exit/stairs paths, photo landmark
+suggestions and the 3D image/graph preview. No valid registered library pose is
+available to automatically replace the demo assumption. Room221 IndoorAtlas
+work and the Cloud Anchor design are not silently used as library localization.
+The 3D preview reconstructs no walls/shelves and is not camera-registered.
+See [obstacle-avoidance-ar.md](obstacle-avoidance-ar.md).
+
+## Optional map and localization flow
 
 1. Select your current floor: B1, 1F, 2F, 3F or 4F.
 2. Optionally tap **Identify a landmark · take photo**. The photo is sent to

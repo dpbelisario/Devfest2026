@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.Path
 import android.opengl.GLES11Ext
 import android.opengl.GLES20
 import android.opengl.GLSurfaceView
@@ -47,6 +48,12 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer {
     private lateinit var surface: GLSurfaceView
     private lateinit var message: TextView
     private lateinit var arrow: TextView
+    private lateinit var chevrons: View
+    private var goalYaw: Float? = null
+    private var arrowRadians = 0f
+    private var arrowSupported = false
+    private var arrowStopped = false
+    private var previewReady = false
     private lateinit var review: Button
     @Volatile private var session: Session? = null
     @Volatile private var running = false
@@ -95,29 +102,46 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer {
             setRenderer(this@ObstacleScanActivity)
         }
         root.addView(surface, FrameLayout.LayoutParams(-1, -1))
-        root.addView(object : View(this) {
-            private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                color = Color.WHITE; style = Paint.Style.STROKE; strokeWidth = 3f
-            }
+        chevrons = object : View(this) {
+            private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+            private val path = Path()
             override fun onDraw(canvas: Canvas) {
-                for (sector in 0..2) {
-                    val left = 0.1f + sector * 0.3f
-                    canvas.drawRect(width * left, height * 0.4f, width * (left + 0.2f), height * 0.6f, paint)
+                if (!previewReady || arrowStopped) return
+                canvas.save()
+                canvas.translate(width*0.5f,height*0.65f)
+                canvas.rotate(Math.toDegrees(arrowRadians.toDouble()).toFloat())
+                for (index in 0..4) {
+                    canvas.save()
+                    val scale = width/450f * (1f-index*0.12f)
+                    canvas.translate(0f,-index*height*0.055f)
+                    canvas.scale(scale,scale*0.5f)
+                    path.reset()
+                    path.moveTo(0f,-50f); path.lineTo(34f,-16f); path.lineTo(22f,-4f)
+                    path.lineTo(0f,-26f); path.lineTo(-22f,-4f); path.lineTo(-34f,-16f); path.close()
+                    paint.style=Paint.Style.FILL
+                    paint.color=if (arrowSupported) Color.WHITE else 0xFFFFA726.toInt()
+                    paint.alpha=(120+100*(0.5+0.5*kotlin.math.sin(SystemClock.uptimeMillis()/270.0-index*0.6))).toInt()
+                    canvas.drawPath(path,paint)
+                    paint.style=Paint.Style.STROKE;paint.color=Color.BLACK;paint.strokeWidth=2f
+                    canvas.drawPath(path,paint)
+                    canvas.restore()
                 }
+                canvas.restore()
+                postInvalidateOnAnimation()
             }
-        }, FrameLayout.LayoutParams(-1, -1))
+        }
+        root.addView(chevrons,FrameLayout.LayoutParams(-1,-1))
         val instruction = TextView(this).apply {
-            text = "Camera-relative direction check\nHold the camera level and move slowly. Arrows suggest where to look; they do not prove safe passage."
+            text = "3D AR · Library exit\nExit · 2F entrance · demo"
             setTextColor(Color.WHITE); textSize = 19f
             setPadding(24, 24, 24, 24); setBackgroundColor(0xCC000000.toInt())
         }
         root.addView(instruction, FrameLayout.LayoutParams(-1, -2, Gravity.TOP))
         arrow = TextView(this).apply {
-            text = "…"; textSize = 76f; gravity = Gravity.CENTER
+            text = "Scan slowly"; textSize = 22f; gravity = Gravity.CENTER
             setTextColor(Color.WHITE); setShadowLayer(5f, 0f, 2f, Color.BLACK)
             contentDescription = "Scanning for depth"
         }
-        root.addView(arrow, FrameLayout.LayoutParams(-1, -2, Gravity.CENTER))
         val panel = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(24, 16, 24, 24); setBackgroundColor(0xDD000000.toInt())
@@ -137,10 +161,12 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer {
                 }
             }
         }
+        panel.addView(arrow)
         panel.addView(message)
-        panel.addView(review, LinearLayout.LayoutParams(-1, -2))
+        review.visibility = if (intent.getBooleanExtra("exitDemo",false)) View.GONE else View.VISIBLE
+        panel.addView(review,LinearLayout.LayoutParams(-1,-2))
         panel.addView(Button(this).apply {
-            text = "Back to map"
+            text = "Close"
             setOnClickListener { finishObservation("unknown", reason) }
         }, LinearLayout.LayoutParams(-1, -2))
         root.addView(panel, FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM))
@@ -188,12 +214,14 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer {
             }
             session?.resume()
             classifier.reset()
+            goalYaw = null
+            previewReady = false
             possibleObstacle = false
             lastFrameTimestamp = 0L
             arrow.text = "…"
             arrow.contentDescription = "Starting camera tracking"
             review.isEnabled = false
-            message.text = "Starting camera tracking…"
+            message.text = "Starting direction assumed · checking nearby obstacles…"
             running = true
             surface.onResume()
         } catch (_: Exception) {
@@ -203,6 +231,8 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer {
 
     override fun onPause() {
         running = false
+        previewReady = false
+        goalYaw = null
         possibleObstacle = false
         surface.onPause()
         session?.pause()
@@ -225,6 +255,8 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer {
         running = false
         possibleObstacle = false
         runOnUiThread {
+            previewReady = false
+            chevrons.invalidate()
             reason = resultReason
             message.text = text
             arrow.text = "…"
@@ -288,6 +320,8 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer {
                 if (now - lastUiAt >= 200) {
                     lastUiAt = now
                     runOnUiThread {
+                        previewReady = false
+                        chevrons.invalidate()
                         review.isEnabled = false
                         arrow.text = "…"
                         arrow.contentDescription = "Waiting for camera frame"
@@ -321,6 +355,8 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer {
 
     private fun inspectDepth(frame: Frame) {
         val camera = frame.camera
+        var relative = 0f
+        var poseReady = false
         var blocked = false
         var direction = DepthObstacleClassifier.Direction.SCAN
         var text = "No reliable obstruction result. This does not mean the path is clear."
@@ -331,6 +367,11 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer {
             classifier.reset()
             text = "Hold the camera level, facing the path ahead."
         } else {
+            poseReady = true
+            val heading = kotlin.math.atan2(-camera.pose.zAxis[0],camera.pose.zAxis[2])
+            // shortcut: opening camera bearing is the demo exit direction, replace with registered library pose.
+            if (goalYaw == null) goalYaw = heading
+            relative = kotlin.math.atan2(kotlin.math.sin(goalYaw!!-heading),kotlin.math.cos(goalYaw!!-heading))
             try {
                 frame.acquireDepthImage16Bits().use { image ->
                     sampleCoordinates.rewind(); sampleTextureCoordinates.rewind()
@@ -350,13 +391,13 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer {
                         val offset = y * plane.rowStride + x * plane.pixelStride
                         depths[i / 25][i % 25] = if (offset + 1 < bytes.limit()) bytes.getShort(offset).toInt() and 0xffff else 0
                     }
-                    val observation = classifier.update(depths[0], depths[1], depths[2], frame.timestamp, image.timestamp, true, -camera.pose.zAxis[1])
+                    val observation = classifier.update(depths[0], depths[1], depths[2], frame.timestamp, image.timestamp, true, -camera.pose.zAxis[1], relative)
                     blocked = observation.possibleObstacle
                     direction = observation.direction
                     text = when (direction) {
-                        DepthObstacleClassifier.Direction.FORWARD -> "Farther surfaces observed ahead. Look before moving; only this visible area was checked."
-                        DepthObstacleClassifier.Direction.CHECK_LEFT -> "Close surface ahead. Check left; farther depth was observed on that side."
-                        DepthObstacleClassifier.Direction.CHECK_RIGHT -> "Close surface ahead. Check right; farther depth was observed on that side."
+                        DepthObstacleClassifier.Direction.FORWARD -> "Exit · 2F entrance · assumed direction. Check the real path as you move."
+                        DepthObstacleClassifier.Direction.CHECK_LEFT -> "Turn left · farther surfaces observed. Check the real path."
+                        DepthObstacleClassifier.Direction.CHECK_RIGHT -> "Turn right · farther surfaces observed. Check the real path."
                         DepthObstacleClassifier.Direction.STOP -> "Stop and look around. No supported turn suggestion yet. The space behind you was not checked."
                         DepthObstacleClassifier.Direction.SCAN -> if (blocked) "Close surface ahead. Scan left and right; side clearance is unknown." else "Scan slowly. There is not enough depth evidence for a direction."
                     }
@@ -375,12 +416,21 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer {
             runOnUiThread {
                 if (!unavailable && !isFinishing) {
                     message.text = text
+                    previewReady = poseReady
+                    arrowSupported = direction != DepthObstacleClassifier.Direction.SCAN
+                    arrowStopped = direction == DepthObstacleClassifier.Direction.STOP
+                    arrowRadians = when (direction) {
+                        DepthObstacleClassifier.Direction.CHECK_LEFT -> -Math.PI.toFloat()/3
+                        DepthObstacleClassifier.Direction.CHECK_RIGHT -> Math.PI.toFloat()/3
+                        else -> relative
+                    }
+                    chevrons.invalidate()
                     arrow.text = when (direction) {
-                        DepthObstacleClassifier.Direction.FORWARD -> "↑"
-                        DepthObstacleClassifier.Direction.CHECK_LEFT -> "↶"
-                        DepthObstacleClassifier.Direction.CHECK_RIGHT -> "↷"
-                        DepthObstacleClassifier.Direction.STOP -> "■"
-                        DepthObstacleClassifier.Direction.SCAN -> "…"
+                        DepthObstacleClassifier.Direction.FORWARD -> "Continue ahead"
+                        DepthObstacleClassifier.Direction.CHECK_LEFT -> "Turn left"
+                        DepthObstacleClassifier.Direction.CHECK_RIGHT -> "Turn right"
+                        DepthObstacleClassifier.Direction.STOP -> "Stop"
+                        DepthObstacleClassifier.Direction.SCAN -> "Scan slowly"
                     }
                     arrow.contentDescription = text
                     review.isEnabled = possibleObstacle
