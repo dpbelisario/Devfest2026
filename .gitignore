@@ -25,3 +25,5 @@ ios/Contour.xcodeproj/project.xcworkspace/contents.xcworkspacedata
 __pycache__/
 
 gha-creds-*.json
+
+.contour-gradle-cache/

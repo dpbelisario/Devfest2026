@@ -34,6 +34,25 @@ steps:
         npm test
         sha256sum --check /tmp/contour-page.sha256
 
+        # The browser download redirect can return 504; use Gradle's official release asset.
+        # shortcut: asset 207876967 is Gradle 8.11.1, update it with wrapper upgrades.
+        curl -fsSL --retry 3 --retry-all-errors --retry-delay 3 \
+          --connect-timeout 20 --max-time 180 -H 'Accept: application/octet-stream' \
+          -o /tmp/contour-gradle.zip \
+          https://api.github.com/repos/gradle/gradle-distributions/releases/assets/207876967
+        node --input-type=module <<'NODE'
+        import { readFileSync, mkdirSync, copyFileSync } from 'node:fs';
+        import { createHash } from 'node:crypto';
+        const properties = Object.fromEntries(readFileSync('android/gradle/wrapper/gradle-wrapper.properties','utf8').trim().split('\n').map(line => { const i=line.indexOf('=');return [line.slice(0,i),line.slice(i+1)]; }));
+        const archive = readFileSync('/tmp/contour-gradle.zip');
+        if (createHash('sha256').update(archive).digest('hex') !== properties.distributionSha256Sum) throw new Error('Gradle distribution checksum mismatch');
+        const url = properties.distributionUrl.replace('\\:',':');
+        const zip = new URL(url).pathname.split('/').pop();
+        const hash = BigInt('0x'+createHash('md5').update(url).digest('hex')).toString(36);
+        const target = '.contour-gradle-cache/wrapper/dists/'+zip.replace(/\.zip$/,'')+'/'+hash;
+        mkdirSync(target,{recursive:true});copyFileSync('/tmp/contour-gradle.zip',target+'/'+zip);
+        NODE
+
   - id: build-apk
     name: eclipse-temurin:17-jdk
     dir: android
@@ -65,6 +84,10 @@ steps:
 
         # API base URL for the native screens (the WebView UI gets -PcontourUiUrl below).
         printf 'EVACUATION_AR_API_BASE_URL=%s\n' "${_API_BASE_URL}" > local.properties
+
+        # Reuse the checksum-verified distribution instead of following the failing redirect.
+        mkdir -p "$$GRADLE_USER_HOME"
+        cp -R /workspace/.contour-gradle-cache/. "$$GRADLE_USER_HOME/"
 
         # Increasing versionCode (minutes since epoch) so each release is newer.
         ./gradlew --no-daemon :app:assembleDebug \
