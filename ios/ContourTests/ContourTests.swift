@@ -32,4 +32,16 @@ final class ContourTests: XCTestCase {
         XCTAssertGreaterThan(AlertHaptics.pulseSpacing, AlertHaptics.pulseDuration)
         XCTAssertLessThan(Double(AlertHaptics.pulseCount) * AlertHaptics.pulseSpacing, 10)
     }
+
+    func testSecurityOriginChecksWithoutReadingAFrameRequest() {
+        let origin = URL(string: "https://example.com/app/")!
+        for port in [0, 443] {
+            XCTAssertTrue(WebOrigin.sameOrigin(scheme: "https", host: "example.com", port: port, to: origin))
+        }
+        XCTAssertFalse(WebOrigin.sameOrigin(scheme: "https", host: "example.com", port: 444, to: origin))
+        XCTAssertFalse(WebOrigin.sameOrigin(scheme: "http", host: "example.com", port: 443, to: origin))
+        XCTAssertFalse(WebOrigin.sameOrigin(scheme: "https", host: "example.com.evil.test", port: 443, to: origin))
+        XCTAssertFalse(WebOrigin.sameOrigin(scheme: "file", host: "", port: 0, to: origin))
+        XCTAssertTrue(WebOrigin.sameOrigin(scheme: "https", host: "example.com", port: 444, to: URL(string: "https://example.com:444/app/")!))
+    }
 }
