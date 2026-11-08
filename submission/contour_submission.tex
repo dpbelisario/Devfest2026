@@ -1,0 +1,418 @@
+% ============================================================
+%  DevFest GDGoC Japan 2026 Hackathon - Submission Document
+%  Compile with: pdflatex contour_submission.tex  (run twice)
+%  Needs the icons/ folder next to this file (architecture diagram logos).
+%  Red [TBC: ...] marks = not confirmed from the repo; fill in before submitting.
+% ============================================================
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage[margin=25mm]{geometry}
+\usepackage{amssymb}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{titlesec}
+\usepackage{graphicx}
+\usepackage{tikz}
+\usepackage{float}
+\usepackage[hidelinks]{hyperref}
+
+\usetikzlibrary{positioning,arrows.meta,fit,backgrounds,calc,svg.path}
+
+% ---------- colours ----------
+\definecolor{gblue}{HTML}{1A73E8}
+\definecolor{gframe}{HTML}{BDC1C6}
+\definecolor{ghead}{HTML}{F1F3F4}
+\definecolor{gtext}{HTML}{202124}
+
+% ---------- section styling ----------
+\titleformat{\section}{\large\bfseries\color{gtext}}{\thesection.}{0.6em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection.}{0.6em}{}
+\titlespacing*{\section}{0pt}{16pt}{8pt}
+\titlespacing*{\subsection}{0pt}{10pt}{5pt}
+
+% ---------- helpers ----------
+\newcommand{\checkedbox}{\makebox[1.2em]{$\boxtimes$}}
+\newcommand{\emptybox}{\makebox[1.2em]{$\square$}}
+% not confirmed yet: shows in red so it is easy to find before submitting
+\newcommand{\tbc}[1]{\textcolor{red}{[TBC: #1]}}
+
+% a light framed block, used for the free-text answer boxes
+\newsavebox{\answerboxcontent}
+\newenvironment{answerbox}
+  {\par\vspace{4pt}\setlength{\fboxsep}{10pt}\setlength{\fboxrule}{0.4pt}%
+   \begin{lrbox}{\answerboxcontent}%
+   \begin{minipage}{\dimexpr\textwidth-2\fboxsep-2\fboxrule\relax}}
+  {\end{minipage}\end{lrbox}%
+   \noindent\fbox{\usebox{\answerboxcontent}}\par\vspace{4pt}}
+
+% table column types
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+
+\renewcommand{\arraystretch}{1.35}
+
+% bracketed part headings, e.g. [Required Items]
+\newcommand{\partheading}[1]{%
+  \vspace{14pt}\noindent{\large\bfseries [#1]}\par\vspace{4pt}%
+  \noindent\rule{\textwidth}{0.8pt}\par\vspace{2pt}}
+
+% ---------- architecture diagram (same as architecture.tex) ----------
+\graphicspath{{icons/}}
+
+%------------------------------- Colours --------------------------------------
+\definecolor{stepC}{HTML}{1A3D8F}      % dark blue step numbers
+\definecolor{ink2}{HTML}{4A524C}
+% box fills / borders by group
+\definecolor{phoneF}{HTML}{E6F4EA}  \definecolor{phoneD}{HTML}{34A853}
+\definecolor{fbF}{HTML}{FFF3E0}     \definecolor{fbD}{HTML}{FFA000}
+\definecolor{gcpF}{HTML}{E8F0FE}    \definecolor{gcpD}{HTML}{4285F4}
+\definecolor{aiF}{HTML}{F3E8FD}     \definecolor{aiD}{HTML}{8E75B2}
+\definecolor{extF}{HTML}{F1F3F4}    \definecolor{extD}{HTML}{9AA0A6}
+
+%------------------------------- Logos ----------------------------------------
+% Firebase and Android: PNG files in icons/. Gemini: vector path (simple-icons, CC0).
+\newcommand{\svglogo}[3][0.028]{%
+  \tikz[x=#1cm, y=-#1cm, baseline={([yshift=-3pt]current bounding box.center)}]
+    \fill[#2, even odd rule] svg {#3};}
+\newcommand{\firebaselogo}{\raisebox{-0.5\height}{\includegraphics[width=0.68cm]{firebase}}}
+\newcommand{\androidlogo}{\raisebox{-0.5\height}{\includegraphics[height=0.68cm]{android}}}
+% small inline platform marks for the User title
+\newcommand{\platforms}{\hspace{3pt}\raisebox{-1pt}{\includegraphics[height=0.3cm]{android}}%
+  \hspace{2pt}\raisebox{-1pt}{\includegraphics[height=0.3cm]{apple}}}
+\newcommand{\mlkitlogo}{\raisebox{-0.5\height}{\includegraphics[width=0.6cm]{mlkit}}}
+% Scheduler + Workflows: two icons stacked
+\newcommand{\jobslogos}{\begin{tabular}{@{}c@{}}\includegraphics[width=0.45cm]{cloud_scheduler}\\[1pt]
+  \includegraphics[width=0.45cm]{workflows}\end{tabular}}
+\newcommand{\geminilogo}{\svglogo{aiD}{M11.04 19.32Q12 21.51 12 24q0-2.49.93-4.68.96-2.19 2.58-3.81t3.81-2.55Q21.51 12 24 12q-2.49 0-4.68-.93a12.3 12.3 0 0 1-3.81-2.58 12.3 12.3 0 0 1-2.58-3.81Q12 2.49 12 0q0 2.49-.96 4.68-.93 2.19-2.55 3.81a12.3 12.3 0 0 1-3.81 2.58Q2.49 12 0 12q2.49 0 4.68.96 2.19.93 3.81 2.55t2.55 3.81}}
+% Simple drawn icons for the non-product boxes
+\newcommand{\usericon}{\tikz[baseline={([yshift=-3pt]current bounding box.center)}]{%
+  \fill[phoneD] (0,0.47) circle (0.14);
+  \fill[phoneD, rounded corners=3pt] (-0.25,0) rectangle (0.25,0.3);}}
+\newcommand{\docicon}{\tikz[baseline={([yshift=-3pt]current bounding box.center)}]{%
+  \draw[extD, line width=0.8pt, fill=white] (0,0) -- (0.5,0) -- (0.5,0.5) -- (0.36,0.64) -- (0,0.64) -- cycle;
+  \foreach \y in {0.15,0.27,0.39} \draw[extD, line width=0.6pt] (0.1,\y) -- (0.4,\y);}}
+\newcommand{\png}[1]{\raisebox{-0.5\height}{\includegraphics[width=0.68cm]{#1}}}
+
+% Box content: icon on the left, title + subtitle on the right
+\newcommand{\svc}[3]{%
+  \begin{tabular}{@{}m{0.6cm}@{\hspace{5pt}}>{\raggedright\arraybackslash}m{2.85cm}@{}}
+    \centering #1 & {\footnotesize\bfseries #2}\par\vspace{1pt}{\scriptsize\color{ink2}#3}
+  \end{tabular}}
+
+% Step label: dark-blue bold number, then the text
+\newcommand{\step}[2]{{\color{stepC}\bfseries\footnotesize #1}~%
+  \begin{tabular}[c]{@{}l@{}}#2\end{tabular}}
+
+
+% ============================================================
+\begin{document}
+
+% ------------------------------------------------------------
+% Title block
+% ------------------------------------------------------------
+\begin{center}
+  {\LARGE\bfseries DevFest GDGoC Japan 2026 Hackathon}\\[6pt]
+  {\large Submission Document}
+\end{center}
+\vspace{6pt}
+
+\noindent\textbf{Team Information}\par\vspace{4pt}
+\noindent
+\begin{tabularx}{\textwidth}{@{}L{4.2cm}Y@{}}
+\toprule
+Venue                  & \tbc{venue} \\
+Team Name              & \tbc{team name} \\
+Member                 & \tbc{member names} \\
+Application Name       & ``Contour'' \\
+Category               & \tbc{category, e.g.\ disaster prevention} \\
+GitHub Repository URL  & \url{https://github.com/dpbelisario/Devfest2026} \\
+\bottomrule
+\end{tabularx}
+
+\partheading{Required Items}
+
+% ------------------------------------------------------------
+\section{Project Overview}
+
+``Contour'' is a phone app that helps people in Nagoya find the nearest official
+evacuation site and get there, in their own language. It shows the city's designated
+emergency evacuation sites on a map, points the way with 3D AR arrows on the camera view,
+and answers questions through a Gemini assistant.
+
+The same app also works as a campus guide for Nagoya University students (Student mode),
+including directions to a classroom inside a building.
+
+\begin{itemize}[leftmargin=1.4em,itemsep=2pt,topsep=4pt]
+  \item \textbf{Supported languages:} English, Japanese, Chinese and Korean
+  \item \textbf{Platforms:} Android app, iOS app shell and any phone browser
+        (all show the same web page)
+  \item \textbf{Data:} 1,735 official evacuation sites for Nagoya City (GSI open data)
+        and Japan Meteorological Agency (JMA) warnings, refreshed automatically
+  \item \textbf{Reliability:} Only official designations are shown. Opening status and
+        capacity stay ``unknown'' instead of being guessed, and the assistant points
+        users to official instructions.
+\end{itemize}
+
+% ------------------------------------------------------------
+\section{Problems Addressed}
+
+\subsection{Target Users}
+\begin{itemize}[leftmargin=1.4em,itemsep=2pt,topsep=4pt]
+  \item Foreign residents, visitors and international students in Nagoya
+  \item Nagoya University students looking for a building or classroom
+  \item Anyone who needs to find the nearest evacuation site quickly
+\end{itemize}
+
+\subsection{Problems and Rationale}
+Official evacuation-site information exists, but it is published as Japanese map
+services and data files, and it does not say how to get to a site from where you stand.
+Emergency alerts on Japanese phones also arrive in Japanese.
+
+For people who do not read Japanese well, this means losing time at exactly the moment
+it matters most. Contour puts the nearest official sites, the direction to walk and what
+to do now on one screen, in the user's language.
+
+\subsection{Differences from Existing Approaches}
+
+\noindent
+\begin{tabularx}{\textwidth}{@{}L{3.0cm}YY@{}}
+\toprule
+\textbf{Aspect} & \textbf{Official hazard maps and general map apps} & \textbf{Contour} \\
+\midrule
+Finding a site      & Search a map service or data file, mostly in Japanese.            & Nearest official sites on a map, filtered by disaster type, with distance and direction. \\
+Getting there       & Read a 2D map.                                                    & 3D AR arrows on the camera view, a walking-route preview, and indoor directions to the nearest exit (demo). \\
+Emergency alerts    & The phone's alert text, in Japanese.                              & On Android the app opens with the alert, what to do now and the nearest suitable site, in the app language. \\
+Questions           & None.                                                             & Gemini assistant that answers from the real site and warning data. \\
+Languages           & Mostly Japanese.                                                  & English, Japanese, Chinese and Korean, with on-device translation. \\
+\bottomrule
+\end{tabularx}
+
+% ------------------------------------------------------------
+\section{Use of Google Technologies}
+
+\subsection{Google Technologies Used (select at least one)}
+
+\noindent
+\begin{tabularx}{\textwidth}{@{}YY@{}}
+\emptybox~App Engine                  & \checkedbox~Cloud Run \\
+\emptybox~Compute Engine              & \emptybox~Firebase App Hosting \\
+\emptybox~Google Kubernetes Engine (GKE) & \checkedbox~Firebase Hosting \\
+\end{tabularx}
+
+\subsection{Examples of Google Technology Use}
+
+\noindent
+\begin{tabularx}{\textwidth}{@{}L{2.9cm}YYY@{}}
+\toprule
+\textbf{Technology} & \textbf{Use} & \textbf{Reasons / Benefits} & \textbf{Drawbacks} \\
+\midrule
+Cloud Run & Hosts the backend API and the web page; a second, private service runs the data-import jobs. & One container image for both services; scales down to zero when idle. & Cold starts can delay the first request. Container disk is not permanent storage. \\
+Firebase Hosting & Public web address that forwards every request to Cloud Run. & One HTTPS address for the Android app, iOS app and browsers. & Adds a forwarding step that has to be configured. \\
+Gemini (Vertex AI) & ``Ask Contour'' assistant with function calling: finds sites, reads warnings, shows sites on the map or starts AR. & Natural replies in four languages, grounded in our own data. Usually well under a cent per question. & Needs rate limits (8 per minute per user) and strict instructions so it does not invent sites or warnings. \\
+Cloud Firestore & Stores the imported evacuation sites, JMA bulletins and a warning outbox. & Serverless; the API keeps a short in-memory copy, so most requests cost no reads. & Charged per read and write, which is why caching was needed. \\
+Cloud Scheduler + Cloud Workflows & Run the imports: sites every hour, JMA warnings every minute. & Retries and a visual step graph without running our own server. & Workflow definitions can drift from the repository if edited in the console. \\
+ML Kit Translation + Android speech & Offline translation and voice input on Android. & Works without the internet, on the phone. & Each language model must be downloaded first; Android only. \\
+Cloud Build + Firebase App Distribution & Build the Android app on each push and send it to testers. & Teammates update the app with one tap. & iOS builds still need Apple signing. \\
+\bottomrule
+\end{tabularx}
+
+\subsection{Why We Chose Google Technologies}
+
+\begin{answerbox}
+We needed a working, multilingual app within a short hackathon. Google Cloud and Firebase
+let us put the website, the API, the database, the scheduled data imports and the AI
+assistant in one project, without managing servers.
+
+Gemini's function calling was the key piece. Instead of letting the model answer from
+memory, the assistant calls our own tools to read the official site list and the latest
+JMA warnings, so its answers stay tied to real data.
+\end{answerbox}
+
+% ------------------------------------------------------------
+\section{Architecture Diagram}
+
+\begin{figure}[H]
+\centering\sffamily
+\hyphenpenalty=10000
+\exhyphenpenalty=10000
+\sloppy
+
+\begin{tikzpicture}[
+  box/.style={rounded corners=4pt, line width=0.8pt, inner sep=5pt,
+              minimum width=3.6cm, minimum height=1.3cm},
+  phone/.style={box, fill=phoneF, draw=phoneD},
+  fb/.style={box, fill=fbF, draw=fbD},
+  gcp/.style={box, fill=gcpF, draw=gcpD},
+  core/.style={box, fill=gcpF, draw=gcpD, line width=1.6pt},
+  ai/.style={box, fill=aiF, draw=aiD},
+  ext/.style={box, fill=extF, draw=extD},
+  flow/.style={-{Stealth[length=2.4mm]}, draw=stepC!60, line width=0.9pt},
+  lbl/.style={font=\scriptsize, text=ink2, inner sep=2pt, align=left}
+]
+
+% ---------------- Boxes (top to bottom) ----------------
+\node[phone] (user)   at (0,0)
+  {\svc{\usericon}{User\platforms}{Android / iOS app showing one shared web page with map, 3D AR arrows, indoor nav.}};
+\node[phone] (device) at (-5.5,0)
+  {\svc{\mlkitlogo}{ML Kit + Speech}{Offline translation and voice input, AR uses camera + compass}};
+
+\node[fb]    (host)   at (0,-4.5)
+  {\svc{\firebaselogo}{Firebase Hosting}{Public web address, forwards every request to Cloud Run}};
+\node[core]  (run)    at (0,-8.8)
+  {\svc{\png{cloud_run}}{Cloud Run}{Serves the web page and API for nearest sites, alerts, assistant}};
+\node[ai]    (gemini) at (-5.5,-8.8)
+  {\svc{\geminilogo}{Gemini}{Vertex AI. Replies in English, Japanese, Chinese or Korean with map or AR actions}};
+\node[gcp]   (store)  at (0,-13.1)
+  {\svc{\png{firestore}}{Cloud Firestore}{Evacuation sites, JMA alerts, warning outbox}};
+\node[gcp]   (jobs)   at (5.5,-13.1)
+  {\svc{\jobslogos}{Scheduler + Workflows}{Runs import jobs and checks data before saving}};
+
+\node[ext]   (gov)    at (5.5,-17.0)
+  {\svc{\docicon}{Official Open Data}{Nagoya evacuation-site list, JMA warning feeds}};
+
+% ---------------- Group frames ----------------
+\begin{scope}[on background layer]
+  \node[draw=phoneD!60, dashed, rounded corners=6pt, inner sep=8pt, fit=(user)(device)] (phoneG) {};
+  \node[anchor=south west, font=\scriptsize\bfseries, text=phoneD!80!black, inner sep=2pt]
+        at (phoneG.north west) {On the phone};
+  \node[draw=gcpD!50, dashed, rounded corners=6pt, inner sep=8pt, fill=gcpF!35,
+        fit=(host)(gemini)(run)(store)(jobs)] (cloud) {};
+  \node[anchor=north east, font=\scriptsize\bfseries, text=gcpD!80!black, inner sep=4pt]
+        at (cloud.north east) {Google Cloud / Firebase};
+\end{scope}
+
+% ---------------- User request: 1 -> 4 (straight down the middle) ----------------
+\draw[flow] (user.south)  -- node[lbl, right]
+  {\step{1}{Open the map or ask a question\\(location + language sent)}} (host.north);
+\draw[flow] (host.south)  -- node[lbl, right]
+  {\step{2}{HTTPS request for sites, alerts\\or assistant chat}} (run.north);
+\draw[flow] (run.south)   -- node[lbl, right]
+  {\step{3}{Read sites + alerts\\(cached 5 min / 30 s)}} (store.north);
+\draw[flow] (run.west)    -- node[lbl, above]
+  {\step{4}{Ask\\Gemini}} (gemini.east);
+
+% On the phone, no server involved
+\draw[flow, densely dotted, draw=phoneD, {Stealth[length=2mm]}-{Stealth[length=2mm]}]
+  (device.east) -- node[lbl, above] {on phone} (user.west);
+
+% ---------------- Background import: A -> B ----------------
+\draw[flow, dashed, draw=extD] (gov.north) -- node[lbl, left, pos=0.45]
+  {\step{A}{Fetch sites every hour,\\warnings every minute}} (jobs.south);
+\draw[flow] (jobs.west) -- node[lbl, above] {\step{B}{Save}} (store.east);
+
+\end{tikzpicture}
+
+\caption{System architecture of Contour. Steps 1--4 follow one user request from top to bottom,
+results return the same way. Steps A--B run on a schedule (evacuation sites hourly, JMA warnings every minute).}
+\label{fig:contour-architecture}
+\end{figure}
+
+% ------------------------------------------------------------
+\section{Deployed Project URL}
+
+\begin{answerbox}
+Application URL: \url{https://gen-lang-client-0467526025.web.app/app/}\\[4pt]
+Opens in any phone or desktop browser. The Android app shows the same page; testers
+install it through Firebase App Distribution.
+\end{answerbox}
+
+\partheading{Optional Items}
+
+% ------------------------------------------------------------
+\section{How to Test}
+
+\subsection{Test Account Information}
+
+\noindent
+\begin{tabularx}{\textwidth}{@{}L{4.2cm}Y@{}}
+\toprule
+\textbf{Item} & \textbf{Details} \\
+\midrule
+URL           & \url{https://gen-lang-client-0467526025.web.app/app/} \\
+Account       & Not needed. The app has no login. \\
+Android app   & \tbc{App Distribution invite link, or say ``browser only''} \\
+\bottomrule
+\end{tabularx}
+
+\subsection{Test Procedure}
+\begin{enumerate}[leftmargin=1.6em,itemsep=2pt,topsep=4pt]
+  \item Open the URL above, ideally on a phone.
+  \item Choose a language from the menu in the header (English, Japanese, Chinese or Korean).
+  \item In \textbf{Evacuation} mode, check that official Nagoya evacuation sites appear
+        on the map. Without location access, a demo position near Nagoya University is used.
+  \item Tap a site card to see its details, then tap \textbf{3D AR} and allow the camera
+        to see the arrow pointing to the site.
+  \item Open \textbf{Ask} and type ``Where is the nearest evacuation site?'' The assistant
+        should name nearby official sites and offer to show them on the map.
+  \item Switch to \textbf{Student} mode, open \textbf{Ask} and type ``How do I get to
+        room 221?'' Step-by-step indoor directions should appear; open \textbf{3D AR} to
+        follow them.
+  \item (Android app only) Open the menu and tap \textbf{Test alert}. After a few seconds
+        the emergency pop-up should open with what to do now and the nearest site.
+\end{enumerate}
+
+\subsection{Sample Data}
+No account or saved data is needed. The app uses:
+\begin{itemize}[leftmargin=1.4em,itemsep=2pt,topsep=4pt]
+  \item 1,735 designated emergency evacuation sites for Nagoya City (GSI open data,
+        imported automatically every hour)
+  \item Live JMA weather, earthquake, tsunami and volcano bulletins (checked every minute)
+  \item 16 Nagoya University buildings for Student mode, and a Room 221 indoor demo in
+        Engineering Building II
+\end{itemize}
+
+% ------------------------------------------------------------
+\section{Additional Application and Feature Details}
+
+\subsection{Main Features}
+
+\noindent
+\begin{tabularx}{\textwidth}{@{}L{0.8cm}L{3.8cm}Y@{}}
+\toprule
+\textbf{\#} & \textbf{Feature} & \textbf{Description} \\
+\midrule
+1 & Nearest evacuation sites & Official Nagoya sites on a map, filtered by disaster type (earthquake, tsunami, flood, landslide, fire and more), with straight-line distance and direction. \\
+2 & 3D AR directions & Arrows drawn on the camera view using the phone's compass point toward the chosen site. \\
+3 & Ask Contour (Gemini) & Questions in four languages. The assistant reads the real site list and warnings, and can highlight sites on the map or start AR. \\
+4 & Emergency pop-up (Android) & When an official emergency alert arrives, Contour opens over the lock screen with what to do now and the nearest suitable site. \\
+5 & Indoor navigation (demo) & Guides to the nearest exit (avoiding elevators) or to a classroom, estimating position from steps, compass and air pressure. \\
+6 & Student mode & Campus guide for 16 Nagoya University buildings that works offline. \\
+7 & Offline translation and voice input & On Android, ML Kit translates site names and text on the phone, and questions can be spoken. \\
+\bottomrule
+\end{tabularx}
+
+\subsection{Future Plans}
+\begin{itemize}[leftmargin=1.4em,itemsep=2pt,topsep=4pt]
+  \item Push JMA warnings to phones with Firebase Cloud Messaging (the outbox already exists)
+  \item Real floor plans and more accurate indoor positioning for more campus buildings
+  \item Verified walking routes that take hazards and closures into account
+  \item Distribute the iOS app to testers
+\end{itemize}
+
+\partheading{Items Not Scored}
+
+% ------------------------------------------------------------
+\section{Where, How and Why We Used AI}
+
+\begin{itemize}[leftmargin=1.4em,itemsep=3pt,topsep=4pt]
+  \item \textbf{Development:} \tbc{which AI coding tools the team used and for what.
+        The repository includes instructions for AI coding agents (\texttt{AGENTS.md}).}
+  \item \textbf{Service features:} Gemini on Vertex AI powers the ``Ask Contour''
+        assistant. It calls our own tools to read the official site list and current
+        warnings, and replies in the user's language.
+\end{itemize}
+
+\tbc{how AI-generated code and answers were reviewed}
+
+% ------------------------------------------------------------
+\section{What We Gained and How Much We Grew Through Development}
+
+\tbc{the team's own reflection}
+
+\end{document}
