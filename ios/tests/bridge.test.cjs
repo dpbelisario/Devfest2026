@@ -124,3 +124,69 @@ test("location watch permission denial stops native updates", () => {
   assert.equal(fixes, 0);
   assert.equal(sent.at(-1).action, "locationStop");
 });
+
+test("native fixes preserve reading position on older hosted Details pages", () => {
+  const { context: p } = page();
+  const detail = { scrollTop: 180 };
+  const sheet = { hidden: false };
+  const title = { textContent: "Central Library" };
+  p.document.getElementById = (id) => ({ detail, sheet, dName: title })[id];
+  p.navigator.geolocation.watchPosition(() => {
+    detail.scrollTop = 0;
+  });
+  p.contourIOSLocation({ coords: { latitude: 35, longitude: 137 } });
+  assert.equal(detail.scrollTop, 180);
+  p.navigator.geolocation.watchPosition(() => {
+    title.textContent = "Different destination";
+    detail.scrollTop = 0;
+  });
+  p.contourIOSLocation({ coords: { latitude: 35, longitude: 137 } });
+  assert.equal(
+    detail.scrollTop,
+    0,
+    "Do not restore another destination's scroll position",
+  );
+});
+
+test("floor compass subscriptions use separate native actions", () => {
+  const { context: p, sent } = page();
+  p.ContourBridge.startFloorHeading();
+  p.ContourBridge.stopFloorHeading();
+  assert.deepEqual(
+    sent.map((value) => value.action),
+    ["floorHeadingStart", "floorHeadingStop"],
+  );
+});
+
+test("saved floor AR passes a structured confirmed goal to native", () => {
+  const { context: p, sent } = page();
+  const goal = {
+    version: 1,
+    floor: "2F",
+    start: { name: "Desk", latitude: 35, longitude: 136 },
+    destination: { name: "Room", latitude: 35.0001, longitude: 136 },
+  };
+  p.ContourBridge.startFloorAR(goal);
+  assert.equal(sent.at(-1).action, "startFloorAR");
+  assert.deepEqual(sent.at(-1).goal, goal);
+});
+
+test("indoor step tracking passes its origin and has explicit pause/clear actions", () => {
+  const { context: p, sent } = page();
+  const request = {
+    sessionID: "confirmed",
+    floor: "2F",
+    latitude: 35,
+    longitude: 136,
+    heading: 90,
+    stepLength: 0.72,
+  };
+  p.ContourBridge.startIndoorTracking(request);
+  assert.deepEqual(sent.at(-1).request, request);
+  p.ContourBridge.pauseIndoorTracking();
+  p.ContourBridge.clearIndoorTracking();
+  assert.deepEqual(
+    sent.map((value) => value.action),
+    ["startIndoorTracking", "pauseIndoorTracking", "clearIndoorTracking"],
+  );
+});

@@ -1,7 +1,137 @@
 import XCTest
+import ARKit
 @testable import Contour
 
 final class ContourTests: XCTestCase {
+    func testIndoorStepsAndGyroTurnsAdvanceFromConfirmedOrigin() {
+        let request = IndoorStepRequest(sessionID: "walk", floor: "2F", latitude: 35, longitude: 136, heading: 0, stepLength: 0.72)
+        XCTAssertTrue(request.isValid)
+        var model = IndoorStepModel(request: request, time: 100)
+        XCTAssertTrue(model.turn(clockwiseRadiansPerSecond: 0, time: 100.1))
+        XCTAssertTrue(model.countSteps(1, time: 100.1))
+        XCTAssertEqual((model.pose.latitude - 35) * 111319.49079327358, 0.72, accuracy: 0.001)
+        let beforeTurn = model.pose
+        for tick in 1...10 { XCTAssertTrue(model.turn(clockwiseRadiansPerSecond: .pi / 2, time: 100.1 + Double(tick) / 10)) }
+        XCTAssertEqual(model.pose.heading, 90, accuracy: 0.001)
+        XCTAssertEqual(model.pose.latitude, beforeTurn.latitude, "Turning alone cannot move the position")
+        XCTAssertTrue(model.countSteps(2, time: 101.1))
+        XCTAssertEqual((model.pose.longitude - 136) * 111319.49079327358 * cos(35 * .pi / 180), 0.72, accuracy: 0.001)
+        XCTAssertEqual(model.pose.distance, 1.44, accuracy: 0.001)
+        let afterStep = model.pose
+        XCTAssertTrue(model.countSteps(2, time: 101.2))
+        XCTAssertEqual(model.pose.latitude, afterStep.latitude)
+        XCTAssertFalse(model.countSteps(1, time: 101.3), "Reject old cumulative counters")
+        XCTAssertFalse(model.turn(clockwiseRadiansPerSecond: .nan, time: 101.4))
+        XCTAssertFalse(model.turn(clockwiseRadiansPerSecond: 0, time: 105), "A sensor gap requires reconfirmation")
+    }
+
+    func testIndoorGoalUsesSharedStepPoseForDistanceAndDirection() {
+        let origin = FloorARGoal.Point(latitude: 35, longitude: 136, name: "Start")
+        let goal = FloorARGoal(version: 1, floor: "2F", start: origin, destination: .init(latitude: 35 + 10 / 111319.49079327358, longitude: 136, name: "Room"))
+        var model = IndoorStepModel(request: .init(sessionID: "walk", floor: "2F", latitude: 35, longitude: 136, heading: 0, stepLength: 0.8), time: 100)
+        XCTAssertTrue(model.turn(clockwiseRadiansPerSecond: 0, time: 100.1))
+        XCTAssertTrue(model.countSteps(1, time: 100.1))
+        let navigation = goal.guidance(from: model.pose)
+        XCTAssertEqual(navigation.distance, 9.2, accuracy: 0.001)
+        XCTAssertEqual(navigation.relative, 0, accuracy: 0.001)
+        XCTAssertFalse(IndoorStepRequest(sessionID: "", floor: "2F", latitude: 35, longitude: 136, heading: 0, stepLength: 0.8).isValid)
+        XCTAssertFalse(IndoorStepRequest(sessionID: "x", floor: "2F", latitude: 35, longitude: 136, heading: 0, stepLength: 2).isValid)
+    }
+
+    @MainActor
+    func testFloorDestinationArrowIsVisibleAndPaintedBeforeAnyARFrame() throws {
+        let controller = ObstacleScanViewController()
+        controller.floorGoal = FloorARGoal(heading: .init(degrees: 90, accuracy: 8, timestamp: Date().timeIntervalSince1970 * 1000), version: 1, floor: "2F",
+            start: .init(latitude: 35, longitude: 136, name: "Start"), destination: .init(latitude: 35.0001, longitude: 136, name: "Goal"))
+        controller.loadViewIfNeeded()
+        controller.view.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
+        controller.view.layoutIfNeeded()
+        let arrow = try XCTUnwrap(controller.view.subviews.compactMap { $0 as? DestinationArrowView }.first)
+        XCTAssertFalse(arrow.isHidden)
+        XCTAssertGreaterThan(arrow.bounds.width, 0)
+        let format = UIGraphicsImageRendererFormat(); format.scale = 1; format.opaque = false
+        let image = UIGraphicsImageRenderer(size: arrow.bounds.size, format: format).image { _ in arrow.draw(arrow.bounds) }
+        let bytes = try XCTUnwrap(image.cgImage?.dataProvider?.data) as Data
+        XCTAssertGreaterThan(bytes.filter { $0 != 0 }.count, 1000, "The initial arrow must contain actual drawn pixels without waiting for camera features")
+        arrow.update(relative: .pi / 2, caution: true)
+        XCTAssertEqual(arrow.transform.a, 0, accuracy: 0.001)
+        arrow.update(relative: 0, stopped: true)
+        XCTAssertTrue(arrow.stopped)
+    }
+
+    func testFloorHeadingSnapshotExpiresWithoutAssumingForward() {
+        let now = Date(timeIntervalSince1970: 1000)
+        XCTAssertTrue(FloorARGoal.Heading(degrees: 90, accuracy: 8, timestamp: 999000).isFresh(now: now))
+        XCTAssertFalse(FloorARGoal.Heading(degrees: 90, accuracy: 8, timestamp: 980000).isFresh(now: now))
+        XCTAssertFalse(FloorARGoal.Heading(degrees: .nan, accuracy: 8, timestamp: 999000).isFresh(now: now))
+    }
+
+    func testSavedFloorARGoalValidatesCoordinatesFloorAndDistance() throws {
+        let start = FloorARGoal.Point(latitude: 35, longitude: 136, name: "Start")
+        let destination = FloorARGoal.Point(latitude: 35 + 10 / 111319.49079327358, longitude: 136, name: "Room")
+        let goal = FloorARGoal(version: 1, floor: "2F", start: start, destination: destination)
+        XCTAssertTrue(goal.isValid)
+        XCTAssertEqual(try JSONDecoder().decode(FloorARGoal.self, from: JSONEncoder().encode(goal)).destination.name, "Room")
+        XCTAssertFalse(FloorARGoal(version: 1, floor: "99F", start: start, destination: destination).isValid)
+        XCTAssertFalse(FloorARGoal(version: 1, floor: "2F", start: start, destination: start).isValid)
+        XCTAssertFalse(FloorARGoal(version: 1, floor: "2F", start: start, destination: .init(latitude: 36, longitude: 136, name: "Too far")).isValid)
+        XCTAssertFalse(FloorARGoal(version: 1, floor: "2F", start: .init(latitude: .nan, longitude: 136, name: "Bad"), destination: destination).isValid)
+    }
+
+    func testFloorARRequiresTurningBeforePointingOutsideObservedForwardSector() {
+        XCTAssertEqual(ObstacleProbe.guidance(center: .farther, left: .unknown, right: .unknown, relative: 0.25, alignmentTolerance: atan(0.15)), "face-right")
+        XCTAssertEqual(ObstacleProbe.guidance(center: .unknown, left: .unknown, right: .unknown, relative: 0, alignmentTolerance: atan(0.15)), "scan")
+        XCTAssertEqual(ObstacleProbe.guidance(center: .near, left: .unknown, right: .unknown, relative: 0, alignmentTolerance: atan(0.15)), "scan")
+    }
+
+    func testSavedFloorARTargetAlignsCompassWithARFrameWithoutGPS() {
+        let start = FloorARGoal.Point(latitude: 35, longitude: 136, name: "Start")
+        let north = FloorARGoal(version: 1, floor: "2F", start: start,
+            destination: .init(latitude: 35 + 10 / 111319.49079327358, longitude: 136, name: "North"))
+        let origin = SIMD2<Float>(2, 3)
+        let forward = north.target(camera: origin, cameraYaw: 0, compassDegrees: 0)
+        XCTAssertEqual(forward.x, 2, accuracy: 0.001); XCTAssertEqual(forward.y, -7, accuracy: 0.001)
+        let left = north.target(camera: origin, cameraYaw: 0, compassDegrees: 90)
+        XCTAssertEqual(left.x, -8, accuracy: 0.001); XCTAssertEqual(left.y, 3, accuracy: 0.001)
+        let rotated = north.target(camera: origin, cameraYaw: .pi / 2, compassDegrees: 90)
+        XCTAssertEqual(rotated.x, 2, accuracy: 0.001); XCTAssertEqual(rotated.y, -7, accuracy: 0.001)
+    }
+
+    func testCameraOnlyConfigurationNeverRequestsLidar() {
+        for exitGoal in [false, true] {
+            let config = ObstacleScanViewController.cameraConfiguration(exitGoal: exitGoal)
+            XCTAssertTrue(config.frameSemantics.isEmpty)
+            XCTAssertTrue(config.sceneReconstruction.isEmpty)
+            XCTAssertTrue(config.planeDetection.contains(.vertical))
+            XCTAssertTrue(config.planeDetection.contains(.horizontal))
+        }
+    }
+    func testCameraEvidenceNeedsDistributedFeaturesAndCloseAlwaysOverrides() {
+        let spread: [SIMD3<Float>] = [-0.1, 0.0, 0.1].flatMap { x in
+            [-0.45, -0.15, 0.15].map { y in SIMD3<Float>(Float(x) * 2.5, Float(y) * 2.5, -2.5) }
+        }
+        XCTAssertEqual(CameraObstacleProbe.evidence(points: spread, sector: 1), .farther)
+        XCTAssertEqual(CameraObstacleProbe.evidence(points: Array(repeating: SIMD3<Float>(0, 0, -2.5), count: 100), sector: 1), .unknown)
+        XCTAssertEqual(CameraObstacleProbe.evidence(points: spread + [SIMD3<Float>(0, 0, -0.8)], sector: 1), .unknown)
+        XCTAssertEqual(CameraObstacleProbe.evidence(points: spread + [SIMD3<Float>(-0.08, 0, -0.8), SIMD3<Float>(0.08, 0, -0.8)], sector: 1), .near)
+        XCTAssertEqual(CameraObstacleProbe.evidence(points: [], sector: 1, planeDistances: [0.8]), .near)
+        XCTAssertEqual(CameraObstacleProbe.evidence(points: [], sector: 1, planeDistances: [3]), .unknown)
+        XCTAssertEqual(CameraObstacleProbe.evidence(points: spread, sector: 1, planeDistances: [1.4]), .unknown)
+        XCTAssertEqual(CameraObstacleProbe.evidence(points: [SIMD3<Float>(.nan, 0, -2)], sector: 1), .unknown)
+        XCTAssertEqual(CameraObstacleProbe.evidence(points: spread, sector: 0), .unknown)
+    }
+    func testCameraCueGateSuppressesNoiseStaleAndRepeatedFrames() {
+        var gate = CameraCueGate()
+        XCTAssertEqual(gate.update(cue: "forward", timestamp: 1, now: 1.01), "scan")
+        XCTAssertEqual(gate.update(cue: "forward", timestamp: 1.2, now: 1.21), "scan")
+        XCTAssertEqual(gate.update(cue: "forward", timestamp: 1.4, now: 1.41), "forward")
+        XCTAssertEqual(gate.update(cue: "scan", timestamp: 1.6, now: 1.61), "scan", "Close/unknown evidence removes forward immediately")
+        XCTAssertEqual(gate.update(cue: "stop", timestamp: 1.8, now: 1.81), "stop")
+        XCTAssertEqual(gate.update(cue: "forward", timestamp: 1.8, now: 1.81), "scan")
+        XCTAssertEqual(gate.update(cue: "forward", timestamp: 2, now: 3), "scan")
+        XCTAssertEqual(gate.update(cue: "forward", timestamp: 3, now: 3.01, tracking: false), "scan")
+        XCTAssertEqual(gate.update(cue: "forward", timestamp: .nan, now: 3.01), "scan")
+    }
     func testCameraFallbackRequiresActualFeaturesOrPlane() {
         XCTAssertEqual(ObstacleProbe.cameraEvidence([]),.unknown)
         XCTAssertEqual(ObstacleProbe.cameraEvidence(Array(repeating:0.8,count:6)),.near)

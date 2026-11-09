@@ -55,17 +55,14 @@ support Depth, or that Depth detects every obstruction.
 [ARCore Depth](https://developers.google.com/ar/develop/depth),
 [Android Depth guide](https://developers.google.com/ar/develop/java/depth/developer-guide).
 
-iPhone automatically selects LiDAR scene depth and mesh when supported. A
-LiDAR phone with temporarily missing depth waits for that depth; it does not
-silently downgrade mid-session. Other ARKit phones, including XS Max, use the
-camera fallback restored from the earlier obstacle branch (`2d21c02`), with the
-current continuous arrow UI. Sparse features are transformed into portrait camera
-coordinates; close features or a detected close vertical plane suppress forward
-guidance. Six farther features or a farther vertical plane can suggest a direction,
-but any observed close feature keeps that sector unknown. A plane at or below
-1.5m prevents a farther result. No feature/plane observation means unknown.
+iPhone now explicitly uses **camera-only** visual/inertial ARKit tracking on every
+model, including LiDAR-capable Pro phones. No scene depth or mesh is enabled.
+Spatially distributed visual features and multiple tracked-plane probes drive a
+local arrow; the screen can switch between **Obstacle arrow** and the approximate
+**Library exit** goal. See [camera-only iPhone implementation](camera-obstacle-arrow-ios.md)
+for evidence gates, lifecycle and phone test instructions.
 
-Android uses the same camera-evidence policy when Depth is unsupported. Its
+Android retains its existing camera-evidence policy when Depth is unsupported. Its
 point cloud requires confidence at least0.5 and a fresh timestamp; tracked vertical
 planes must contain the ray hit. Features/planes share the depth path's sustained
 observation, stale/repeated frame and tilt gates. Sensor selection happens at
@@ -120,7 +117,7 @@ edge exclusions, an alternate library route and no-path handling. Direction test
 cover observed forward space, left/right checks, blocked sides, unknown depth,
 and immediate removal of a forward arrow when a near surface appears. Build/lint and
 simulator checks cannot establish physical obstacle detection. Test the actual
-LiDAR iPhone and supported Android at the library: preview orientation, permission
+camera-only iPhone and supported Android at the library: preview orientation, permission
 denial, foreground/background transitions, a visible wall/shelf, a low obstacle,
 glass, changes in lighting, and opening bearing consistency. These
 checks remain required before depending on this feature in the field.

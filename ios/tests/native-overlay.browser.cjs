@@ -118,6 +118,20 @@ const assert = require("node:assert/strict");
     assert.equal(await apply(value, true), true);
     await image.waitFor({ state: "visible" });
     assert.equal(await image.count(), 1);
+    const pinned = {
+      ...value,
+      destinations: [
+        { id: "room-a", name: "Room A", x: 0.2, y: 0.7 },
+        { id: "exit-b", name: "Exit B", x: 0.8, y: 0.3 },
+      ],
+    };
+    assert.equal(await apply(pinned), true);
+    assert.equal(await page.locator("#map .contour-floor-pin").count(), 0);
+    assert.equal(
+      await page.locator(".contour-floor-pin").count(),
+      0,
+      "Pins stay absent until Floor Maps opens",
+    );
     // Exercise Google's OverlayView contract without credentials or network tiles.
     await page.evaluate(() => {
       const pane = document.createElement("div");
@@ -125,6 +139,14 @@ const assert = require("node:assert/strict");
       document.body.appendChild(pane);
       window.google = {
         maps: {
+          Polyline: class {
+            constructor(options) {
+              window.testGoogleLine = options;
+            }
+            setMap(map) {
+              this.map = map;
+            }
+          },
           LatLng: class {
             constructor(lat, lng) {
               this.lat = lat;
@@ -141,7 +163,7 @@ const assert = require("node:assert/strict");
               }
             }
             getPanes() {
-              return { overlayLayer: pane };
+              return { overlayLayer: pane, overlayMouseTarget: pane };
             }
             getProjection() {
               return {
@@ -155,6 +177,8 @@ const assert = require("node:assert/strict");
         },
       };
       window.googleTestMap = {
+        panTo() {},
+        setZoom() {},
         setOptions(value) {
           this.options = value;
         },
@@ -164,11 +188,21 @@ const assert = require("node:assert/strict");
       };
       window.dispatchEvent(
         new CustomEvent("contour-map-ready", {
-          detail: { provider: "google", map: { native: window.googleTestMap } },
+          detail: {
+            provider: "google",
+            map: {
+              native: window.googleTestMap,
+              root: document.getElementById("map"),
+            },
+          },
         }),
       );
     });
-    assert.equal(await apply(value, true), true);
+    assert.equal(await apply(pinned, true), true);
+    assert.equal(
+      await page.locator("#google-test-pane .contour-floor-pin").count(),
+      0,
+    );
     const googleImage = page.locator(
       "#google-test-pane .contour-native-floor-plan",
     );
@@ -193,6 +227,10 @@ const assert = require("node:assert/strict");
     assert.ok(Math.abs(googleWidth / googleFirst.width - 2) < 0.001);
     assert.equal(await apply({ ...value, visible: false }), true);
     assert.equal(await googleImage.count(), 0);
+    assert.equal(
+      await page.locator("#google-test-pane .contour-floor-pin").count(),
+      0,
+    );
     assert.equal(await apply(value), true);
     assert.equal(await apply(null), true);
     assert.equal(await googleImage.count(), 0);
