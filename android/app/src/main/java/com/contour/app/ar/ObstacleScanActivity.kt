@@ -84,6 +84,8 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer, Sensor
     private var arrowSupported = false
     private var arrowStopped = false
     private var previewReady = true
+    /** False while the library-exit start picker is open: no arrows until a start is chosen. */
+    @Volatile private var startConfirmed = true
     private lateinit var review: Button
     @Volatile private var session: Session? = null
     @Volatile private var running = false
@@ -173,7 +175,7 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer, Sensor
             private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
             private val path = Path()
             override fun onDraw(canvas: Canvas) {
-                if (!previewReady || arrowStopped) return
+                if (!previewReady || arrowStopped || !startConfirmed) return
                 canvas.save()
                 canvas.translate(width*0.5f,height*0.65f)
                 for (index in 0..4) {
@@ -206,9 +208,9 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer, Sensor
         val ink = 0xFF141714.toInt(); val ink2 = 0xFF55575D.toInt()
         val wash = 0xFFF3F5F3.toInt(); val line = 0xFFDFE4E0.toInt()
         val enabledStates = arrayOf(intArrayOf(-android.R.attr.state_enabled), intArrayOf())
-        fun rounded(fill: ColorStateList, radius: Float, stroke: Int? = null) = GradientDrawable().apply {
+        fun rounded(fill: ColorStateList, radius: Float, stroke: Int? = null, strokeDp: Float = 1f) = GradientDrawable().apply {
             setColor(fill); setCornerRadius(radius * dp)
-            if (stroke != null) setStroke(px(1f), stroke)
+            if (stroke != null) setStroke(px(strokeDp), stroke)
         }
         fun styleButton(button: Button, primary: Boolean) = button.apply {
             isAllCaps = false; stateListAnimator = null
@@ -328,6 +330,60 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer, Sensor
         root.addView(panel, FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM).apply {
             leftMargin = px(16f); rightMargin = px(16f); bottomMargin = px(24f)
         })
+        // Library exit: ask where the user is before showing arrows. The camera keeps running
+        // behind this card; the chips at the top still allow changes later.
+        if (intent.getBooleanExtra("exitDemo", false)) {
+            val picker = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                background = rounded(ColorStateList.valueOf(Color.WHITE), 12f)
+                setPadding(px(20f), px(18f), px(20f), px(16f)); elevation = 8f * dp
+                isClickable = true
+            }
+            picker.addView(TextView(this).apply {
+                text = "Where are you now?"; textSize = 22f; setTextColor(ink)
+                typeface = Typeface.create("sans-serif-condensed", Typeface.BOLD)
+            })
+            picker.addView(TextView(this).apply {
+                text = "Pick the spot on 2F closest to you. You can change it later."
+                textSize = 14f; setTextColor(ink2); setPadding(0, px(4f), 0, px(12f))
+            })
+            var chosen = waypointGuide.startId
+            val options = waypointGuide.starts.map { start ->
+                Button(this).apply {
+                    text = start.label; gravity = Gravity.START or Gravity.CENTER_VERTICAL
+                    styleButton(this, primary = false); textSize = 15f
+                    setPadding(px(14f), px(12f), px(14f), px(12f))
+                }
+            }
+            fun refresh() = options.forEachIndexed { index, button ->
+                val selected = waypointGuide.starts[index].id == chosen
+                button.background = rounded(ColorStateList.valueOf(Color.WHITE), 8f, if (selected) ink else line, if (selected) 2f else 1f)
+                button.typeface = Typeface.create("sans-serif-medium", if (selected) Typeface.BOLD else Typeface.NORMAL)
+            }
+            options.forEachIndexed { index, button ->
+                button.setOnClickListener { chosen = waypointGuide.starts[index].id; refresh() }
+                picker.addView(button, LinearLayout.LayoutParams(-1, -2).apply { if (index > 0) topMargin = px(8f) })
+            }
+            refresh()
+            picker.addView(TextView(this).apply {
+                text = "Destination · Library exit (2F Entrance Hall)"; textSize = 14f; setTextColor(ink2)
+                setPadding(0, px(14f), 0, 0)
+            })
+            picker.addView(Button(this).apply {
+                text = "Start"; styleButton(this, primary = true)
+                setOnClickListener {
+                    val start = waypointGuide.starts.first { it.id == chosen }
+                    pendingStartId = start.id
+                    startBubble.text = "Start guess · ${start.label} · Edit"
+                    picker.visibility = View.GONE; panel.visibility = View.VISIBLE
+                    arrow.visibility = View.VISIBLE; startConfirmed = true; chevrons.invalidate()
+                }
+            }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = px(12f) })
+            panel.visibility = View.GONE; arrow.visibility = View.GONE; startConfirmed = false
+            root.addView(picker, FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM).apply {
+                leftMargin = px(16f); rightMargin = px(16f); bottomMargin = px(24f)
+            })
+        }
         ViewCompat.setOnApplyWindowInsetsListener(root) { view, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
             view.setPadding(bars.left, bars.top, bars.right, bars.bottom)
