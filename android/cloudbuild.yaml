@@ -10,15 +10,22 @@
 #   _FIREBASE_APP_ID  Firebase Android app ID, e.g. 1:1234567890:android:abc123
 #   _TESTER_GROUPS    Comma-separated App Distribution group aliases
 #   _API_BASE_URL     HTTPS base URL of the deployed backend, ending in "/"
+#   _INDOORATLAS_VENUE_ID        IndoorAtlas venue ID (public; default Engineering II)
+#   _INDOORATLAS_ROOM221_POI_ID  Room 221 POI in that venue (public)
 # Secret Manager:
 #   android-debug-keystore  base64 of a shared debug.keystore, so every build
 #                           is signed with the same key and installs as an update.
+#   indooratlas-api-key     Optional IndoorAtlas mobile SDK key and secret, created by
+#   indooratlas-api-secret  android/setup-indooratlas-secrets.sh. If either is missing
+#                           the APK still builds, without IndoorAtlas positioning.
 
 substitutions:
   _FIREBASE_APP_ID: ''
   _TESTER_GROUPS: 'team'
   _API_BASE_URL: ''
   _CMDLINE_TOOLS: '13114758'
+  _INDOORATLAS_VENUE_ID: '0d3ece20-da98-11f1-95cb-e11cd22c6739'
+  _INDOORATLAS_ROOM221_POI_ID: 'e8679fc0-da9a-11f1-b91e-6591398611dd'
 
 steps:
   - id: validate-shared-navigation
@@ -53,6 +60,28 @@ steps:
         mkdirSync(target,{recursive:true});copyFileSync('/tmp/contour-gradle.zip',target+'/'+zip);
         NODE
 
+  # Optional secrets are read here rather than through availableSecrets, so a
+  # project without them still gets an APK (positioning shows "not configured").
+  - id: indooratlas-credentials
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -uo pipefail
+        umask 077
+        out=/workspace/.indooratlas.properties
+        : > "$$out"
+        key="$$(gcloud secrets versions access latest --secret=indooratlas-api-key --project="$PROJECT_ID" 2>/dev/null)" || key=''
+        secret="$$(gcloud secrets versions access latest --secret=indooratlas-api-secret --project="$PROJECT_ID" 2>/dev/null)" || secret=''
+        valid() { [ -n "$$1" ] && ! printf '%s' "$$1" | LC_ALL=C grep -q '[^A-Za-z0-9._~+/=-]'; }
+        if valid "$$key" && valid "$$secret"; then
+          printf 'INDOORATLAS_API_KEY=%s\nINDOORATLAS_API_SECRET=%s\n' "$$key" "$$secret" > "$$out"
+          echo "IndoorAtlas credentials found; positioning enabled."
+        else
+          echo "IndoorAtlas secrets missing, unreadable or invalid; building without positioning."
+        fi
+
   - id: build-apk
     name: eclipse-temurin:17-jdk
     dir: android
@@ -84,6 +113,12 @@ steps:
 
         # API base URL for the native screens (the WebView UI gets -PcontourUiUrl below).
         printf 'EVACUATION_AR_API_BASE_URL=%s\n' "${_API_BASE_URL}" > local.properties
+
+        # IndoorAtlas: public venue/POI IDs plus the optional credentials read above.
+        printf 'INDOORATLAS_VENUE_ID=%s\nINDOORATLAS_ROOM221_POI_ID=%s\n' \
+          "${_INDOORATLAS_VENUE_ID}" "${_INDOORATLAS_ROOM221_POI_ID}" >> local.properties
+        cat /workspace/.indooratlas.properties >> local.properties
+        : > /workspace/.indooratlas.properties
 
         # Reuse the checksum-verified distribution instead of following the failing redirect.
         mkdir -p "$$GRADLE_USER_HOME"
