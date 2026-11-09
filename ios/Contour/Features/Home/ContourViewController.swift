@@ -9,20 +9,26 @@ import WebKit
 final class ContourViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler, CLLocationManagerDelegate {
     private(set) var web: WKWebView!
     private let location = CLLocationManager()
+    private let indoorTracker = IndoorStepTracker()
     private let haptics = AlertHaptics()
     private let audio = AVAudioEngine()
     private var launchObstacleDemo = ProcessInfo.processInfo.arguments.contains("--bundled-obstacle-demo")
     private weak var obstacleScanner: ObstacleScanViewController?
+    private weak var indoorScanner: IndoorDestinationScanViewController?
     private var speechTask: SFSpeechRecognitionTask?
     private var speechRequest: SFSpeechAudioBufferRecognitionRequest?
     private var pendingAlert: ContourAlert?
     private var pageReady = false
+    private var overlayTransferTask: Task<Void, Never>?
+    private var returningFromOverlay = false
+    var floorOverlayJSON: () async throws -> String = { try await NativeFloorOverlayTransfer.json() }
     private var usingFallback = false
     private var retriedLateMap = false
     private var timeout: DispatchWorkItem?
     private var microphoneTapInstalled = false
     private var notificationStatus = false
     private var requestingLocation = false
+    private var requestingFloorHeading = false
     private var sessionGeneration = 0
     private var speechGeneration = 0
     private let hostedURL = URL(string: Bundle.main.object(forInfoDictionaryKey: "ContourUIURL") as? String ?? "")
@@ -49,13 +55,21 @@ final class ContourViewController: UIViewController, WKNavigationDelegate, WKUID
         web.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(web)
         NSLayoutConstraint.activate([
-            web.leadingAnchor.constraint(equalTo:view.safeAreaLayoutGuide.leadingAnchor),
-            web.trailingAnchor.constraint(equalTo:view.safeAreaLayoutGuide.trailingAnchor),
-            web.topAnchor.constraint(equalTo:view.safeAreaLayoutGuide.topAnchor),
-            web.bottomAnchor.constraint(equalTo:view.safeAreaLayoutGuide.bottomAnchor)
+            web.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor),
+            web.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor),
+            web.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            web.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor)
         ])
+        indoorTracker.onUpdate = { [weak self] pose in
+            guard let self else { return }
+            if let data = try? JSONEncoder().encode(pose), let object = try? JSONSerialization.jsonObject(with: data) {
+                self.call("contourIOSIndoorPose", [object])
+            }
+            self.indoorScanner?.refreshIndoorPose()
+        }
         location.delegate = self
         location.desiredAccuracy = kCLLocationAccuracyBest
+        location.headingFilter = 3
         if !launchObstacleDemo, let url = hostedURL, url.scheme == "https" {
             web.load(URLRequest(url: url))
             let task = DispatchWorkItem { [weak self] in self?.fallBack() }
@@ -66,22 +80,40 @@ final class ContourViewController: UIViewController, WKNavigationDelegate, WKUID
 
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
-        clearMainMapOverlay()
-        if pageReady { recordMapState() }
+        let focus = returningFromOverlay
+        returningFromOverlay = false
+        syncSavedFloorOverlay(focus: focus)
     }
 
-    @objc private func refreshSavedFloorOverlay() { clearMainMapOverlay() }
+    @objc private func refreshSavedFloorOverlay() { syncSavedFloorOverlay(focus: true) }
 
-    private func clearMainMapOverlay() {
+    private func syncSavedFloorOverlay(focus: Bool) {
+        overlayTransferTask?.cancel()
         guard pageReady, isOurs(web.url) else { return }
-        // The saved image belongs to the separate editor, not the surrounding campus map.
-        web.evaluateJavaScript("window.ContourNativeFloorOverlay?.apply(null, false)", completionHandler:nil)
+        let expectedURL = web.url
+        overlayTransferTask = Task { [weak self] in
+            do {
+                let json = try await self?.floorOverlayJSON() ?? "null"
+                guard let self, !Task.isCancelled, self.pageReady,
+                      self.web.url == expectedURL, self.isOurs(self.web.url) else { return }
+                _ = try await self.web.callAsyncJavaScript(
+                    "const plan = JSON.parse(json); if (plan) plan.visible = false; return window.ContourNativeFloorOverlay?.apply(plan, false) ?? false;",
+                    arguments: ["json": json, "focus": focus], in: nil, in: .page)
+            } catch {
+                // Keep the existing page intact on storage/navigation failure; the native editor reports disk errors.
+                NSLog("Saved floor overlay could not be restored: %@", error.localizedDescription)
+            }
+        }
     }
 
     @objc private func openFloorOverlay() {
+        presentFloorOverlay()
+    }
+    private func presentFloorOverlay(showWalkingConnections: Bool = false) {
         guard presentedViewController == nil else { return }
         if #available(iOS 17.0, *) {
-            let editor = UIHostingController(rootView: NativeFloorOverlay())
+            returningFromOverlay = true
+            let editor = UIHostingController(rootView: NativeFloorOverlay(showWalkingConnections: showWalkingConnections))
             editor.modalPresentationStyle = .fullScreen
             present(editor, animated: true)
         } else {
@@ -124,6 +156,9 @@ final class ContourViewController: UIViewController, WKNavigationDelegate, WKUID
 
     func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
         pageReady = false
+        requestingFloorHeading = false
+        indoorTracker.stop()
+        overlayTransferTask?.cancel()
         sessionGeneration += 1
         stopDeviceActivity()
     }
@@ -133,7 +168,7 @@ final class ContourViewController: UIViewController, WKNavigationDelegate, WKUID
         timeout?.cancel()
         pageReady = true
         startLocationIfAllowed()
-        clearMainMapOverlay()
+        syncSavedFloorOverlay(focus: false)
         refreshNotificationStatus()
         deliverAlert()
         openLaunchDemoIfReady()
@@ -187,22 +222,37 @@ final class ContourViewController: UIViewController, WKNavigationDelegate, WKUID
         startObstacleScan(exitDemo: true)
     }
 
-    private func startObstacleScan(exitDemo: Bool = false) {
+    private func startObstacleScan(exitDemo: Bool = false, floorGoal: FloorARGoal? = nil) {
         guard presentedViewController == nil, UIApplication.shared.applicationState == .active else { return }
         let generation = sessionGeneration
         AVCaptureDevice.requestAccess(for: .video) { [weak self] granted in
             DispatchQueue.main.async {
                 guard let self, self.pageReady, generation == self.sessionGeneration, self.presentedViewController == nil, UIApplication.shared.applicationState == .active else { return }
-                guard granted else { self.call("contourObstacle", [["status": "unknown", "reason": "camera-denied"]]); return }
-                let scanner = ObstacleScanViewController()
-                scanner.exitDemo = exitDemo
-                scanner.modalPresentationStyle = .fullScreen
-                scanner.completion = { [weak self] status, reason in
+                guard granted else {
+                    self.call("contourObstacle", [["status": "unknown", "reason": "camera-denied"]])
+                    if floorGoal != nil { self.showMessage("Allow camera access in Settings to open AR navigation.") }
+                    return
+                }
+                let report: (String, String) -> Void = { [weak self] status, reason in
                     guard let self, generation == self.sessionGeneration else { return }
                     self.call("contourObstacle", [["status": status, "reason": reason, "source": "ios-native"]])
                 }
-                self.obstacleScanner = scanner
-                self.present(scanner, animated: true)
+                if let floorGoal {
+                    let scanner = IndoorDestinationScanViewController()
+                    scanner.floorGoal = floorGoal
+                    scanner.indoorTracker = self.indoorTracker
+                    scanner.modalPresentationStyle = .fullScreen
+                    scanner.completion = report
+                    self.indoorScanner = scanner
+                    self.present(scanner, animated: true)
+                } else {
+                    let scanner = ObstacleScanViewController()
+                    scanner.exitDemo = exitDemo
+                    scanner.modalPresentationStyle = .fullScreen
+                    scanner.completion = report
+                    self.obstacleScanner = scanner
+                    self.present(scanner, animated: true)
+                }
             }
         }
     }
@@ -232,6 +282,7 @@ final class ContourViewController: UIViewController, WKNavigationDelegate, WKUID
     func resumeDeviceActivity() {
         openLaunchDemoIfReady()
         startLocationIfAllowed()
+        if requestingFloorHeading && CLLocationManager.headingAvailable() { location.startUpdatingHeading() }
         refreshNotificationStatus()
     }
 
@@ -275,9 +326,58 @@ final class ContourViewController: UIViewController, WKNavigationDelegate, WKUID
               let body = message.body as? [String: Any], let action = body["action"] as? String else { return }
         switch action {
         case "openFloorOverlay": openFloorOverlay()
+        case "openWalkingConnections": presentFloorOverlay(showWalkingConnections: true)
+        case "planLandmarkRoute":
+            guard let request = body["request"] as? [String: Any],
+                  let requestID = request["requestID"] as? String, !requestID.isEmpty, requestID.count <= 80,
+                  let startID = request["startID"] as? String, let start = UUID(uuidString: startID),
+                  let destinationID = request["destinationID"] as? String, let destination = UUID(uuidString: destinationID),
+                  let floor = request["floor"] as? String, ["B1", "1F", "2F", "3F", "4F"].contains(floor),
+                  let revision = request["routingRevision"] as? String, revision.count == 64 else { return }
+            let generation = sessionGeneration
+            Task { [weak self] in
+                do {
+                    let route = try await OverlayDisk.shared.landmarkRoute(start: start, destination: destination, floor: floor, revision: revision)
+                    guard let self, self.pageReady, generation == self.sessionGeneration else { return }
+                    let data = try JSONEncoder().encode(route)
+                    guard var object = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { return }
+                    object["requestID"] = requestID
+                    self.call("contourIOSLandmarkRoute", [object])
+                } catch {
+                    guard let self, self.pageReady, generation == self.sessionGeneration else { return }
+                    self.call("contourIOSLandmarkRoute", [["requestID": requestID, "status": "error", "floor": floor,
+                        "routingRevision": revision, "message": "The saved floor map could not be read. Reopen Floor Maps and try again."]])
+                }
+            }
         case "startLibraryExitAR": startObstacleScan(exitDemo: true)
         case "startObstacleScan": startObstacleScan()
-        case "stopObstacleScan": obstacleScanner?.pause(); obstacleScanner?.dismiss(animated: false)
+        case "startIndoorTracking":
+            guard let request = body["request"] as? [String: Any],
+                  let data = try? JSONSerialization.data(withJSONObject: request),
+                  let config = try? JSONDecoder().decode(IndoorStepRequest.self, from: data), config.isValid else { return }
+            indoorTracker.start(config)
+        case "pauseIndoorTracking": indoorTracker.pause()
+        case "clearIndoorTracking": indoorTracker.stop()
+        case "startFloorAR":
+            guard let payload = body["goal"] as? [String: Any],
+                  let data = try? JSONSerialization.data(withJSONObject: payload),
+                  let goal = try? JSONDecoder().decode(FloorARGoal.self, from: data), goal.isValid else {
+                showMessage("Choose a destination and confirm your starting position before opening AR.")
+                return
+            }
+            guard let pose = indoorTracker.pose, pose.sessionID == goal.trackingID, pose.floor == goal.floor,
+                  pose.status == "tracking", abs(Date().timeIntervalSince1970 * 1000 - pose.timestamp) < 2000 else {
+                showMessage("Set your starting position and allow Motion & Fitness access before opening indoor AR.")
+                return
+            }
+            startObstacleScan(floorGoal: goal)
+        case "stopObstacleScan":
+            obstacleScanner?.pause(); obstacleScanner?.dismiss(animated: false)
+            indoorScanner?.pause(); indoorScanner?.dismiss(animated: false)
+        case "floorHeadingStart":
+            requestingFloorHeading = true
+            if CLLocationManager.headingAvailable() { location.startUpdatingHeading() }
+        case "floorHeadingStop": requestingFloorHeading = false; location.stopUpdatingHeading()
         case "locationStart":
             requestingLocation = true
             location.requestWhenInUseAuthorization()
@@ -305,6 +405,13 @@ final class ContourViewController: UIViewController, WKNavigationDelegate, WKUID
         case .denied, .restricted: call("contourIOSLocationError", [1, "Location permission denied."])
         default: break
         }
+    }
+
+    func locationManager(_ manager: CLLocationManager, didUpdateHeading heading: CLHeading) {
+        guard requestingFloorHeading, heading.headingAccuracy >= 0 else { return }
+        let degrees = heading.trueHeading >= 0 ? heading.trueHeading : heading.magneticHeading
+        call("contourIOSHeading", [["degrees": degrees, "accuracy": heading.headingAccuracy,
+                                   "timestamp": heading.timestamp.timeIntervalSince1970 * 1000]])
     }
 
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) { startLocationIfAllowed() }
@@ -376,10 +483,12 @@ final class ContourViewController: UIViewController, WKNavigationDelegate, WKUID
 
     func stopDeviceActivity() {
         obstacleScanner?.pause()
+        indoorScanner?.pause()
         sessionGeneration += 1
         haptics.stop()
         stopSpeech()
         location.stopUpdatingLocation()
+        location.stopUpdatingHeading()
     }
 
     private func showMessage(_ text: String) {

@@ -1524,7 +1524,7 @@ window.ContourLibrary = {
     "lib.waiting": ["Waiting for compass. Allow motion access, keep phone flat, then tap calibrate again. Map still works without sensors.", "方位待機中。動作アクセスを許可し、水平に持って再調整してください。地図はセンサーなしで使用できます。", "等待指南针。允许运动权限，水平持握后再次校准。地图无需传感器。", "나침반 대기 중. 동작 접근을 허용하고 평평하게 든 뒤 다시 보정하세요. 지도는 센서 없이 작동합니다."],
     "lib.expired": ["Checkpoint confirmation expired · confirm where you are again.", "現在地確認が期限切れ · 再確認してください。", "位置确认已过期 · 请重新确认位置。", "위치 확인 만료 · 현재 위치를 다시 확인하세요."],
     "lib.confirm": ["Choose your actual checkpoint and confirm it to show a route.", "実際の現在地を選び確認するとルートが表示されます。", "选择并确认实际所在位置以显示路线。", "실제 현재 지점을 선택하고 확인하면 경로가 표시됩니다."],
-    "b.maps": ["Library floor maps", "図書館フロアマップ", "图书馆楼层地图", "도서관 층별 지도"],
+    "b.maps": ["Floor Maps", "フロアマップ", "楼层地图", "층별 지도"],
     "b.map.floor": ["Floor", "階", "楼层", "층"],
     "b.map.source": ["Nagoya University Library · official maps", "名古屋大学附属図書館・公式マップ", "名古屋大学图书馆 · 官方地图", "나고야대학 도서관 · 공식 지도"],
     "b.map.note": ["Route preview: aisle connections are inferred from official maps and not yet walked. Confirm your checkpoint; the app cannot locate you automatically. Follow posted exits and staff instructions in an emergency.", "ルートプレビュー：通路は公式地図から推定したもので、現地未確認です。現在地を確認してください。自動測位ではありません。緊急時は避難表示と職員の指示に従ってください。", "路线预览：通道依据官方地图推断，尚未经实地确认。请确认所在位置；应用无法自动定位。紧急时遵循出口标志和工作人员指示。", "경로 미리보기: 공식 지도에서 추정한 통로이며 현장 확인 전입니다. 현재 지점을 확인하세요. 자동 위치 추적은 아닙니다. 비상시 출구 표지와 직원 지시를 따르세요."],
@@ -2468,13 +2468,16 @@ window.ContourLibrary = {
   // ----- sheet
   let sheetState = "closed", sheetIdx = -1, sheetGeom = null, prevView = null, sheetAnim = null, closeAfterOpen = false;
   const rel = el => { const a = el.getBoundingClientRect(), b = phone.getBoundingClientRect(); return { left: (a.left - b.left) / S, top: (a.top - b.top) / S, width: a.width / S, height: a.height / S }; };
+  function fillDetailMetrics(p) {
+    const [dv, du] = fmtDist(p.m).split(" ");
+    $("dDist").innerHTML = `${dv}<small>${du}</small>`;
+    $("dWalk").innerHTML = `${p.walk}<small>${t("min")}</small>`;
+  }
   function fillDetail(p) {
     $("dNum").textContent = String(p.n).padStart(2, "0");
     $("dName").textContent = pTitle(p);
     $("dJp").textContent = pSub(p);
-    const [dv, du] = fmtDist(p.m).split(" ");
-    $("dDist").innerHTML = `${dv}<small>${du}</small>`;
-    $("dWalk").innerHTML = `${p.walk}<small>${t("min")}</small>`;
+    fillDetailMetrics(p);
     $("dPhoto").hidden = !p.building;
     $("arBtn").dataset.i18n = "ar.btn"; $("arBtn").textContent = t($("arBtn").dataset.i18n);
     $("floorOverlayBtn").hidden = p.id !== "library" || typeof window.ContourBridge?.openFloorOverlay !== "function";
@@ -2547,6 +2550,7 @@ window.ContourLibrary = {
   // Re-fit the open sheet to the current screen (keyboard closed, rotation, text length after a language change).
   function relayoutSheet() {
     if (sheetState !== "open") return;
+    const readingOffset = detail.scrollTop;
     const W = phone.clientWidth, H = phone.clientHeight;
     detail.style.width = W + "px"; detail.style.height = "auto";
     const sheetH = Math.min(detail.scrollHeight, H - 110);
@@ -2554,6 +2558,7 @@ window.ContourLibrary = {
     sheet.style.touchAction = detail.scrollHeight > sheetH + 1 ? "pan-y" : "none";
     sheetGeom = { top: H - sheetH, h: sheetH };
     Object.assign(sheet.style, { left: "0px", top: sheetGeom.top + "px", width: W + "px", height: sheetH + 80 + "px" });
+    detail.scrollTop = readingOffset;
   }
   function closeSheet(fromDragY = 0) {
     if (sheetState !== "open" && sheetState !== "dragging") return;
@@ -2596,7 +2601,8 @@ window.ContourLibrary = {
   window.addEventListener("pointermove", e => {
     if (!dragArmed) return;
     const raw = (e.clientY - dy0) / S;
-    if (sheetState === "open" && Math.abs(raw) < 6) return;
+    if (sheetState === "open" && raw < -6) { dragArmed = false; return; }
+    if (sheetState === "open" && raw < 6) return;
     if (sheetState === "open") { sheetState = "dragging"; try { sheet.setPointerCapture(e.pointerId); } catch (_) {} }
     const now = performance.now();
     vY = (e.clientY - dyLast) / S / Math.max(1, now - tLast); dyLast = e.clientY; tLast = now;
@@ -3022,9 +3028,17 @@ window.ContourLibrary = {
   }
   // Everything that shows a place name: cards, detail sheet, 3D AR, AR picker, attendance sheet, walking panel.
   // Also runs when a machine translation of an official site name arrives.
-  function renderLocationDetails() {
+  function renderLocationDetails({ full = false } = {}) {
     renderWalking();
-    if (sheetState === "open" && POINTS[sheetIdx]) { fillDetail(POINTS[sheetIdx]); relayoutSheet(); }
+    if (sheetState === "open" && POINTS[sheetIdx]) {
+      if (full) {
+        const readingOffset = detail.scrollTop;
+        fillDetail(POINTS[sheetIdx]); relayoutSheet(); detail.scrollTop = readingOffset;
+      } else {
+        // A GPS fix changes only these metrics; do not rebuild the photo or resize the scroller.
+        fillDetailMetrics(POINTS[sheetIdx]);
+      }
+    }
     POINTS.forEach((p, i) => {
       if (!cards[i]) return;
       cards[i].innerHTML = cardHTML(p, i);
@@ -3035,7 +3049,7 @@ window.ContourLibrary = {
     renderPick();
   }
   function renderNames() {
-    renderLocationDetails();
+    renderLocationDetails({ full: true });
     renderShelterOptions(); renderAtt(); renderAlerts();
     renderAlertScreen(); renderAlertSetup(); renderBuildingList();
   }

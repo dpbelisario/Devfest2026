@@ -47,3 +47,23 @@ passed with JDK 21 (JDK 17 unavailable). Final bundled iPhone HTML matches the
 source byte-for-byte. Startup overlay restoration no longer overrides live GPS
 centering; saving or returning from the native editor still focuses the floor plan.
 Physical GPS accuracy and movement behavior remain a device/venue check.
+
+## Details reading position
+
+Live fixes update the open Details sheet's distance and walking-time fields only.
+They do not recreate its photo/content or measure its height again. Necessary
+relayout and full language/name refreshes preserve the current reading offset.
+Opening a destination intentionally still starts at the top. Upward touch gestures
+scroll content instead of entering the downward swipe-to-dismiss gesture.
+
+The iPhone bridge also preserves a visible Details sheet's scroll position across
+native GPS callbacks, supporting older hosted HTML before deployment. It does not
+restore an old offset if the callback changes the destination or closes the sheet.
+This lets the native update fix continuous GPS scroll resets without switching the
+phone away from its normal hosted Google Maps page.
+
+`ios/tests/details-scroll.browser.cjs` checks repeated live fixes, static photo
+identity, live distance updates, relayout, upward swipes and reopen behavior. The
+native XCTest suite also exercises real WKWebView scrolling with native location
+callbacks, including the older hosted layout-reset behavior. Run the browser test
+with the same Playwright/Chrome setup used by the other iOS UI regressions.

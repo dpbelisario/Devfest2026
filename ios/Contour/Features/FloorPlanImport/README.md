@@ -1,3 +1,6 @@
 # FloorPlanImport
 
-Own floor-plan import and source metadata. Implementation is pending. Keep original dimensions, units, building/floor identifiers and provenance; reject malformed files before storage. A scanned floor plan is not a surveyed walkable route.
+Native MapKit floor-image alignment, local persistence, on-device Vision label
+recognition and reviewed destination pins. See `docs/native-floor-overlay.md` for
+controls, save behavior, recognition limits and test instructions. The image and
+pins do not create a surveyed walkable route or determine indoor position.
