@@ -24,6 +24,12 @@ else logger.lifecycle("app/google-services.json not found: building without Fire
 // FCM topic for JMA warnings; must match FCM_TOPIC on the contour-jobs backend.
 val warningTopic = providers.gradleProperty("warningTopic").orNull ?: "contour-aichi-warnings"
 require(Regex("[A-Za-z0-9_.~%-]{1,900}").matches(warningTopic)) { "Invalid warningTopic" }
+fun indoorSetting(name: String) = local.getProperty(name) ?: System.getenv(name).orEmpty()
+fun quotedSetting(name: String): String {
+ val value = indoorSetting(name)
+ require(value.none { it == '"' || it == '\\' || it.isISOControl() }) { "Invalid $name" }
+ return "\"$value\""
+}
 android {
  namespace = "com.contour.app"
  compileSdk = 35
@@ -38,6 +44,12 @@ android {
   buildConfigField("String", "UI_URL", "\"$uiUrl\"")
   buildConfigField("boolean", "FIREBASE_CONFIGURED", "$hasFirebaseConfig")
   buildConfigField("String", "WARNING_TOPIC", "\"$warningTopic\"")
+  buildConfigField("String", "INDOORATLAS_VENUE_ID", quotedSetting("INDOORATLAS_VENUE_ID"))
+  buildConfigField("String", "INDOORATLAS_ROOM221_POI_ID", quotedSetting("INDOORATLAS_ROOM221_POI_ID"))
+  buildConfigField("boolean", "INDOORATLAS_AR_FUSION", (indoorSetting("INDOORATLAS_AR_FUSION") == "true").toString())
+  manifestPlaceholders["indoorAtlasApiKey"] = indoorSetting("INDOORATLAS_API_KEY")
+  manifestPlaceholders["indoorAtlasApiSecret"] = indoorSetting("INDOORATLAS_API_SECRET")
+  buildConfigField("boolean", "INDOORATLAS_CONFIGURED", (indoorSetting("INDOORATLAS_API_KEY").isNotBlank() && indoorSetting("INDOORATLAS_API_SECRET").isNotBlank() && indoorSetting("INDOORATLAS_VENUE_ID").isNotBlank()).toString())
   testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
  }
  buildFeatures { compose = true; buildConfig = true }
@@ -60,6 +72,7 @@ dependencies {
  implementation("androidx.webkit:webkit:1.12.1")
  implementation(platform("com.google.firebase:firebase-bom:34.4.0"))
  implementation("com.google.firebase:firebase-messaging")
+ implementation("com.indooratlas.android:indooratlas-android-sdk:3.8.1@aar")
  testImplementation("junit:junit:4.13.2")
  androidTestImplementation("androidx.test.ext:junit:1.2.1")
  androidTestImplementation("androidx.test:runner:1.6.2")
