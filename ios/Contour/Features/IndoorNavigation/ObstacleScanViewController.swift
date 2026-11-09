@@ -305,8 +305,9 @@ final class ObstacleScanViewController: UIViewController, ARSessionDelegate, ARS
     /// Demo shortcut: once GPS says we are near the doors, freeze "straight out" as a world direction,
     /// because indoor GPS overshoots the pinned door and would otherwise flip the arrow backwards.
     private var exitLatch: (bearing: Float, x: Float, z: Float)?
-    private let exitLatchRadius = 10.0
-    private let exitLeaveDistance: Float = 12
+    private var pastGates = false
+    private var gateAxisBearing: Float = .nan
+    private let exitLeaveDistance: Float = 15
     private func exitRelative(cameraHeading: Float) -> Float? {
         let here: (Double, Double)
         if let pose = indoorTracker?.pose, pose.status == "tracking", abs(Date().timeIntervalSince1970 * 1000 - pose.timestamp) < 5000 {
@@ -322,6 +323,16 @@ final class ObstacleScanViewController: UIViewController, ARSessionDelegate, ARS
         let north = (exit.latitude - here.0) * .pi / 180 * 6378137
         let east = (exit.longitude - here.1) * .pi / 180 * 6378137 * cos(here.0 * .pi / 180)
         exitDistance = hypot(east, north)
+        // shortcut: exit gates digitised at (850, 495) on the saved 1178x817 2F plan, unsurveyed.
+        let gate = g.planOffset(imageX: 850.0 / 1178, imageY: 495.0 / 817, width: g.defaultWidth, aspect: g.defaultAspect, angle: g.defaultAngle)
+        let door = g.planOffset(imageX: 1034.0 / 1178, imageY: 528.0 / 817, width: g.defaultWidth, aspect: g.defaultAspect, angle: g.defaultAngle)
+        let hereNorth = (here.0 - g.defaultLatitude) * .pi / 180 * 6378137
+        let hereEast = (here.1 - g.defaultLongitude) * .pi / 180 * 6378137 * cos(g.defaultLatitude * .pi / 180)
+        let axisEast = door.east - gate.east, axisNorth = door.north - gate.north
+        let axisLength = hypot(axisEast, axisNorth)
+        gateAxisBearing = Float(atan2(axisEast, axisNorth))
+        // Past the gates = projected beyond the gate line toward the doors (GPS overshoot also counts).
+        pastGates = ((hereEast - gate.east) * axisEast + (hereNorth - gate.north) * axisNorth) / axisLength > 1
         let delta = Float(atan2(east, north)) - cameraHeading
         return atan2(sin(delta), cos(delta))
     }
@@ -370,8 +381,9 @@ final class ObstacleScanViewController: UIViewController, ARSessionDelegate, ARS
         // AR world is gravityAndHeading in the exit demo, so the camera heading is a compass bearing.
         if exitDemo, let toExit = exitRelative(cameraHeading: heading) {
             relative = toExit
-            if exitLatch == nil, exitDistance < exitLatchRadius {
-                exitLatch = (heading + toExit, camera.x, camera.z)
+            if exitLatch == nil, pastGates, gateAxisBearing.isFinite {
+                // After the gates, "straight out" is the gate-to-door direction on the map, not GPS.
+                exitLatch = (gateAxisBearing, camera.x, camera.z)
             }
         }
         if exitDemo, let latch = exitLatch {
