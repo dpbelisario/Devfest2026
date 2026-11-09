@@ -3,7 +3,10 @@
 # Firestore, service accounts, the private contour-jobs Cloud Run service, two
 # Cloud Workflows (the node graphs), paused Cloud Scheduler jobs and the Cloud
 # Build trigger that keeps them in sync with main. It also prepares warning push
-# (FCM API, sender role, outbox index) but leaves FCM_DELIVERY_ENABLED off. Run it in Cloud Shell from the
+# (FCM API, sender role, outbox index) but leaves FCM_DELIVERY_ENABLED off, and
+# the IndoorAtlas venue sync (Secret Manager secret indooratlas-mapping-api-key,
+# workflow indooratlas-sync, enabled 15-minute schedule; harmless until the
+# secret has a version). Run it in Cloud Shell from the
 # repository root with the project selected:
 #
 #   gcloud config set project gen-lang-client-0467526025
@@ -14,10 +17,10 @@
 # current api image even if it already exists.
 #
 # Safe to rerun: existing database, index, accounts, service (including its
-# FCM_DELIVERY_ENABLED value), schedules (including their paused/resumed state)
-# and trigger are kept; IAM bindings are re-applied and the workflows are
+# FCM_DELIVERY_ENABLED value), schedules (including their paused/resumed state),
+# secret versions and trigger are kept; IAM bindings are re-applied and the workflows are
 # redeployed from this checkout. Docs: docs/cloud-jobs.md and
-# docs/push-notifications.md.
+# docs/push-notifications.md and docs/indoor-venues.md.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -32,17 +35,18 @@ RUNTIME_SA="contour-jobs-runtime@${PROJECT}.iam.gserviceaccount.com"
 WORKFLOWS_SA="contour-workflows@${PROJECT}.iam.gserviceaccount.com"
 DEPLOYER_SA="contour-jobs-deployer@${PROJECT}.iam.gserviceaccount.com"
 CONSOLE="https://console.cloud.google.com"
+IA_SECRET=indooratlas-mapping-api-key
 
 echo "Project: $PROJECT | Region: $REGION | Jobs service: $JOBS_SERVICE"
 
-echo "1/9 Enabling APIs"
+echo "1/10 Enabling APIs"
 gcloud services enable workflows.googleapis.com workflowexecutions.googleapis.com \
   cloudscheduler.googleapis.com firestore.googleapis.com run.googleapis.com \
   cloudbuild.googleapis.com artifactregistry.googleapis.com iam.googleapis.com \
   fcm.googleapis.com fcmregistrations.googleapis.com firebaseinstallations.googleapis.com \
-  --project "$PROJECT"
+  secretmanager.googleapis.com --project "$PROJECT"
 
-echo "2/9 Firestore database (default)"
+echo "2/10 Firestore database (default)"
 if gcloud firestore databases describe --database='(default)' --project "$PROJECT" \
   --format='value(type,locationId)' 2>/dev/null; then
   echo "    exists, keeping it (the backend expects FIRESTORE_NATIVE)"
@@ -62,7 +66,7 @@ else
   echo "$index_out" >&2; exit 1
 fi
 
-echo "3/9 Service accounts"
+echo "3/10 Service accounts"
 ensure_sa() {
   local id="$1" title="$2"
   if gcloud iam service-accounts describe "${id}@${PROJECT}.iam.gserviceaccount.com" \
@@ -81,7 +85,7 @@ project_role() {
     --role="$2" --condition=None >/dev/null
   echo "    $1 -> $2"
 }
-echo "4/9 Project roles"
+echo "4/10 Project roles"
 project_role "$RUNTIME_SA" roles/datastore.user
 # Sends warning pushes to the FCM topic (only used when FCM_DELIVERY_ENABLED=true).
 project_role "$RUNTIME_SA" roles/firebasecloudmessaging.admin
@@ -98,7 +102,7 @@ for sa in "$RUNTIME_SA" "$WORKFLOWS_SA"; do
   echo "    $DEPLOYER_SA -> roles/iam.serviceAccountUser on $sa"
 done
 
-echo "5/9 Private Cloud Run service $JOBS_SERVICE"
+echo "5/10 Private Cloud Run service $JOBS_SERVICE"
 API_IMAGE="$(gcloud run services describe "$API_SERVICE" --project "$PROJECT" --region "$REGION" \
   --format='value(spec.template.spec.containers[0].image)')"
 [ -n "$API_IMAGE" ] || { echo "Could not read the image of Cloud Run service $API_SERVICE." >&2; exit 1; }
@@ -128,19 +132,48 @@ gcloud run services add-iam-policy-binding "$JOBS_SERVICE" --project "$PROJECT" 
   --region "$REGION" --member="serviceAccount:$WORKFLOWS_SA" --role=roles/run.invoker >/dev/null
 echo "    $WORKFLOWS_SA -> roles/run.invoker on $JOBS_SERVICE only"
 
-echo "6/9 Workflows"
+echo "6/10 IndoorAtlas Mapping API key (Secret Manager $IA_SECRET)"
+# The secret is created empty; add the key as a version yourself (never in this repo):
+#   printf %s "$KEY" | gcloud secrets versions add indooratlas-mapping-api-key --data-file=-
+if gcloud secrets describe "$IA_SECRET" --project "$PROJECT" >/dev/null 2>&1; then
+  echo "    secret exists"
+else
+  gcloud secrets create "$IA_SECRET" --project "$PROJECT" --replication-policy=automatic \
+    --labels=managed-by=setup-cloud-jobs >/dev/null
+  echo "    created the empty secret"
+fi
+gcloud secrets add-iam-policy-binding "$IA_SECRET" --project "$PROJECT" \
+  --member="serviceAccount:$RUNTIME_SA" --role=roles/secretmanager.secretAccessor \
+  --condition=None >/dev/null
+echo "    $RUNTIME_SA -> roles/secretmanager.secretAccessor on $IA_SECRET only"
+# Cloud Run refuses a revision whose secret has no enabled version, so attach it only once one exists.
+if [ -n "$(gcloud secrets versions list "$IA_SECRET" --project "$PROJECT" \
+  --filter='state=ENABLED' --limit=1 --format='value(name)' 2>/dev/null)" ]; then
+  gcloud run services update "$JOBS_SERVICE" --project "$PROJECT" --region "$REGION" \
+    --update-secrets "INDOORATLAS_MAPPING_API_KEY=${IA_SECRET}:latest" --quiet >/dev/null
+  echo "    attached to $JOBS_SERVICE as INDOORATLAS_MAPPING_API_KEY (latest version)"
+  IA_KEY_STATE=attached
+else
+  echo "    no enabled version yet: the sync reports configured=false until you add one and rerun"
+  IA_KEY_STATE=missing
+fi
+
+echo "7/10 Workflows"
 PROJECT="$PROJECT" REGION="$REGION" JOBS_SERVICE="$JOBS_SERVICE" WORKFLOWS_SA="$WORKFLOWS_SA" \
   bash "$ROOT/infra/deploy-workflows.sh"
 
-echo "7/9 Scheduler jobs (new jobs start PAUSED, like unpublished n8n workflows)"
+echo "8/10 Scheduler jobs (new jobs start PAUSED like unpublished n8n workflows; the IndoorAtlas sync starts enabled)"
 ensure_schedule() {
-  local job="$1" workflow="$2" schedule="$3" retries="$4" description="$5"
+  local job="$1" workflow="$2" schedule="$3" retries="$4" description="$5" initial="${6:-paused}"
   local uri="https://workflowexecutions.googleapis.com/v1/projects/${PROJECT}/locations/${REGION}/workflows/${workflow}/executions"
   local common=(--project "$PROJECT" --location "$REGION" --uri "$uri" --http-method POST
     --message-body '{"argument":"{}"}' --oauth-service-account-email "$WORKFLOWS_SA"
     --time-zone "$TIME_ZONE" --max-retry-attempts "$retries" --description "$description")
   if gcloud scheduler jobs describe "$job" --project "$PROJECT" --location "$REGION" >/dev/null 2>&1; then
     gcloud scheduler jobs update http "$job" "${common[@]}" --schedule "$schedule" >/dev/null
+  elif [ "$initial" = enabled ]; then
+    # Starts enabled; only on first creation, so a later pause is kept on reruns.
+    gcloud scheduler jobs create http "$job" "${common[@]}" --schedule "$schedule" >/dev/null
   else
     # Create with a once-a-year placeholder schedule, pause, then set the real one,
     # so a per-minute job cannot fire before it is paused.
@@ -159,8 +192,10 @@ ensure_schedule nagoya-import-hourly nagoya-import "0 * * * *" 1 \
   "Hourly Nagoya evacuation destination import (n8n workflow 1)"
 ensure_schedule jma-warnings-every-minute jma-warnings "* * * * *" 0 \
   "Every-minute JMA weather and earthquake/tsunami/volcano check (n8n workflow 2)"
+ensure_schedule indooratlas-sync-every-15-minutes indooratlas-sync "*/15 * * * *" 1 \
+  "IndoorAtlas venue sync into Firestore indoorVenues (docs/indoor-venues.md)" enabled
 
-echo "8/9 Cloud Build trigger: $TRIGGER"
+echo "9/10 Cloud Build trigger: $TRIGGER"
 if gcloud builds triggers describe "$TRIGGER" --project "$PROJECT" >/dev/null 2>&1; then
   echo "    exists, keeping it (edit it in the console to change settings)"
 else
@@ -173,7 +208,7 @@ else
     --service-account="projects/${PROJECT}/serviceAccounts/${DEPLOYER_SA}"
 fi
 
-echo "9/9 Done. Everything is deployed; both schedules stay paused until you resume them."
+echo "10/10 Done. Everything is deployed; the Nagoya and JMA schedules stay paused until you resume them."
 cat <<EOF
 
 Graphs (Source tab shows the step diagram) and executions:
@@ -181,6 +216,7 @@ Graphs (Source tab shows the step diagram) and executions:
                  $CONSOLE/workflows/workflow/$REGION/nagoya-import/executions?project=$PROJECT
   jma-warnings:  $CONSOLE/workflows/workflow/$REGION/jma-warnings/source?project=$PROJECT
                  $CONSOLE/workflows/workflow/$REGION/jma-warnings/executions?project=$PROJECT
+  indooratlas-sync: $CONSOLE/workflows/workflow/$REGION/indooratlas-sync/executions?project=$PROJECT
   Scheduler:     $CONSOLE/cloudscheduler?project=$PROJECT
 
 Test once by hand (no schedule needed):
@@ -200,4 +236,19 @@ index shows READY (gcloud firestore indexes composite list) and the app build
 has google-services.json, turn it on with:
   gcloud run services update $JOBS_SERVICE --region $REGION --update-env-vars FCM_DELIVERY_ENABLED=true
 Turn it off again with FCM_DELIVERY_ENABLED=false.
+
+IndoorAtlas venue sync (docs/indoor-venues.md): schedule indooratlas-sync-every-15-minutes
+is enabled (unless you paused it). Mapping API key: ${IA_KEY_STATE}.
+EOF
+if [ "$IA_KEY_STATE" = missing ]; then
+  cat <<EOF
+  Add the IndoorAtlas Mapping API key (hidden input, kept out of shell history), then rerun this script:
+    read -rsp 'IndoorAtlas Mapping API key: ' KEY; echo
+    printf %s "\$KEY" | gcloud secrets versions add $IA_SECRET --data-file=- --project $PROJECT; unset KEY
+    bash infra/setup-cloud-jobs.sh
+EOF
+fi
+cat <<EOF
+  Run once now: gcloud workflows run indooratlas-sync --location $REGION
+  Pause:        gcloud scheduler jobs pause indooratlas-sync-every-15-minutes --location $REGION
 EOF

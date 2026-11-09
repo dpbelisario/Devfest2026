@@ -33,6 +33,10 @@ import kotlin.math.hypot
  * Foreground-only native positioning and continuous CMS wayfinding. Never seeds a fictional indoor start.
  * Supported venues come from [venues] (server list, device cache or build-time default); a venue the
  * SDK detects that is not in the list is treated as not mapped.
+ *
+ * The [IndoorTarget] of a session is room 221 (SDK route to its POI) or the detected venue's nearest
+ * exit (SDK route to the exit's coordinates and floor; when the venue has no wayfinding graph or the
+ * SDK finds no route, a straight bearing reported as status `direct`, never as a route).
  */
 class IndoorNavigationController(
     private val activity: ComponentActivity,
@@ -54,6 +58,10 @@ class IndoorNavigationController(
     private var venueConfig: IndoorVenueConfig? = null
     private var route: IARoute? = null
     private var routeAt = 0L
+    private var target = IndoorTarget.ROOM_221
+    /** The chosen exit for [IndoorTarget.NEAREST_EXIT], with the floor it was chosen on. */
+    private var exitDestination: ExitDestination? = null
+    private var exitChosenOnFloor: Int? = null
     private var position: IALocation? = null
     private var positionAt = 0L
     private var heading: Double? = null
@@ -76,7 +84,7 @@ class IndoorNavigationController(
         override fun onLocationChanged(location: IALocation) {
             if (!running) return
             if (!insideSupportedVenue(location.latitude, location.longitude)) {
-                position = null; route = null; routeRequested = false
+                position = null; route = null; routeRequested = false; exitDestination = null
                 manager?.removeWayfindingUpdates()
                 status = "outsideBuilding"
                 emit(true)
@@ -86,6 +94,7 @@ class IndoorNavigationController(
             positionAt = SystemClock.elapsedRealtime()
             updateDeclination(location.toLocation())
             location.region?.venue?.let { enterVenue(it) }
+            chooseExit(location)
             emit(true)
         }
 
@@ -104,7 +113,7 @@ class IndoorNavigationController(
         }
         override fun onExitRegion(region: IARegion) {
             if (!running || region.type != IARegion.TYPE_VENUE) return
-            venue = null; venueConfig = null; route = null; position = null; routeRequested = false
+            venue = null; venueConfig = null; route = null; position = null; routeRequested = false; exitDestination = null
             manager?.removeWayfindingUpdates()
             status = "locating"
             emit(true)
@@ -113,11 +122,12 @@ class IndoorNavigationController(
 
     /** Starts after the host has requested location/sensor permissions. Missing credentials still allow estimates. */
     @SuppressLint("MissingPermission")
-    fun start(id: String) {
-        if (running && navigationId == id) { emit(true); return }
+    fun start(id: String, target: IndoorTarget = this.target) {
+        if (running && navigationId == id && this.target == target) { emit(true); return }
         if (navigationId != id) { stop(); estimator = FloorEstimator(); lockedFloor = null }
         else pause()
         navigationId = id
+        this.target = target
         running = true
         sessionGeneration++
         status = if (BuildConfig.INDOORATLAS_CONFIGURED) "locating" else "mappingRequired"
@@ -198,7 +208,7 @@ class IndoorNavigationController(
         }
         locationListener = null; regionListener = null
         manager = null; venue = null; venueConfig = null; route = null; position = null; heading = null
-        routeRequested = false; declination = null
+        routeRequested = false; declination = null; exitDestination = null; exitChosenOnFloor = null
         sdkStatus = IALocationManager.STATUS_TEMPORARILY_UNAVAILABLE
         cameraTracking = null
     }
@@ -224,6 +234,10 @@ class IndoorNavigationController(
         }
         venue = value
         venueConfig = config
+        if (target == IndoorTarget.NEAREST_EXIT) {
+            if (config.exits.isEmpty()) status = "noExits"
+            return // chosen from the first usable position, see chooseExit
+        }
         if (routeRequested) return
         val poiId = config.room221()?.indoorAtlasPoiId
         val matches = value.poIs.filter {
@@ -238,6 +252,41 @@ class IndoorNavigationController(
                 route = value
                 routeAt = SystemClock.elapsedRealtime()
                 status = if (value.isSuccessful && value.legs.isNotEmpty()) "navigating" else "noRoute"
+                emit(true)
+            }
+        }, Looper.getMainLooper())
+    }
+
+    /**
+     * Nearest-exit sessions: choose the exit from a usable position (known floor, accuracy ≤15 m) and
+     * re-choose when the floor changes. ROUTE destinations ask the SDK for continuous wayfinding to the
+     * exit's coordinates and floor; while the SDK has no route (or the venue has no graph) the session
+     * reports status `direct` with a straight bearing instead.
+     */
+    private fun chooseExit(location: IALocation) {
+        if (target != IndoorTarget.NEAREST_EXIT) return
+        val config = venueConfig ?: return
+        if (!location.hasFloorLevel() || !location.accuracy.isFinite() || location.accuracy > 15f) return
+        val floor = location.floorLevel
+        if (exitDestination != null && exitChosenOnFloor == floor) return
+        val exit = IndoorTargets.nearestExit(config.exits, location.latitude, location.longitude, floor)
+        if (exit == null) { status = "noExits"; return }
+        exitChosenOnFloor = floor
+        if (exitDestination?.exit == exit) return
+        manager?.removeWayfindingUpdates()
+        route = null
+        val destination = IndoorTargets.destination(config, exit)
+        exitDestination = destination
+        if (destination.mode == ExitDestination.Mode.DIRECT) { status = "direct"; return }
+        status = "locating"
+        val generation = sessionGeneration
+        val request = IAWayfindingRequest.Builder()
+            .withLatitude(destination.latitude).withLongitude(destination.longitude).withFloor(destination.floor).build()
+        manager?.requestWayfindingUpdates(request, IAWayfindingListener { value ->
+            if (running && generation == sessionGeneration && exitDestination === destination) {
+                route = value
+                routeAt = SystemClock.elapsedRealtime()
+                status = if (value.isSuccessful && value.legs.isNotEmpty()) "navigating" else "direct"
                 emit(true)
             }
         }, Looper.getMainLooper())
@@ -319,21 +368,31 @@ class IndoorNavigationController(
             config?.floorLevelOf(region.id)?.let { it == p.floorLevel }
         } ?: true
         val trusted = p != null && config != null && config.contains(p.latitude, p.longitude) && now - positionAt <= 6000 && p.accuracy.isFinite() && p.accuracy <= 8f &&
-            p.hasFloorLevel() && p.floorLevel in 1..4 && floorPlanAgrees && (lockedFloor != null || (p.hasFloorCertainty() && p.floorCertainty >= 0.7f)) &&
+            p.hasFloorLevel() && floorOk(config, p.floorLevel) && floorPlanAgrees && (lockedFloor != null || (p.hasFloorCertainty() && p.floorCertainty >= 0.7f)) &&
             sdkStatus == IALocationManager.STATUS_AVAILABLE && venue?.id.equals(config.indoorAtlasVenueId, ignoreCase = true)
         if (trusted && lockedFloor == null) estimator.observeIndoorFloor(p!!.floorLevel)
         val estimate = estimator.estimate()
         val liveFloor = if (trusted && lockedFloor == null) p!!.floorLevel else estimate.floor
         val source = if (trusted && lockedFloor == null) "indooratlas" else estimate.source
-        val payload = JSONObject().put("navigationId", navigationId).put("status", if (status == "navigating" && !trusted) "lowAccuracy" else status)
+        val payload = JSONObject().put("navigationId", navigationId).put("status", if ((status == "navigating" || status == "direct") && !trusted) "lowAccuracy" else status)
             .put("floor", liveFloor ?: JSONObject.NULL).put("floorSource", source)
             .put("uncertaintyFloors", if (source == "indooratlas") 0 else estimate.uncertaintyFloors ?: JSONObject.NULL)
             .put("heading", if (now - headingAt <= 2000 && now - declinationAt < 60000) heading ?: JSONObject.NULL else JSONObject.NULL)
             .put("cameraTracking", cameraTracking ?: JSONObject.NULL)
-        config?.let { payload.put("venue", JSONObject().put("id", it.id).put("name", JSONObject().put("en", it.name.en).put("ja", it.name.ja))) }
+        config?.let { payload.put("venue", JSONObject().put("id", it.id).put("rank", it.rank ?: JSONObject.NULL)
+            .put("name", JSONObject().put("en", it.name.en).put("ja", it.name.ja))) }
+        payload.put("target", targetJson())
+        val destination = exitDestination
+        if (trusted && status == "direct" && destination != null) {
+            // Straight line to the exit: the page labels it "direct direction, not a route".
+            val distance = IndoorTargets.distanceMeters(p!!.latitude, p.longitude, destination.latitude, destination.longitude)
+            val bearing = IndoorTargets.bearingDegrees(p.latitude, p.longitude, destination.latitude, destination.longitude)
+            if (distance.isFinite() && bearing.isFinite())
+                payload.put("direct", JSONObject().put("distance", distance).put("bearing", bearing).put("floor", destination.floor))
+        }
         if (trusted && now - routeAt <= 6000 && route?.isSuccessful == true) {
             val legs = route!!.legs
-            if (legs.size in 1..256 && legs.first().begin.floor == liveFloor && legs.all { it.length.isFinite() && it.length >= 0 && it.begin.latitude.isFinite() && it.begin.longitude.isFinite() && it.end.latitude.isFinite() && it.end.longitude.isFinite() && it.begin.floor in 1..4 && it.end.floor in 1..4 && config!!.contains(it.begin.latitude, it.begin.longitude) && config.contains(it.end.latitude, it.end.longitude) }) {
+            if (legs.size in 1..256 && legs.first().begin.floor == liveFloor && legs.all { it.length.isFinite() && it.length >= 0 && it.begin.latitude.isFinite() && it.begin.longitude.isFinite() && it.end.latitude.isFinite() && it.end.longitude.isFinite() && floorOk(config, it.begin.floor) && floorOk(config, it.end.floor) && config!!.contains(it.begin.latitude, it.begin.longitude) && config.contains(it.end.latitude, it.end.longitude) }) {
                 payload.put("status", "navigating")
                 payload.put("legs", JSONArray().apply {
                     legs.forEach { leg ->
@@ -344,6 +403,21 @@ class IndoorNavigationController(
             }
         }
         publish(payload)
+    }
+
+    /** Floors the app accepts: the Engineering II range 1..4 or any floor the venue lists. */
+    private fun floorOk(config: IndoorVenueConfig?, level: Int) =
+        level in 1..4 || config?.floors?.any { it.floorLevel == level } == true
+
+    private fun targetJson(): JSONObject {
+        if (target == IndoorTarget.ROOM_221) return JSONObject().put("type", "room221")
+        val json = JSONObject().put("type", "exit")
+        exitDestination?.let { d ->
+            json.put("id", d.exit.id).put("name", JSONObject().put("en", d.exit.name.en).put("ja", d.exit.name.ja))
+                .put("floor", d.floor).put("kind", d.exit.kind).put("source", d.exit.source)
+                .put("mode", if (d.mode == ExitDestination.Mode.ROUTE) "route" else "direct")
+        }
+        return json
     }
 
     private fun point(p: IARoute.Point) = JSONObject().put("latitude", p.latitude).put("longitude", p.longitude).put("floor", p.floor)

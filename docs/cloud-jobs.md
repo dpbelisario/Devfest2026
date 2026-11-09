@@ -16,14 +16,15 @@ evacuation guidance. Unknown opening status stays unknown. Warning delivery to
 Android phones (outbox → FCM topic) is implemented but off until
 `FCM_DELIVERY_ENABLED=true`; see [push-notifications.md](push-notifications.md).
 
-| File                                 | Purpose                                                     |
-| ------------------------------------ | ----------------------------------------------------------- |
-| `infra/workflows/nagoya-import.yaml` | Workflow 1: Nagoya evacuation destination import            |
-| `infra/workflows/jma-warnings.yaml`  | Workflow 2: JMA weather, earthquake/tsunami/volcano, outbox |
-| `infra/setup-cloud-jobs.sh`          | One-time setup, safe to rerun                               |
-| `infra/deploy-workflows.sh`          | Deploys the workflows and checks for console edits (drift)  |
-| `infra/cloudbuild.jobs.yaml`         | Redeploys `contour-jobs` and the workflows from `main`      |
-| `infra/pull-workflows.sh`            | Copies the deployed definitions back into the repo          |
+| File                                    | Purpose                                                     |
+| --------------------------------------- | ----------------------------------------------------------- |
+| `infra/workflows/nagoya-import.yaml`    | Workflow 1: Nagoya evacuation destination import            |
+| `infra/workflows/jma-warnings.yaml`     | Workflow 2: JMA weather, earthquake/tsunami/volcano, outbox |
+| `infra/workflows/indooratlas-sync.yaml` | IndoorAtlas venue sync into Firestore `indoorVenues`        |
+| `infra/setup-cloud-jobs.sh`             | One-time setup, safe to rerun                               |
+| `infra/deploy-workflows.sh`             | Deploys the workflows and checks for console edits (drift)  |
+| `infra/cloudbuild.jobs.yaml`            | Redeploys `contour-jobs` and the workflows from `main`      |
+| `infra/pull-workflows.sh`               | Copies the deployed definitions back into the repo          |
 
 ## What maps to what
 
@@ -76,6 +77,22 @@ must tolerate them (see the backend contract below).
 If any branch fails, the other branches still finish. The execution then fails
 with `BRANCH_FAILED`, and the error includes the results that did succeed.
 
+### `indooratlas-sync` (every 15 minutes, enabled)
+
+| Step                      | What it does                                                                                 | Backend endpoint              |
+| ------------------------- | -------------------------------------------------------------------------------------------- | ----------------------------- |
+| Scheduler job             | `indooratlas-sync-every-15-minutes` (`*/15 * * * *`, Tokyo), **enabled**                     | none                          |
+| `import_configuration`    | Reads `baseUrl` (argument or `JOBS_BASE_URL`)                                                | none                          |
+| `sync_indooratlas_venues` | Mirrors the IndoorAtlas account into `indoorVenues` (timeout 240 s, 1 retry on 5xx/timeouts) | `POST /jobs/indooratlas/sync` |
+| `sync_summary`            | Returns `{configured, venues, floors, pois, exits, updated, disabled, skipped}`              | none                          |
+
+This schedule is created enabled because it is harmless without the key: the
+backend answers `{"configured": false}` until the Secret Manager secret
+`indooratlas-mapping-api-key` has a version and is attached to `contour-jobs` as
+`INDOORATLAS_MAPPING_API_KEY` (rerun the setup script after adding the version).
+Mapping rules and the manual CLI are in
+[indoor-venues.md](indoor-venues.md#indooratlas-sync).
+
 ### Backend contract
 
 Every call is `POST` with a JSON body to the `contour-jobs` URL. Authentication
@@ -100,6 +117,10 @@ workflow files. The workflows also expect the following:
   `FCM_DELIVERY_ENABLED=false` (default) it only counts `pending`. With it on, it
   sends at most 3 FCM messages per call and marks rows `sent` or `skipped`; see
   [push-notifications.md](push-notifications.md) for the rules.
+- **IndoorAtlas sync.** `indooratlas/sync` takes `{}`, only reads IndoorAtlas
+  (GET), and is idempotent: unchanged venues are not rewritten. A rejected key
+  or an IndoorAtlas outage answers 502 `UPSTREAM_UNAVAILABLE` without changing
+  anything.
 - **Errors.** HTTP 409 with `{"error":"DATASET_SHRANK"}` is only for the shrink
   guard. Other 4xx responses are not retried. Responses must not contain
   internal error details.
@@ -145,7 +166,7 @@ that a manual run succeeds. Otherwise every minute adds a failed execution.
 
 You need Project Owner on `gen-lang-client-0467526025`, or equivalent roles:
 Service Usage Admin, Project IAM Admin, Service Account Admin, Cloud Run Admin,
-Workflows Admin, Cloud Scheduler Admin, Cloud Build Editor and Cloud Datastore
+Workflows Admin, Cloud Scheduler Admin, Cloud Build Editor, Secret Manager Admin and Cloud Datastore
 Owner. You also need permission to act as the new service accounts. The GitHub
 connection for `dpbelisario/Devfest2026` must exist in Cloud Build. The existing
 `api` trigger already uses it.
@@ -164,7 +185,7 @@ bash infra/setup-cloud-jobs.sh
 The script does the following:
 
 1. Enables the Workflows, Workflow Executions, Cloud Scheduler, Firestore, Cloud
-   Run, Cloud Build, Artifact Registry, IAM and Firebase Cloud Messaging APIs.
+   Run, Cloud Build, Artifact Registry, IAM, Firebase Cloud Messaging and Secret Manager APIs.
 2. Creates the Firestore Native database `(default)` in `asia-northeast1`, but
    only if no database exists, and the composite index
    `warningOutbox (deliveryStatus, createdAt)` used by warning push.
@@ -182,10 +203,17 @@ The script does the following:
 4. Deploys `contour-jobs` from the image the `api` service currently runs. It is
    private, with min 0 and max 2 instances and a 300 s timeout. An existing
    service keeps its image unless you set `REDEPLOY_JOBS=1`.
-5. Deploys both workflows with `JOBS_BASE_URL` set to the `contour-jobs` URL.
-6. Creates both Scheduler jobs in the paused state.
-7. Creates the Cloud Build trigger `contour-jobs-deploy`.
-8. Prints links to the graphs and the resume commands.
+5. Creates the Secret Manager secret `indooratlas-mapping-api-key` (empty) if
+   missing, grants `contour-jobs-runtime` `roles/secretmanager.secretAccessor`
+   on it only, and, once the secret has an enabled version, attaches it to
+   `contour-jobs` with
+   `--update-secrets INDOORATLAS_MAPPING_API_KEY=indooratlas-mapping-api-key:latest`.
+6. Deploys all workflows with `JOBS_BASE_URL` set to the `contour-jobs` URL.
+7. Creates the Nagoya and JMA Scheduler jobs in the paused state and
+   `indooratlas-sync-every-15-minutes` enabled (only on first creation; a later
+   pause is kept).
+8. Creates the Cloud Build trigger `contour-jobs-deploy`.
+9. Prints links to the graphs and the resume commands.
 
 ## Keeping the repo and the console in sync
 
@@ -249,7 +277,9 @@ can change.
   mention a separate charge for detailed execution history; that is not
   verified.
 - **Cloud Scheduler.** Each billing account gets 3 free jobs, then each job costs
-  $0.10 per month. These are 2 jobs.
+  $0.10 per month. These are 3 jobs.
+- **IndoorAtlas sync.** About 2,900 runs a month × 3 steps, within the free
+  Workflows tier; each run makes 1 + 3 × (venues) GET calls to IndoorAtlas.
 - **Cloud Run, Firestore and Cloud Build.** About 130,000 requests a month to
   `contour-jobs`, with scale to zero, plus a few Firestore reads and writes per
   run and one image build per backend push. This should fit in or near the

@@ -17,7 +17,10 @@ data class LocalizedName(val en: String, val ja: String)
 
 data class IndoorVenueFloor(val floorPlanId: String, val floorLevel: Int, val name: String)
 
-/** [source] is `verified`, `event-map` or `estimate`; only `verified` exits were checked on site. */
+/**
+ * [source] is `verified`, `event-map`, `estimate` or `indooratlas` (a POI the venue owner marked in
+ * IndoorAtlas whose name looks like an exit); only `verified` exits were checked on site.
+ */
 data class IndoorVenueExit(
     val id: String, val name: LocalizedName, val floorLevel: Int,
     val latitude: Double, val longitude: Double, val kind: String, val source: String,
@@ -39,6 +42,14 @@ data class IndoorVenueConfig(
     val radiusMeters: Double,
     val exits: List<IndoorVenueExit>,
     val pois: List<IndoorVenuePoi>,
+    /** Whether the IndoorAtlas venue has a wayfinding graph; null when the server does not say. */
+    val hasWayfinding: Boolean? = null,
+    /** 1-based position in the server list (synced IndoorAtlas venues first); shown as "01". */
+    val rank: Int? = null,
+    /** True for the server's first venue. */
+    val primary: Boolean = false,
+    /** `indooratlas` when the venue is mirrored from the IndoorAtlas account. */
+    val syncedFrom: String? = null,
 ) {
     /** Coarse building gate, in addition to the SDK-reported venue ID. */
     fun contains(lat: Double, lng: Double): Boolean {
@@ -74,8 +85,9 @@ data class IndoorVenueCatalog(val venues: List<IndoorVenueConfig>, val origin: O
     /** Venues whose building gate contains the point. */
     fun containing(lat: Double, lng: Double): List<IndoorVenueConfig> = venues.filter { it.contains(lat, lng) }
 
-    /** Venue holding the room 221 POI, else the first venue: used for the page's venue label. */
-    fun primary(): IndoorVenueConfig? = venues.firstOrNull { it.room221() != null } ?: venues.firstOrNull()
+    /** The server's primary ("01") venue, else the venue holding the room 221 POI, else the first venue. */
+    fun primary(): IndoorVenueConfig? =
+        venues.firstOrNull { it.primary } ?: venues.firstOrNull { it.room221() != null } ?: venues.firstOrNull()
 
     /** Public JSON for the WebView (`ContourBridge.indoorVenues()`). */
     fun toJson(): JSONObject = JSONObject()
@@ -83,7 +95,10 @@ data class IndoorVenueCatalog(val venues: List<IndoorVenueConfig>, val origin: O
         .put("venues", JSONArray().apply {
             venues.forEach { venue ->
                 put(JSONObject().put("id", venue.id).put("name", name(venue.name))
-                    .put("indoorAtlas", JSONObject().put("venueId", venue.indoorAtlasVenueId).put("floors", JSONArray().apply {
+                    .put("rank", venue.rank ?: JSONObject.NULL).put("primary", venue.primary)
+                    .put("syncedFrom", venue.syncedFrom ?: JSONObject.NULL)
+                    .put("indoorAtlas", JSONObject().put("venueId", venue.indoorAtlasVenueId)
+                        .put("hasWayfinding", venue.hasWayfinding ?: JSONObject.NULL).put("floors", JSONArray().apply {
                         venue.floors.forEach { put(JSONObject().put("floorPlanId", it.floorPlanId).put("floorLevel", it.floorLevel).put("name", it.name)) }
                     }))
                     .put("location", JSONObject().put("lat", venue.latitude).put("lng", venue.longitude).put("radiusM", venue.radiusMeters))
@@ -102,7 +117,7 @@ data class IndoorVenueCatalog(val venues: List<IndoorVenueConfig>, val origin: O
         private val UUID = Regex("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")
         private val SLUG = Regex("[a-z0-9][a-z0-9-]{0,63}")
         private val EXIT_KINDS = setOf("exit", "entrance", "stairs")
-        private val EXIT_SOURCES = setOf("verified", "event-map", "estimate")
+        private val EXIT_SOURCES = setOf("verified", "event-map", "estimate", "indooratlas")
         private const val MAX_VENUES = 200
 
         val EMPTY = IndoorVenueCatalog(emptyList(), Origin.NONE)
@@ -129,9 +144,9 @@ data class IndoorVenueCatalog(val venues: List<IndoorVenueConfig>, val origin: O
         private fun JSONObject.finite(key: String): Double? =
             if (has(key) && !isNull(key)) optDouble(key).takeIf { it.isFinite() } else null
 
-        private fun JSONObject.intOrNull(key: String): Int? {
+        private fun JSONObject.intOrNull(key: String, range: IntRange = -5..60): Int? {
             val value = finite(key) ?: return null
-            return value.toInt().takeIf { it.toDouble() == value && it in -5..60 }
+            return value.toInt().takeIf { it.toDouble() == value && it in range }
         }
 
         private fun validPoint(lat: Double?, lng: Double?) =
@@ -173,7 +188,11 @@ data class IndoorVenueCatalog(val venues: List<IndoorVenueConfig>, val origin: O
                 else null
                 IndoorVenuePoi(poiId, poiName, level, atlasPoi)
             }
-            return IndoorVenueConfig(id, name, venueId, floors, lat!!, lng!!, radius, exits, pois)
+            val hasWayfinding = atlas.opt("hasWayfinding") as? Boolean
+            val rank = obj.intOrNull("rank", 1..MAX_VENUES)
+            val syncedFrom = obj.optString("syncedFrom").takeIf { it == "indooratlas" }
+            return IndoorVenueConfig(id, name, venueId, floors, lat!!, lng!!, radius, exits, pois,
+                hasWayfinding = hasWayfinding, rank = rank, primary = obj.opt("primary") == true, syncedFrom = syncedFrom)
         }
 
         private fun JSONArray?.objects(): List<JSONObject> =

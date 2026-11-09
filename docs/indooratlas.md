@@ -7,6 +7,15 @@ rear-camera-facing compass direction for forward/back/left/right arrows. The SDK
 recomputes the route as location changes. Cross-floor segments show up/down arrows.
 There are no building, checkpoint or alignment forms in this flow.
 
+**Nearest exit, any listed venue.** Student → Ask → **Nearest exit** uses the same
+native session with the target "nearest exit": the app picks the detected venue's
+nearest exit (same floor first) and requests SDK wayfinding to its coordinates and
+floor (`IAWayfindingRequest`). Without a wayfinding graph, or while the SDK has no
+route, the AR view shows a straight bearing marked "Direct direction, not a route".
+Exits synced from IndoorAtlas are POIs the owner named like exits; the UI calls
+them "exit marked in IndoorAtlas" and says they are not verified on site. Venue
+list and sync: [indoor-venues.md](indoor-venues.md#indooratlas-sync).
+
 **Activation:** IndoorAtlas positioning and wayfinding need `INDOORATLAS_API_KEY`
 and `INDOORATLAS_API_SECRET` at build time (`android/local.properties` or build
 environment) and a venue surveyed with MapCreator. Without the key and secret the
@@ -175,7 +184,8 @@ and shared HTML but does not deploy or merge that branch. An iPhone adapter can
 reuse the following contract when the implementations are integrated:
 
 - Send `ContourIndoor.postMessage(JSON.stringify({ type, navigationId, floor? }))`.
-  Commands are `start221`, `stop`, `correctFloor`, `cameraStart`, and `cameraStop`.
+  Commands are `start221`, `startNearestExit`, `stop`, `correctFloor`,
+  `cameraStart`, and `cameraStop`.
   Navigation IDs match `[a-zA-Z0-9-]{1,80}`; stop/correction commands target the
   active navigation. The Android listener accepts only the trusted main frame.
   The separately scoped fictional sample engine also uses `demoSensorsStart`
@@ -185,6 +195,12 @@ reuse the following contract when the implementations are integrated:
   `floor`, `floorSource`, `uncertaintyFloors`, `heading`, `cameraTracking`, and
   optional `legs`. Each leg has `length` and `begin`/`end` points containing
   `latitude`, `longitude`, and `floor`. Missing geometry clears precise arrows.
+  The detail also has `venue` (`id`, `rank`, `name`) once a listed venue is
+  detected and `target` (`{type: "room221"}` or `{type: "exit", id, name, floor,
+kind, source, mode: "route" | "direct"}`). Status `direct` comes with
+  `direct: {distance, bearing, floor}` (metres, degrees from true north) for a
+  straight-line arrow that must be labelled as not a route; `noExits` means the
+  venue lists no exits.
 - Dispatch `contour-native-camera` with `{ navigationId, state: "ready" | "fallback" }`.
   Ready means an actual native camera frame is available. The HTML waits while
   permission or installation is pending, then uses the native background or opens

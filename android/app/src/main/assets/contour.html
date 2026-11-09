@@ -1444,7 +1444,7 @@ window.ContourLibrary = {
 <!-- indoor-catalog:end -->
 <script id="indooratlas-math">
 window.contourIndoorGuidance = data => {
-  const point = p => p && Number.isFinite(p.latitude) && Math.abs(p.latitude) <= 90 && Number.isFinite(p.longitude) && Math.abs(p.longitude) <= 180 && Number.isInteger(p.floor) && p.floor >= 1 && p.floor <= 4;
+  const point = p => p && Number.isFinite(p.latitude) && Math.abs(p.latitude) <= 90 && Number.isFinite(p.longitude) && Math.abs(p.longitude) <= 180 && Number.isInteger(p.floor) && p.floor >= -5 && p.floor <= 60;
   if (!data || data.status !== 'navigating' || !Number.isInteger(data.floor) || !Array.isArray(data.legs) || data.legs.length < 1 || data.legs.length > 256 || !data.legs.every(l => l && point(l.begin) && point(l.end) && Number.isFinite(l.length) && l.length >= 0 && l.length <= 2000)) return null;
   const remaining = data.legs.reduce((sum,l) => sum+l.length,0);
   const final = data.legs.at(-1).end;
@@ -1466,6 +1466,16 @@ window.contourIndoorGuidance = data => {
     if(Math.abs(turn)>35)nextTurn=turn>0?'right':'left';
   }
   return { action:Math.abs(relative)<22?'straight':Math.abs(relative)>140?'around':relative>0?'right':'left', relative, remaining, floor:leg.end.floor, distance:leg.length, nextTurn, turnNow:leg.length<=2 };
+};
+// Straight bearing to an exit when the venue has no IndoorAtlas wayfinding route: a direction, never a route.
+window.contourIndoorDirectGuidance = data => {
+  const d = data && data.direct;
+  if (!data || data.status !== 'direct' || !d || !Number.isFinite(d.distance) || d.distance < 0 || d.distance > 2000 || !Number.isFinite(d.bearing) || !Number.isInteger(d.floor) || !Number.isInteger(data.floor)) return null;
+  if (d.floor !== data.floor) return { action:d.floor > data.floor ? 'up' : 'down', remaining:d.distance, floor:d.floor, relative:null, direct:true };
+  if (d.distance <= 3) return { action:'arrive', remaining:d.distance, floor:d.floor, relative:null, direct:true };
+  if (!Number.isFinite(data.heading) || data.heading < 0 || data.heading > 360) return null;
+  const relative = ((d.bearing-data.heading)%360+540)%360-180;
+  return { action:Math.abs(relative)<22?'straight':Math.abs(relative)>140?'around':relative>0?'right':'left', relative, remaining:d.distance, floor:d.floor, distance:d.distance, nextTurn:null, direct:true };
 };
 </script>
 <script>
@@ -3374,7 +3384,7 @@ window.contourIndoorGuidance = data => {
   const askHistory = []; let askBusy = false;
   function renderAskQuick() {
     const student = mode === "student";
-    $("askQuick").innerHTML = (student ? ["ask.s.q1", "ask.s.q2", "ask.s.q3"] : ["ask.q1", "ask.q2", "ask.q3"]).map(k => `<button type="button" data-q="${k}">${esc(t(k))}</button>`).join("");
+    $("askQuick").innerHTML = (student && window.ContourIndoor && atlasVenueList().some(v => (v.exits || []).length > 0) ? `<button type="button" data-exit>${esc(at("nearestExit"))}</button>` : "") + (student ? ["ask.s.q1", "ask.s.q2", "ask.s.q3"] : ["ask.q1", "ask.q2", "ask.q3"]).map(k => `<button type="button" data-q="${k}">${esc(t(k))}</button>`).join("");
     if (!askLog.children.length) addAsk("m", t(student ? "ask.s.hello" : "ask.hello"));
   }
   // opts.building: a campus answer (photo + 3D AR / map buttons); opts.suggest: building ids to offer.
@@ -3458,7 +3468,7 @@ window.contourIndoorGuidance = data => {
   $("askClose").addEventListener("click", closeAsk);
   askDim.addEventListener("click", closeAsk);
   $("askForm").addEventListener("submit", e => { e.preventDefault(); sendAsk($("askInput").value); });
-  $("askQuick").addEventListener("click", e => { const b = e.target.closest("[data-q]"); if (b) sendAsk(t(b.dataset.q)); });
+  $("askQuick").addEventListener("click", e => { if (e.target.closest("[data-exit]")) { startExitAsk(); return; } const b = e.target.closest("[data-q]"); if (b) sendAsk(t(b.dataset.q)); });
   askLog.addEventListener("click", e => {
     const b = e.target.closest("[data-site],[data-bshow],[data-bar]"); if (!b) return;
     if (b.dataset.site) showSite(b.dataset.site);
@@ -3496,28 +3506,52 @@ window.contourIndoorGuidance = data => {
     ,turnAhead:['Turn ahead in {n} m','{n} m先で曲がる','{n}米后转弯','{n} m 앞에서 회전']
     ,cameraStarting:['Starting camera…','カメラを起動中…','正在启动相机…','카메라 시작 중…']
     ,tracking:['Move the phone slowly to recover camera tracking…','スマートフォンをゆっくり動かしてカメラの追跡を復元してください…','请缓慢移动手机以恢复相机跟踪…','휴대폰을 천천히 움직여 카메라 추적을 복구하세요…']
+    ,nearestExit:['Nearest exit','最寄りの出口','最近的出口','가장 가까운 출구']
+    ,exitIntro:['Nearest exit marked in IndoorAtlas · not verified on site. Follow exit signs and staff.','IndoorAtlasで登録された最寄りの出口・現地未確認です。出口の表示と係員の指示に従ってください。','IndoorAtlas中标记的最近出口 · 未经现场核实。请按出口标识和工作人员指示行动。','IndoorAtlas에 표시된 가장 가까운 출구 · 현장 미확인. 출구 표시와 직원 안내를 따르세요.']
+    ,exitMarked:['exit marked in IndoorAtlas','IndoorAtlasで登録された出口','IndoorAtlas中标记的出口','IndoorAtlas에 표시된 출구']
+    ,direct:['Direct direction, not a route: walls may be in the way. Follow exit signs.','直線方向です（経路ではありません）。壁がある場合があります。出口の表示に従ってください。','仅为直线方向，并非路线，可能有墙阻挡。请按出口标识行走。','직선 방향이며 경로가 아닙니다. 벽이 있을 수 있으니 출구 표시를 따르세요.']
+    ,noExits:['No exits are marked for this venue in IndoorAtlas. Follow exit signs.','この会場にはIndoorAtlasで出口が登録されていません。出口の表示に従ってください。','该场馆在IndoorAtlas中没有标记出口，请按出口标识行走。','이 장소에는 IndoorAtlas에 표시된 출구가 없습니다. 출구 표시를 따르세요.']
+    ,x_arrival:['Near the exit marked in IndoorAtlas — check the signs.','IndoorAtlasで登録された出口付近です。表示を確認してください。','接近IndoorAtlas中标记的出口，请核对标识。','IndoorAtlas에 표시된 출구 근처입니다. 표시를 확인하세요.']
+    ,x_live:['IndoorAtlas route · exit marked by the venue','IndoorAtlasの経路・会場が登録した出口','IndoorAtlas路线 · 场馆标记的出口','IndoorAtlas 경로 · 장소가 표시한 출구']
+    ,x_mappingRequired:['Indoor positioning is not set up in this app build. Follow exit signs.','このアプリでは屋内測位が設定されていません。出口の表示に従ってください。','此应用版本未配置室内定位，请按出口标识行走。','이 앱 빌드에는 실내 위치가 설정되지 않았습니다. 출구 표시를 따르세요.']
+    ,x_outsideBuilding:['You appear to be outside the mapped venue. Indoor directions are paused.','地図のある会場の外にいる可能性があります。屋内案内を一時停止しています。','您似乎在已建图场馆之外，室内指引已暂停。','지도가 있는 장소 밖에 있는 것 같습니다. 실내 안내를 일시 중지했습니다.']
+    ,x_wrongVenue:['No listed IndoorAtlas venue has been detected yet.','登録済みのIndoorAtlas会場をまだ検出できていません。','尚未检测到列表中的IndoorAtlas场馆。','목록의 IndoorAtlas 장소가 아직 감지되지 않았습니다.']
+    ,x_noRoute:['No route to the exit found. Follow exit signs.','出口への経路が見つかりません。出口の表示に従ってください。','未找到通往出口的路线，请按出口标识行走。','출구까지 경로가 없습니다. 출구 표시를 따르세요.']
   };
-  const at = key => (atlasWords[key] || atlasWords.locating)[LANGS[lang].i];
+  // atlasTarget: 'room221' (fixed Ask demo) or 'exit' (nearest exit of the detected IndoorAtlas venue).
+  let atlasTarget = 'room221', atlasHeader = null;
+  const at = key => ((atlasTarget==='exit' && atlasWords['x_'+key]) || atlasWords[key] || atlasWords.locating)[LANGS[lang].i];
   function atlasCommand(type, extra={}) { if(atlasId && window.ContourIndoor)window.ContourIndoor.postMessage(JSON.stringify({type,navigationId:atlasId,...extra})); }
-  function stopAtlas() { atlasCommand('stop');atlasId=null;atlasData=null;atlasAnswer=null; }
+  function stopAtlas() { atlasCommand('stop');atlasId=null;atlasData=null;atlasAnswer=null;atlasHeader=null; }
   function startAtlas() {
     window.ContourIndoorDemo?.close();
-    if(!atlasId)atlasId='room221-'+Date.now()+'-'+Math.floor(Math.random()*100000);
+    if(!atlasId)atlasId=(atlasTarget==='exit'?'exit-':'room221-')+Date.now()+'-'+Math.floor(Math.random()*100000);
     atlasData={navigationId:atlasId,status:'locating',floor:null};
-    atlasCommand('start221');
+    atlasCommand(atlasTarget==='exit'?'startNearestExit':'start221');
   }
   function atlasGuide() {
     if(arPoint?.atlas && nativeArCamera && (nativeArCamera.state==='pending' || nativeArCamera.state==='ready' && atlasData?.cameraTracking!==true))return null;
-    return window.contourIndoorGuidance(atlasData);
+    return atlasData?.status==='direct' ? window.contourIndoorDirectGuidance(atlasData) : window.contourIndoorGuidance(atlasData);
+  }
+  // "01 · SAI Dining": the venue's rank in the server list (IndoorAtlas-synced venues first).
+  function atlasVenueLabel(v) {
+    const name=v?.name ? (lang==='ja' ? v.name.ja : v.name.en) : '';
+    if(!name)return '';
+    return (Number.isInteger(v.rank) && v.rank>0 ? String(v.rank).padStart(2,'0') : 'IndoorAtlas')+' · '+name;
+  }
+  function atlasVenueList() { try { return JSON.parse(window.ContourBridge?.indoorVenues?.() || '{}').venues || []; } catch(_) { return []; } }
+  function atlasExitTitle() {
+    const tg=atlasData?.target, name=tg?.name ? (lang==='ja' ? tg.name.ja : tg.name.en) : at('nearestExit');
+    return name+(Number.isInteger(tg?.floor) ? ' · '+tg.floor+'F' : '');
   }
   function atlasInstruction() {
     if(atlasData?.status==='paused')return at('paused');
     if(arPoint?.atlas && nativeArCamera?.state==='pending')return at('cameraStarting');
     if(arPoint?.atlas && nativeArCamera?.state==='ready' && atlasData?.cameraTracking!==true)return at('tracking');
     const guide=atlasGuide();
-    if(!guide)return at(atlasData?.status==='navigating'?'facing':atlasData?.status);
+    if(!guide)return at(atlasData?.status==='navigating'||atlasData?.status==='direct'?'facing':atlasData?.status);
     if(guide.action==='arrive')return at('arrival');
-    if(guide.action==='up'||guide.action==='down')return it(guide.action,{n:guide.floor});
+    if(guide.action==='up'||guide.action==='down')return it(guide.action,{n:guide.floor})+(guide.direct?' · '+at('direct'):'');
     const direction=guide.action==='straight'?t('ar.ahead'):at(guide.action==='around'?'faceAround':guide.action==='right'?'faceRight':'faceLeft');
     if(guide.action==='straight' && guide.nextTurn)return direction+' · '+at('turnAhead').replace('{n}',Math.round(guide.distance));
     return direction+' · '+Math.round(guide.distance)+' m';
@@ -3526,11 +3560,13 @@ window.contourIndoorGuidance = data => {
     if(!arPoint?.atlas)return;
     const guide=atlasGuide();
     const floorChange=guide && (guide.action==='up'||guide.action==='down');
-    $('arName').textContent='Room 221';$('arJp').textContent='Engineering Building II · 2F';
+    const exit=atlasTarget==='exit', direct=atlasData?.status==='direct';
+    $('arName').textContent=exit?atlasExitTitle():'Room 221';
+    $('arJp').textContent=exit?(atlasVenueLabel(atlasData?.venue && {...atlasData.venue,rank:atlasVenueList().find(v=>v.id===atlasData.venue.id)?.rank})||'IndoorAtlas')+' · '+at('exitMarked'):'Engineering Building II · 2F';
     $('arDist').textContent=guide?Math.round(guide.remaining)+' m':'—';
     $('arWalk').textContent=atlasInstruction();$('arGuide').textContent=atlasInstruction();
-    $('arHaz').textContent=at(guide?'live':'estimate');
-    $('arNote').textContent=guide?at('live'):atlasInstruction();
+    $('arHaz').textContent=direct?at('direct'):at(guide?'live':'estimate');
+    $('arNote').textContent=direct?at('direct'):guide?at('live'):atlasInstruction();
     $('indoorArControls').hidden=true;$('indoorEstimateControls').hidden=false;
     const floor=Number.isInteger(atlasData?.floor)?atlasData.floor:null;
     const uncertainty=Number.isInteger(atlasData?.uncertaintyFloors)?atlasData.uncertaintyFloors:null;
@@ -3544,7 +3580,8 @@ window.contourIndoorGuidance = data => {
   window.addEventListener('contour-indoor',e=>{
     if(!atlasId || e.detail?.navigationId!==atlasId)return;
     atlasData=e.detail;
-    if(atlasAnswer)atlasAnswer.textContent=atlasInstruction();
+    if(atlasHeader && atlasData.venue){const v=atlasVenueList().find(x=>x.id===atlasData.venue.id)||atlasData.venue;atlasHeader.textContent=atlasVenueLabel(v)+' · '+atlasExitTitle();}
+    if(atlasAnswer)atlasAnswer.textContent=atlasInstruction()+(atlasData.status==='direct'?' · '+at('direct'):'');
     renderAtlasAR();
   });
   window.addEventListener('contour-indoor-paused',()=>{if(atlasId){atlasData={...atlasData,navigationId:atlasId,status:'paused',heading:null,legs:[],cameraTracking:false};if(atlasAnswer)atlasAnswer.textContent=atlasInstruction();renderAtlasAR();}});
@@ -3613,6 +3650,7 @@ window.contourIndoorGuidance = data => {
     if(isRoom221Demo(text,patch)) {
       $('askInput').value='';addAsk('u',text);
       if(window.ContourIndoor) {
+        atlasTarget='room221';
         indoorContext={buildingId:'nu-eng2',destinationId:'eng2-221'};
         indoorNavigation={atlas:true};
         const li=addAsk('m','Room 221 · Engineering Building II · Middle wing 2F');
@@ -3636,6 +3674,19 @@ window.contourIndoorGuidance = data => {
       indoorContext=result.context || {};addIndoorAnswer(result);
     } catch(_) { if(run===indoorRun)addAsk('m err',it('unavailable')); }
     finally {waiting.remove();askBusy=false;$('askSend').disabled=false;}
+  }
+  // Nearest exit of the IndoorAtlas venue the phone is in (native positioning picks the venue and the exit).
+  function startExitAsk() {
+    if(askBusy || !window.ContourIndoor)return;
+    clearIndoorNavigation();
+    addAsk('u',at('nearestExit'));
+    atlasTarget='exit';indoorContext={};
+    indoorNavigation={atlas:true};
+    const li=addAsk('m',at('exitIntro'));
+    atlasHeader=document.createElement('p');atlasHeader.className='indoor-chat-note';atlasHeader.textContent=at('nearestExit');li.appendChild(atlasHeader);
+    atlasAnswer=document.createElement('p');atlasAnswer.className='indoor-chat-note';atlasAnswer.textContent=at('locating');li.appendChild(atlasAnswer);
+    const acts=document.createElement('div');acts.className='ask-acts';acts.innerHTML=`<button type="button" class="primary" data-indoor-ar>${t('card.ar')}</button>`;li.appendChild(acts);
+    startAtlas();
   }
   askLog.addEventListener('click',e=>{
     const b=e.target.closest('[data-indoor-building],[data-indoor-ar],[data-indoor-reset]');if(!b)return;
@@ -3683,7 +3734,7 @@ window.contourIndoorGuidance = data => {
     if(indoorNavigation.atlas) {
       if(!atlasId || atlasData?.status==='paused')startAtlas();
       closeAsk();resetSheetNow();
-      await openAR({id:'eng2-221',name:'Room 221',jp:'Engineering Building II · 2F',ll:[...HERE],m:0,brg:0,walk:0,indoor:true,atlas:true});
+      await openAR(atlasTarget==='exit'?{id:'atlas-exit',name:at('nearestExit'),jp:at('exitMarked'),ll:[...HERE],m:0,brg:0,walk:0,indoor:true,atlas:true}:{id:'eng2-221',name:'Room 221',jp:'Engineering Building II · 2F',ll:[...HERE],m:0,brg:0,walk:0,indoor:true,atlas:true});
       renderAtlasAR();return;
     }
     closeAsk();resetSheetNow();
@@ -3977,12 +4028,17 @@ window.contourIndoorGuidance = data => {
     cards.forEach(c => { c.style.visibility = ""; c.classList.remove("lifted"); });
     sheetState = "closed";
   }
-  // IndoorAtlas venue label from the app's runtime venue list (docs/indoor-venues.md); falls back to the pilot building.
-  function atlasVenueName() {
-    try { const vs = JSON.parse(window.ContourBridge?.indoorVenues?.() || "{}").venues || [], v = vs.find(x => (x.pois || []).some(p => p.id === "room-221")) || vs[0]; if (v?.name?.en) return lang === "ja" ? v.name.ja : v.name.en; } catch (_) {}
-    return "Engineering Building II";
+  // IndoorAtlas venue label from the app's runtime venue list (docs/indoor-venues.md): the server's
+  // primary venue as "01 · <name>" (IndoorAtlas-synced venues come first); falls back to the pilot building.
+  function atlasVenueNote() {
+    const vs = atlasVenueList(), v = vs.find(x => x.primary) || vs.find(x => (x.pois || []).some(p => p.id === "room-221")) || vs[0];
+    const name = v?.name?.en ? (lang === "ja" ? v.name.ja : v.name.en) : "Engineering Building II";
+    return (Number.isInteger(v?.rank) && v.rank > 0 ? String(v.rank).padStart(2, "0") : "IndoorAtlas") + " · " + name;
   }
-  window.addEventListener("contour-indoor-venues", () => { const an = document.querySelector(".ask-note"); if (an && an.textContent.startsWith("IndoorAtlas · ")) an.textContent = "IndoorAtlas · " + atlasVenueName(); });
+  window.addEventListener("contour-indoor-venues", () => {
+    const an = document.querySelector(".ask-note"); if (an && an.dataset.atlas) an.textContent = atlasVenueNote();
+    if (!ask.hidden && mode === "student") renderAskQuick();
+  });
   function setMode(m, { fit = true } = {}) {
     closeAR();clearIndoorNavigation();indoorContext={};
     mode = m === "student" ? "student" : "evac";
@@ -3998,7 +4054,7 @@ window.contourIndoorGuidance = data => {
     q.placeholder = t(q.dataset.i18nPh); q.setAttribute("aria-label", t(q.dataset.i18nPh));
     const ai = $("askInput"), an = document.querySelector(".ask-note");
     ai.dataset.i18nPh = ai.dataset.i18nAria = mode === "student" ? "ask.s.ph" : "ask.ph"; ai.placeholder = t(ai.dataset.i18nPh);
-    an.dataset.i18n = mode === "student" ? "ask.s.note" : "ask.note"; an.textContent = mode === "student" && window.ContourIndoor ? 'IndoorAtlas · ' + atlasVenueName() : t(an.dataset.i18n);
+    an.dataset.i18n = mode === "student" ? "ask.s.note" : "ask.note"; const atlasNote = mode === "student" && !!window.ContourIndoor; an.textContent = atlasNote ? atlasVenueNote() : t(an.dataset.i18n); if (atlasNote) an.dataset.atlas = "1"; else delete an.dataset.atlas;
     route.setStyle({ color: mode === "student" ? "#1f5fd1" : "#178049" });   // blue for campus, green for evacuation
     if (mode === "student") map.removeLayer(gatherLayer);
     else if (!live && $("tGather").checked) gatherLayer.addTo(map);
