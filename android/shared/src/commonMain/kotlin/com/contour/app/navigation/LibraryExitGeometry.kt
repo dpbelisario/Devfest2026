@@ -10,7 +10,14 @@ object LibraryExitGeometry {
     const val imageSha256 = "73427f34369579b61003899acf6f420e01456ab604b8709a1f67486d9e9ef0d4"
     const val defaultLatitude = 35.15507092207257
     const val defaultLongitude = 136.96375745011343
-    const val defaultWidth = 72.81804487261522
+    /** Hand-aligned 2F plan width before the demo enlargement. */
+    const val alignedWidth = 72.81804487261522
+    /**
+     * shortcut: demo-only enlargement around the plan centre so indoor GPS, which overshoots the
+     * real walls, still lands inside the plan and the exit door stays ahead. Not a survey; set to 1.0 to undo.
+     */
+    const val demoScale = 1.3
+    const val defaultWidth = alignedWidth * demoScale
     const val defaultAspect = 0.6935483870967742
     const val defaultAngle = 26.552532957975586
 

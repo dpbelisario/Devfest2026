@@ -423,7 +423,7 @@ final class GeographicOverlayTests: XCTestCase {
         XCTAssertTrue(value.isValid)
         let image = try XCTUnwrap(UIImage(data:value.image))
         XCTAssertGreaterThan(image.size.width,100)
-        XCTAssertEqual(value.width,72.81804487261522,accuracy:0.00001)
+        XCTAssertEqual(value.width,72.81804487261522 * 1.3,accuracy:0.00001)
         XCTAssertEqual(value.angle,26.552532957975586,accuracy:0.00001)
     }
 

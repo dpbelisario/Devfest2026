@@ -24,6 +24,13 @@ actor OverlayDisk {
         guard size <= 18_000_000 else { throw NativeOverlayError.invalid }
         var value = try JSONDecoder().decode(GeographicOverlay.self, from: Data(contentsOf: source))
         guard value.isValid else { throw NativeOverlayError.invalid }
+        // shortcut: demo enlargement of the hand-aligned library 2F plan (see LibraryExitGeometry.demoScale),
+        // applied to older local saves too so the map dot, pins and exit AR share one geometry.
+        let geometry = LibraryExitGeometry.shared
+        if abs(value.width - geometry.alignedWidth) < 0.01,
+           SHA256.hash(data: value.image).map({ String(format: "%02x", $0) }).joined() == geometry.imageSha256 {
+            value.width = geometry.defaultWidth
+        }
         if let pins = value.destinations { value.destinations = FloorLabelDeduplicator.deduplicate(pins) }
         value.walkingNetwork = value.walkingNetwork?.pruning(destinations: value.destinations ?? [])
         return value
