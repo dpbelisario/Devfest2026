@@ -788,9 +788,6 @@ html.native .ar-near { background: var(--accent-wash); color: var(--accent-deep)
         <button type="button" class="s-clear" id="clearQ" aria-label="Clear search" hidden><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="8" fill="#c9cacd"/><path d="M5.5 5.5l5 5M10.5 5.5l-5 5" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/></svg></button>
         <span class="s-ico" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg></span>
       </form>
-      <button class="avatar" id="settingsBtn" type="button" aria-label="Map settings" aria-expanded="false">
-        <svg viewBox="0 0 24 24" fill="none" stroke="#141714" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>
-      </button>
       </div>
       <div class="status" id="status" role="note"><i></i><span id="statusText">Demo data</span></div><button class="alert-chip" id="alertChip" type="button" hidden></button>
     </header>
@@ -802,6 +799,7 @@ html.native .ar-near { background: var(--accent-wash); color: var(--accent-deep)
     <button class="ask-fab" id="askFab" type="button" data-i18n-aria="ask.title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5h16v10H9l-5 4z"/><path d="M8.5 10.5h.01M12 10.5h.01M15.5 10.5h.01" stroke-width="2.6"/></svg><span data-i18n="ask.fab">Ask</span></button>
 
     <div class="carousel" id="carousel" aria-label="Evacuation points"></div>
+    <button class="rail-grip" id="railGrip" type="button" aria-controls="carousel" aria-expanded="true" data-i18n-aria="rail.toggle" aria-label="Show or hide the list"><span class="rg-knob"><svg viewBox="0 0 16 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path class="g-up" d="m4 4.5 4-3 4 3"/><path class="g-dn" d="m4 7.5 4 3 4-3"/></svg></span></button>
 
     <div class="dim" id="dim"></div>
 
@@ -846,14 +844,6 @@ html.native .ar-near { background: var(--accent-wash); color: var(--accent-deep)
       <button type="button" id="walkRetry" data-i18n="walk.retry" hidden>Recalculate</button>
       <details id="walkDetails" hidden><summary data-i18n="walk.steps">Route steps</summary><ol id="walkSteps"></ol></details>
     </section>
-    <div class="pop" id="pop" role="dialog" aria-label="Map settings">
-      <h4 data-i18n="hz.h">Designated for</h4>
-      <div class="hz" id="hzFilter"></div>
-      <h4 data-i18n="lay.h">Map layers</h4>
-      <label class="toggle" id="gatherToggle"><span data-i18n="lay.gather">Gathering points</span> <input type="checkbox" id="tGather" checked></label>
-      <label class="toggle"><span data-i18n="lay.route">Walking route line</span> <input type="checkbox" id="tRoute" checked></label>
-      <label class="toggle"><span data-i18n="lay.ring">Location accuracy ring</span> <input type="checkbox" id="tRing" checked></label>
-    </div>
 
     <section class="page" id="page-info" aria-label="Emergency information">
       <div class="page-head"><span data-i18n="pg.info">Emergency information</span><div class="ph-r" data-lang-slot><button class="sheet-close" style="position:static" data-close data-i18n-aria="walk.close" aria-label="Close"><svg viewBox="0 0 14 14" stroke="#141714" stroke-width="1.8" stroke-linecap="round"><path d="M2 2l10 10M12 2 2 12"/></svg></button></div></div>
@@ -938,6 +928,23 @@ html.native .ar-near { background: var(--accent-wash); color: var(--accent-deep)
         <h3>공식 정보</h3>
         <p>온라인일 때 Contour는 나고야시의 지정 긴급 대피 장소(일본 국토지리원 데이터)와 일본 기상청의 최신 경보를 표시합니다. 대피 장소의 개설 여부는 알 수 없으니, 반드시 나고야시와 기상청의 발표를 확인하세요.</p>
        </div>
+      </div>
+    </section>
+
+    <section class="page" id="page-settings" aria-label="Settings">
+      <div class="page-head"><span data-i18n="menu.settings">Settings</span><div class="ph-r"><button class="sheet-close" style="position:static" data-close data-i18n-aria="walk.close" aria-label="Close"><svg viewBox="0 0 14 14" stroke="#141714" stroke-width="1.8" stroke-linecap="round"><path d="M2 2l10 10M12 2 2 12"/></svg></button></div></div>
+      <div class="page-body">
+        <h2 data-i18n="menu.settings">Settings</h2>
+        <h3 data-i18n="set.lang">Language</h3>
+        <div class="set-lang" id="setLang" role="radiogroup" aria-label="Language"></div>
+    <div class="pop" id="pop" aria-label="Map settings">
+      <h4 data-i18n="hz.h">Designated for</h4>
+      <div class="hz" id="hzFilter"></div>
+      <h4 data-i18n="lay.h">Map layers</h4>
+      <label class="toggle" id="gatherToggle"><span data-i18n="lay.gather">Gathering points</span> <input type="checkbox" id="tGather" checked></label>
+      <label class="toggle"><span data-i18n="lay.route">Walking route line</span> <input type="checkbox" id="tRoute" checked></label>
+      <label class="toggle"><span data-i18n="lay.ring">Location accuracy ring</span> <input type="checkbox" id="tRing" checked></label>
+    </div>
       </div>
     </section>
 
@@ -1188,6 +1195,7 @@ html.native .ar-near { background: var(--accent-wash); color: var(--accent-deep)
         <li><button type="button" data-go="about"><svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2.400" stroke-linecap="round"><circle cx="14" cy="14" r="10"/><path d="M14 13v6"/><circle cx="14" cy="9" r=".8" fill="currentColor"/></svg><span data-i18n="menu.about">About Contour</span></button></li>
         <li data-for="evac"><button type="button" data-go="testalert"><svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2.400" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4 3 23h22Z"/><path d="M14 11v5.5M14 19.6v.3"/></svg><span data-i18n="menu.test">Test alert</span></button></li>
         <li><button type="button" data-go="speech"><svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2.400" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg><span data-i18n="menu.speech">Speech &amp; Translation</span></button></li>
+        <li><button type="button" data-go="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.05" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span data-i18n="menu.settings">Settings</span></button></li>
       </ul>
       <p class="drawer-note" data-i18n="top.notice">Demo data. Follow instructions from local authorities.</p>
     </nav>
@@ -1210,6 +1218,12 @@ html.native .ar-near { background: var(--accent-wash); color: var(--accent-deep)
       <div class="ask-quick" id="askQuick"></div>
       <form class="ask-form" id="askForm" autocomplete="off"><input id="askInput" type="text" maxlength="500" data-i18n-ph="ask.ph" data-i18n-aria="ask.ph"><button type="submit" id="askSend" data-i18n="ask.send">Send</button></form>
       <p class="ask-note" data-i18n="ask.note"></p>
+    </section>
+    <div class="about-scrim" id="aboutScrim"></div>
+    <section class="about-pop" id="aboutPop" role="dialog" aria-labelledby="aboutPopT" aria-hidden="true">
+      <div class="ap-head"><h2 id="aboutPopT" data-i18n="ap.t">About us</h2><button type="button" class="ap-x" data-about-close data-i18n-aria="walk.close" aria-label="Close"><svg viewBox="0 0 14 14" stroke="#141714" stroke-width="1.8" stroke-linecap="round"><path d="M2 2l10 10M12 2 2 12"/></svg></button></div>
+      <p data-i18n="ap.p1">Contour helps students find buildings and classrooms on campus, with walking routes, indoor floor maps and 3D AR arrows.</p>
+      <p data-i18n="ap.p2">In an emergency, switch to Evacuation for the nearest evacuation sites, official warnings and a guided way out of the building.</p>
     </section>
     <div class="langpop" id="langpop" role="menu" aria-label="Language"></div>
 
@@ -1318,7 +1332,7 @@ window.ContourGoogleMaps = {
         this.root=document.getElementById(id);this.root.dataset.mapProvider='google';
         this.viewport=document.createElement('div');this.viewport.style.cssText='position:absolute;inset:0';this.root.appendChild(this.viewport);
         this.native=new gm.Map(this.viewport,{center:{lat:35.154,lng:136.964},zoom:16,minZoom:options.minZoom,maxZoom:options.maxZoom,
-          disableDefaultUI:true,gestureHandling:'greedy',clickableIcons:false,keyboardShortcuts:true,
+          disableDefaultUI:true,gestureHandling:'greedy',clickableIcons:false,keyboardShortcuts:false,
           restriction:{latLngBounds:this.bounds(options.maxBounds),strictBounds:false}});
         this.credits=document.createElement('div');this.credits.className='leaflet-control-attribution';
         this.credits.style.cssText='position:absolute;right:8px;top:220px;z-index:1';this.root.appendChild(this.credits);
@@ -1335,7 +1349,7 @@ window.ContourGoogleMaps = {
       resize() {
         if(!this.root.clientHeight)return;
         const bounds=this.root.getBoundingClientRect(),scale=bounds.height/this.root.clientHeight;
-        let bottom=(bounds.bottom-document.getElementById('carousel').getBoundingClientRect().top)/scale+8;
+        let bottom=0;
         for(const id of ['sheet','walkPanel']) {const panel=document.getElementById(id);if(!panel.hidden) bottom=Math.max(bottom,(bounds.bottom-panel.getBoundingClientRect().top)/scale+10);}
         bottom=Math.min(bottom,this.root.clientHeight-120);
         const visible=this.root.clientHeight-bottom>=(/ContourApp/.test(navigator.userAgent)?300:340);
@@ -1684,6 +1698,12 @@ window.ContourLibrary = {
     // ----- Student mode (campus guide)
     "mode.student": ["Student", "学生", "学生", "학생"],
     "mode.evac": ["Evacuation", "避難", "避难", "대피"],
+    "menu.settings": ["Settings", "設定", "设置", "설정"],
+    "set.lang": ["Language", "言語", "语言", "언어"],
+    "rail.toggle": ["Expand or shrink the cards", "カードの拡大・縮小", "展开或收起卡片", "카드 펼치기/접기"],
+    "ap.t": ["About us", "私たちについて", "关于我们", "우리 소개"],
+    "ap.p1": ["Contour helps students find buildings and classrooms on campus, with walking routes, indoor floor maps and 3D AR arrows.", "Contourは学生のためのナビアプリです。キャンパスの建物や教室を探し、徒歩ルート・屋内フロアマップ・3D ARの矢印で目的地まで案内します。", "Contour 是面向学生的导航应用。查找校园内的建筑和教室，并按照步行路线、室内楼层图和 3D AR 箭头前往目的地。", "Contour는 학생을 위한 내비게이션 앱입니다. 캠퍼스의 건물과 강의실을 찾고, 도보 경로·실내 층별 지도·3D AR 화살표를 따라 이동하세요."],
+    "ap.p2": ["In an emergency, switch to Evacuation for the nearest evacuation sites, official warnings and a guided way out of the building.", "災害時は「避難」に切り替えると、近くの避難場所と公式の警報を表示し、建物の外から安全な場所まで案内します。", "发生紧急情况时，切换到“避难”：Contour 会显示最近的避难场所和官方警报，并引导你离开建筑、前往安全地点。", "비상시에는 '대피'로 전환하세요. 가까운 대피 장소와 공식 경보를 보여 주고, 건물 밖에서 안전한 곳까지 안내합니다."],
     "menu.buildings": ["Building list", "建物一覧", "建筑列表", "건물 목록"],
     "search.ph.student": ["Find a building", "建物を探す", "查找建筑", "건물 찾기"],
     "status.campus": ["Campus guide · demo", "キャンパス案内・デモ", "校园导览 · 演示", "캠퍼스 안내 · 데모"],
@@ -2144,7 +2164,7 @@ window.ContourLibrary = {
       <div class="jp">${esc(pSub(p))}</div>
       <div class="meta">${p.id === "library" ? esc(t("lib.level")) : `<span class="dist">${arrowSvg(p.brg)}${fmtDist(p.m)}</span><span class="sep"></span><span>${t("card.walk", { n: p.walk })}</span>`}</div>
       <div class="facts">${p.building ? `${t("b.k." + p.kind)} · ${p.hours}` : p.live ? t("card.live", { h: hazList(p) }) : t("card.facts", { n: p.cap.toLocaleString("en-US") })}</div>
-      <button class="cta" type="button" tabindex="-1"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="4.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 15 24 4l14 11" opacity=".4"/><path d="M10 28 24 17l14 11" opacity=".7"/><path d="M10 41 24 30l14 11"/></svg>${t("card.ar")}</button>
+      <button class="cta" type="button" tabindex="-1"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="4.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 15 24 4l14 11" opacity=".4"/><path d="M10 28 24 17l14 11" opacity=".7"/><path d="M10 41 24 30l14 11"/></svg><span class="cta-l">${t("card.ar")}</span><span class="cta-s">3D AR</span></button>
     </div>`;
   const hazList = p => { const h = p.haz.map(k => t("haz." + k)); return h.length > 3 ? h.slice(0, 3).join(" · ") + " +" + (h.length - 3) : h.join(" · "); };
   const makeCard = (p, i) => {
@@ -2162,10 +2182,11 @@ window.ContourLibrary = {
   emptyCard.innerHTML = `<div class="eyebrow"><span data-i18n="empty.t"></span></div><h3 class="name" id="emptyName"></h3><div class="facts" data-i18n="empty.f"></div>`;
   carousel.appendChild(emptyCard);
 
-  new ResizeObserver(() => {
-    const h = Math.max(...cards.filter(c => !c.classList.contains("hide")).map(c => c.offsetHeight), emptyCard.offsetHeight || 0, 200);
+  const fitRail = () => {
+    const h = Math.max(...cards.filter(c => !c.classList.contains("hide")).map(c => c.offsetHeight), emptyCard.offsetHeight || 0, phone.classList.contains("rail-sized") || phone.classList.contains("rail-down") ? 0 : 200);
     phone.style.setProperty("--carousel-h", h + "px");
-  }).observe(carousel);
+  };
+  new ResizeObserver(fitRail).observe(carousel);
 
   // ----- walking route preview (FOSSGIS foot graph, never the car demo router)
   let walkingPoint = null, walkingData = null, walkingMessage = "", walkingRequest = null;
@@ -2283,7 +2304,63 @@ window.ContourLibrary = {
     route.setStyle({ dashArray: "1 9" }); routeCasing.setStyle({ dashArray: "1 9" });
   }
   const NATIVE = document.documentElement.classList.contains("native");
-  function uiPad() { return { top: NATIVE ? 253 : 298, bottom: (parseFloat(getComputedStyle(phone).getPropertyValue("--carousel-h")) || 236) + 40 }; }
+  // ----- card rail drag bar: free height. The cards follow the finger and keep the height where it is
+  // released. Each card drops what no longer fits: 0 full · 1 no facts · 2 no distance · 3 name + AR · 4 one row.
+  const railGrip = $("railGrip");
+  const visibleCards = () => [...carousel.children].filter(c => c.classList.contains("card") && !c.classList.contains("hide"));
+  const cardMax = () => Math.max(0, ...visibleCards().map(c => c.offsetHeight));
+  let railH = 0;
+  // Natural height of every card at every level (no fixed height while measuring).
+  function railLevels() {
+    const cs = visibleCards(), keep = cs.map(c => c.dataset.rail), sized = phone.classList.contains("rail-sized");
+    phone.classList.remove("rail-sized");
+    const hs = new Map(cs.map(c => [c, []]));
+    for (let l = 0; l < 5; l++) { cs.forEach(c => { c.dataset.rail = l; }); cs.forEach(c => hs.get(c).push(c.offsetHeight)); }
+    hs.forEach(a => { for (let l = 1; l < 5; l++) a[l] = Math.min(a[l], a[l - 1]); });
+    cs.forEach((c, k) => { if (keep[k] == null) delete c.dataset.rail; else c.dataset.rail = keep[k]; });
+    phone.classList.toggle("rail-sized", sized);
+    return { hs, min: Math.max(0, ...[...hs.values()].map(a => a[4])), max: Math.max(0, ...[...hs.values()].map(a => a[0])) };
+  }
+  function railTo(h, m) {
+    railH = h = Math.min(m.max, Math.max(m.min, h));
+    let lo = 4;
+    m.hs.forEach((a, c) => { let l = a.findIndex(x => x <= h + 0.5); if (l < 0) l = 4; c.dataset.rail = l; lo = Math.min(lo, l); });
+    phone.dataset.rail = String(lo); phone.classList.toggle("rail-down", lo === 4);
+    railGrip.setAttribute("aria-expanded", String(lo === 0 && h >= m.max - 6));
+    phone.classList.add("rail-sized"); phone.style.setProperty("--card-h", Math.round(h) + "px");
+    fitRail();
+  }
+  function railFull() {
+    railH = 0; phone.classList.remove("rail-sized", "rail-down"); phone.style.removeProperty("--card-h"); phone.dataset.rail = "0";
+    [...carousel.children].forEach(c => delete c.dataset.rail); railGrip.setAttribute("aria-expanded", "true");
+    fitRail(); requestAnimationFrame(fitRail);
+  }
+  function railToggle() { if (phone.classList.contains("rail-sized")) railFull(); else { const m = railLevels(); railTo(m.min, m); } }
+  // New cards (mode switch, search) arrive without a level: fit them to the chosen height.
+  new MutationObserver(() => { if (railH && visibleCards().some(c => c.dataset.rail == null)) railTo(railH, railLevels()); })
+    .observe(carousel, { childList: true, subtree: true, attributes: true, attributeFilter: ["class"] });
+  {
+    let y0 = null, dy = 0, moved = false, h0 = 0, m = null;
+    railGrip.addEventListener("pointerdown", e => {
+      y0 = e.clientY; dy = 0; moved = false; m = railLevels(); h0 = cardMax();
+      try { railGrip.setPointerCapture(e.pointerId); } catch (_) {}
+      phone.classList.add("rail-dragging");
+    });
+    railGrip.addEventListener("pointermove", e => {
+      if (y0 === null) return;
+      const r = phone.getBoundingClientRect(), scale = r.height / phone.offsetHeight || 1;   // the browser preview scales the phone
+      dy = (e.clientY - y0) / scale; if (Math.abs(dy) > 4) moved = true;
+      if (moved) railTo(h0 - dy, m);
+    });
+    const end = () => {
+      if (y0 === null) return; y0 = null; phone.classList.remove("rail-dragging");
+      if (!moved) { railToggle(); return; }
+      if (railH >= m.max - 6) railFull();   // dragged back to the top: natural full cards
+    };
+    railGrip.addEventListener("pointerup", end); railGrip.addEventListener("pointercancel", end);
+    railGrip.addEventListener("click", e => { if (e.detail === 0) railToggle(); });   // keyboard
+  }
+  function uiPad() { return { top: NATIVE ? 208 : 253, bottom: (parseFloat(getComputedStyle(phone).getPropertyValue("--carousel-h")) || 236) + 40 }; }
   function frame(p, animate = true) {
     const pad = uiPad();
     map.flyToBounds(L.latLngBounds([HERE, p.ll]), { paddingTopLeft: [40, pad.top], paddingBottomRight: [40, pad.bottom], maxZoom: 17, duration: animate && !reduced ? 0.8 : 0 });
@@ -2577,9 +2654,14 @@ window.ContourLibrary = {
 
   // ----- menu, settings, pages, toast
   const pop = $("pop");
-  function closeOverlays() { pop.classList.remove("on"); $("settingsBtn").setAttribute("aria-expanded", "false"); }
-  $("settingsBtn").addEventListener("click", e => { e.stopPropagation(); const on = !pop.classList.contains("on"); closeOverlays(); pop.classList.toggle("on", on); $("settingsBtn").setAttribute("aria-expanded", String(on)); });
-  document.addEventListener("click", e => { if (pop.classList.contains("on") && !pop.contains(e.target)) { pop.classList.remove("on"); $("settingsBtn").setAttribute("aria-expanded", "false"); } });
+  const aboutPop = $("aboutPop"), aboutScrim = $("aboutScrim");
+  function openAbout() { aboutPop.classList.add("on"); aboutScrim.classList.add("on"); aboutPop.setAttribute("aria-hidden", "false"); document.querySelectorAll("[data-about]").forEach(b => b.setAttribute("aria-expanded", "true")); }
+  function closeAbout() { aboutPop.classList.remove("on"); aboutScrim.classList.remove("on"); aboutPop.setAttribute("aria-hidden", "true"); document.querySelectorAll("[data-about]").forEach(b => b.setAttribute("aria-expanded", "false")); }
+  function closeOverlays() { closeAbout(); }
+  document.addEventListener("click", e => {
+    if (e.target.closest("[data-about]")) { aboutPop.classList.contains("on") ? closeAbout() : openAbout(); return; }
+    if (e.target.closest("[data-about-close]") || e.target === aboutScrim) closeAbout();
+  });
   document.querySelectorAll("[data-close]").forEach(b => b.addEventListener("click", () => b.closest(".page").classList.remove("on")));
 
   const toast = $("toast"); let toastT;
@@ -2609,7 +2691,7 @@ window.ContourLibrary = {
   const makeBar = kind => {
     const bar = document.createElement("header");
     bar.className = "bar";
-    bar.innerHTML = `<button class="bar-btn" type="button" data-bar="${kind}" data-i18n-aria="${kind === "menu" ? "menu.open" : "d.back"}">${kind === "menu" ? burgerSvg : backSvg}</button><div class="logo" role="img" aria-label="Contour">${logoSvg}<span>Contour</span></div><button class="lang-btn" type="button" aria-haspopup="menu" aria-expanded="false" aria-label="Language">${globeSvg}<span data-lang-label></span>${caretSvg}</button>`;
+    bar.innerHTML = `<button class="bar-btn" type="button" data-bar="${kind}" data-i18n-aria="${kind === "menu" ? "menu.open" : "d.back"}">${kind === "menu" ? burgerSvg : backSvg}</button>${kind === "menu" ? `<button class="logo" type="button" data-about aria-haspopup="dialog" aria-expanded="false" aria-controls="aboutPop" data-i18n-aria="ap.t">${logoSvg}<span>Contour</span></button>` : `<div class="logo" role="img" aria-label="Contour">${logoSvg}<span>Contour</span></div>`}<button class="lang-btn" type="button" aria-haspopup="menu" aria-expanded="false" aria-label="Language">${globeSvg}<span data-lang-label></span>${caretSvg}</button>`;
     return bar;
   };
   document.querySelectorAll(".view").forEach(v => {
@@ -2661,7 +2743,7 @@ window.ContourLibrary = {
   });
   drawer.querySelectorAll("[data-go]").forEach(b => b.addEventListener("click", () => {
     const go = b.dataset.go;
-    if (go === "info" || go === "about" || go === "alerts") { closeDrawer(); if (go === "alerts") renderAlertSetup(); $("page-" + go).classList.add("on"); }
+    if (go === "info" || go === "about" || go === "alerts" || go === "settings") { closeDrawer(); if (go === "alerts") renderAlertSetup(); $("page-" + go).classList.add("on"); }
     else if (go === "ask") { closeDrawer(); openAsk(); }
     else if (go === "testalert") { closeDrawer(); runTestAlert(); }    else setTab(go);
   }));
@@ -2907,6 +2989,10 @@ window.ContourLibrary = {
     langpop.style.right = Math.max(8, phone.clientWidth - r.left - r.width - 2) + "px";
     langpop.classList.add("on"); btn.setAttribute("aria-expanded", "true"); langBtn = btn;
   }
+  function renderLangSettings() {
+    $("setLang").innerHTML = Object.entries(LANGS).map(([k, v]) => `<button type="button" role="radio" aria-checked="${k === lang}" data-setlang="${k}">${v.label}${checkSvg}</button>`).join("");
+  }
+  $("setLang").addEventListener("click", e => { const b = e.target.closest("[data-setlang]"); if (b) setLang(b.dataset.setlang); });
   function closeLang() { langpop.classList.remove("on"); if (langBtn) langBtn.setAttribute("aria-expanded", "false"); langBtn = null; }
   document.addEventListener("click", e => {
     const b = e.target.closest(".lang-btn");
@@ -2930,7 +3016,7 @@ window.ContourLibrary = {
     renderStatus(); renderHz(); renderAlerts(); renderAskQuick(); renderAreas();
     renderNames();
     if(arPoint?.indoor)renderIndoorAR();
-    setEmptyName(); renderDate(); renderLangPop();
+    setEmptyName(); renderDate(); renderLangPop(); renderLangSettings();
     if (window.ContourIndoor) ContourIndoor.relang();
     gatherLayer.eachLayer(m => m.setPopupContent(gatherPopup(m._g, m._ll)));
   }
@@ -3934,7 +4020,7 @@ window.ContourLibrary = {
     if (sheetState === "closing") return true;
     if (langpop.classList.contains("on")) { closeLang(); return true; }
     if (drawer.classList.contains("on")) { closeDrawer(); return true; }
-    if (pop.classList.contains("on")) { closeOverlays(); return true; }
+    if (aboutPop.classList.contains("on")) { closeAbout(); return true; }
     const pg = document.querySelector(".page.on"); if (pg) { pg.classList.remove("on"); return true; }
     if (phone.dataset.tab !== "surround") { setTab("surround"); return true; }
     if (walkingPoint) { closeWalking(); return true; }
@@ -4944,4 +5030,79 @@ html:not(.native) .ind-panel { padding-bottom: 30px; }
   };
 })();
 </script>
+<style>
+/* ===== Mobile cleanup: smaller top controls, no status chip, About panel, settings page, card-rail drag bar ===== */
+#status, .map-unavailable { display: none !important; }
+.mode { height: 36px; gap: 5px; margin: 0 0 7px; }
+.mode button { flex-basis: calc(25% - 2.5px); border-radius: 9px; font-size: 12.6px; }
+.mode button.on { flex-basis: calc(75% - 2.5px); }
+.mode button:not(.on) { font-size: 11px; }
+.search { height: 47px; border-radius: 9px; }
+.search input { padding-left: 16px; font-size: 14.5px; }
+.search .s-ico { width: 43px; height: 43px; }
+.search .s-clear { height: 43px; }
+
+/* Logo opens the About panel */
+button.logo { padding: 6px 4px; border-radius: 8px; cursor: pointer; }
+button.logo:active { background: rgba(20,23,20,.06); }
+.about-scrim { position: absolute; z-index: 96; inset: 0; background: rgba(20,22,28,.28); opacity: 0; pointer-events: none; transition: opacity .3s; }
+.about-scrim.on { opacity: 1; pointer-events: auto; }
+.about-pop { position: absolute; z-index: 97; left: 0; right: 0; top: 0; height: 30%; min-height: 230px; overflow-y: auto; padding: calc(var(--top) + 6px) max(22px, env(safe-area-inset-right, 0px)) 16px max(22px, env(safe-area-inset-left, 0px)); background: var(--paper); border-radius: 0 0 20px 20px; box-shadow: 0 20px 50px rgba(20,22,28,.18); transform: translateY(-105%); visibility: hidden; transition: transform .45s cubic-bezier(.2,.9,.25,1), visibility 0s .45s; }
+.about-pop.on { transform: none; visibility: visible; transition: transform .45s cubic-bezier(.2,.9,.25,1); }
+.ap-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 4px; }
+.ap-head h2 { margin: 0; font: 700 22px/1.1 var(--f-display); }
+.ap-x { flex: none; width: 36px; height: 36px; display: grid; place-items: center; border-radius: 50%; background: var(--wash); }
+.ap-x svg { width: 12px; height: 12px; }
+.about-pop p { margin: 0 0 6px; font: 400 13.5px/1.45 var(--f-body); color: var(--ink-2); }
+
+/* Settings page: language list + map options (previously the popover beside the search box) */
+.set-lang { display: grid; gap: 6px; }
+.set-lang button { display: flex; align-items: center; justify-content: space-between; height: 48px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--wash-line); background: var(--paper); font: 500 15px/1 var(--f-body); color: var(--ink); text-align: left; }
+.set-lang button[aria-checked="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); font-weight: 600; }
+.set-lang button svg { width: 14px; height: 14px; visibility: hidden; }
+.set-lang button[aria-checked="true"] svg { visibility: visible; }
+#page-settings #pop { position: static; width: auto; padding: 0; border: 0; transform: none; opacity: 1; pointer-events: auto; box-shadow: none; border-radius: 0; background: none; }
+#page-settings #pop h4 { margin: 18px 0 6px; }
+
+/* Map credits (Google / OSM) at the very bottom, under the cards */
+.phone { --attr-h: 18px; }
+.phone.google-map-active { --attr-h: 28px; }
+.leaflet-bottom.leaflet-left { bottom: 0; }
+.leaflet-control-attribution { margin-bottom: 2px !important; }
+.carousel { bottom: var(--attr-h); transition: transform .4s cubic-bezier(.2,.9,.25,1); }
+.phone .locate, .phone .ask-fab { bottom: calc(var(--attr-h) + var(--carousel-h) + 48px); transition: bottom .4s cubic-bezier(.2,.9,.25,1), opacity .3s, transform .3s; }
+.phone .ar-fab { bottom: calc(var(--attr-h) + var(--carousel-h) + 104px); transition: bottom .4s cubic-bezier(.2,.9,.25,1), opacity .3s, transform .3s; }
+
+/* Drag bar: thin line along the top of the cards, small handle in the middle */
+.rail-grip { position: absolute; z-index: 16; left: max(20px, env(safe-area-inset-left, 0px)); right: max(20px, env(safe-area-inset-right, 0px)); bottom: calc(var(--attr-h) + var(--carousel-h) + 14px - 2px); height: 22px; display: grid; place-items: center; touch-action: none; cursor: grab; color: var(--ink-2); transition: bottom .35s cubic-bezier(.2,.9,.25,1); }
+.rail-grip::before { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 1.5px; margin-top: -.75px; border-radius: 1px; background: rgba(20,23,20,.22); }
+.rg-knob { position: relative; width: 30px; height: 16px; display: grid; place-items: center; border-radius: 8px; background: var(--paper); border: 1px solid var(--wash-line); box-shadow: 0 1px 3px rgba(20,22,28,.12); }
+.rg-knob svg { width: 12px; height: 10px; }
+.rail-grip .g-up { opacity: .4; }
+.phone.rail-down .rail-grip .g-up { opacity: 1; }
+.phone.rail-down .rail-grip .g-dn { opacity: .4; }
+
+/* Free-height cards: height follows the drag bar; content drops out as it shrinks */
+.phone.rail-sized .card { height: var(--card-h); overflow: hidden; }
+.card[data-rail="1"] .facts,
+.card[data-rail="2"] .facts, .card[data-rail="2"] .meta,
+.card[data-rail="3"] .facts, .card[data-rail="3"] .meta, .card[data-rail="3"] .jp, .card[data-rail="3"] .eyebrow { display: none; }
+.card[data-rail="3"] .name { margin-top: 0; }
+.phone.rail-dragging .rail-grip, .phone.rail-dragging .locate, .phone.rail-dragging .ask-fab, .phone.rail-dragging .ar-fab { transition: none; }
+.phone.rail-dragging { cursor: grabbing; }
+.phone:not([data-rail="0"]):not(:not([data-rail])) .rail-grip .g-up { opacity: 1; }
+/* Compact cards (dragged all the way down): name 75% | 3D AR 25% */
+.cta-s { display: none; }
+.phone.rail-down .carousel { padding-top: 10px; padding-bottom: 10px; }
+.phone .card[data-rail="4"] { padding: 10px 10px 10px 14px; }
+.phone .card[data-rail="4"] .card-body { display: flex; flex-direction: row; align-items: center; gap: 8px; width: 100%; text-align: left; }
+.phone .card[data-rail="4"] :is(.eyebrow, .jp, .meta, .facts, .d-photo, figure) { display: none; }
+.phone .card[data-rail="4"] .name { flex: 0 0 calc(75% - 4px); min-width: 0; margin: 0; font-size: 18px; line-height: 1.1; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.phone .card[data-rail="4"] .cta { flex: 0 0 calc(25% - 4px); min-width: 0; height: 40px; margin: 0; padding: 0 4px; gap: 4px; font-size: 12.5px; }
+.phone .card[data-rail="4"] .cta svg { width: 14px; height: 14px; }
+.card[data-rail="4"] .cta-l { display: none; }
+.card[data-rail="4"] .cta-s { display: inline; white-space: nowrap; }
+.phone.rail-down .rail-grip { bottom: calc(var(--attr-h) + var(--carousel-h) + 10px - 2px); }
+.phone.walking .rail-grip, .phone.sheet-open .rail-grip { visibility: hidden; pointer-events: none; }
+</style>
 </body></html>
