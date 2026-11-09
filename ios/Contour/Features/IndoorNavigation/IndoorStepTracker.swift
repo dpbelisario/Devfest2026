@@ -170,6 +170,18 @@ final class IndoorStepTracker {
         watchdog = timer; RunLoop.main.add(timer, forMode: .common)
         publish()
     }
+    /// Absolute correction from a scanned location marker: restart dead reckoning at the marker,
+    /// keeping the same session, floor, stride and wall map so the map and AR keep accepting poses.
+    @discardableResult
+    func relocate(latitude: Double, longitude: Double, heading: Double) -> Bool {
+        guard let request = model?.request else { return false }
+        let corrected = IndoorStepRequest(sessionID: request.sessionID, floor: request.floor, latitude: latitude,
+            longitude: longitude, heading: (heading.truncatingRemainder(dividingBy: 360) + 360).truncatingRemainder(dividingBy: 360),
+            stepLength: request.stepLength, wallMap: request.wallMap)
+        guard corrected.isValid else { return false }
+        start(corrected)
+        return true
+    }
     func pause(status: String = "paused") {
         guard model != nil else { return }
         generation = UUID(); motion.stopDeviceMotionUpdates(); pedometer.stopUpdates(); watchdog?.invalidate(); watchdog = nil

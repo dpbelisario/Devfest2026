@@ -4,6 +4,24 @@ import kotlin.math.*
 import kotlin.test.*
 
 class LibraryWaypointGuidanceTest {
+    @Test fun absoluteFixUsesActualPositionAndRejectsUnknownSeatOrInvalidTransform() {
+        val guide=LibraryWaypointGuidance()
+        val x=780.0/1178;val y=400.0/817
+        assertTrue(guide.locate(x,y,10.0,20.0,0.0))
+        assertEquals("South-east aisle · before gates",guide.targetLabel)
+        val position=LibraryExitGeometry.planOffset(x,y,LibraryExitGeometry.defaultWidth,LibraryExitGeometry.defaultAspect,LibraryExitGeometry.defaultAngle)
+        val target=LibraryExitGeometry.planOffset(x,480.0/817,LibraryExitGeometry.defaultWidth,LibraryExitGeometry.defaultAspect,LibraryExitGeometry.defaultAngle)
+        assertEquals(10+target.east-position.east,guide.targetX,1e-6)
+        assertEquals(20-target.north+position.north,guide.targetZ,1e-6)
+        assertFalse(guide.locate(0.1,0.1,0.0,0.0,0.0))
+        assertFalse(guide.locate(x,y,0.0,0.0,Double.NaN))
+        assertFalse(guide.locate(-0.1,y,0.0,0.0,0.0))
+        assertTrue(guide.locate(970.0/1178,522.0/817,0.0,0.0,0.0))
+        assertEquals("Entrance Hall doors",guide.targetLabel)
+        assertTrue(guide.locate(760.0/1178,565.0/817,0.0,0.0,0.0))
+        assertEquals("lib-2-service",guide.startId)
+    }
+
     @Test fun assumedStartTargetsAisleBeforeExitAndAdvancesWithoutCheckpointButtons() {
         val guide=LibraryWaypointGuidance()
         assertEquals(0.0,guide.update(0.0,0.0,0.0),1e-6)

@@ -4,7 +4,7 @@ import kotlin.math.*
 
 data class LibraryWaypoint(val id: String,val label: String,val imageX: Double,val imageY: Double)
 
-/** Assumed 2F start plus relative AR motion. It does not locate the camera or verify a passage. */
+/** Image-inferred 2F route with assumed or externally located starts and relative AR motion. */
 class LibraryWaypointGuidance {
     // shortcut: image-inferred points on the exact saved plan, replace after walking and surveying these passages.
     private val northeast = LibraryWaypoint("lib-2-ne","North-east aisle · near OPAC",780.0,315.0)
@@ -60,6 +60,31 @@ class LibraryWaypointGuidance {
     }
 
     private fun point(node: LibraryWaypoint) = LibraryExitGeometry.planOffset(node.imageX/1178,node.imageY/817,width,aspect,angle)
+
+    /** Register a validated absolute fix on the exact floor image, only near an existing route segment. */
+    fun locate(imageX: Double,imageY: Double,cameraX: Double,cameraZ: Double,mapRotation: Double): Boolean {
+        if(!listOf(imageX,imageY,cameraX,cameraZ,mapRotation).all {it.isFinite()} ||
+            imageX !in 0.0..1.0 || imageY !in 0.0..1.0) return false
+        val position=LibraryExitGeometry.planOffset(imageX,imageY,width,aspect,angle)
+        val paths=listOf(listOf(northeast,southeast,gate,hall,door),listOf(service,southeast,gate,hall,door))
+        var nearest=Double.POSITIVE_INFINITY
+        var selected: List<LibraryWaypoint>?=null
+        var index=0
+        for(path in paths) for(i in 1 until path.size) {
+            val from=point(path[i-1]);val to=point(path[i])
+            val east=to.east-from.east;val north=to.north-from.north
+            val progress=((position.east-from.east)*east+(position.north-from.north)*north)/(east*east+north*north)
+            val t=progress.coerceIn(0.0,1.0)
+            val distance=hypot(position.east-from.east-t*east,position.north-from.north-t*north)
+            if(distance < nearest) {nearest=distance;selected=path;index=i}
+        }
+        // shortcut: only the existing inferred aisle network is covered; survey paths before widening coverage.
+        if(nearest > 2.0 || selected == null) return false
+        route=selected;startId=route.first().id;targetIndex=index
+        anchorCameraX=cameraX;anchorCameraZ=cameraZ;anchorEast=position.east;anchorNorth=position.north;rotation=mapRotation
+        setTarget()
+        return true
+    }
 
     /** Optional compass registration; otherwise assume the opening camera faces the first segment. */
     fun update(cameraX: Double,cameraZ: Double,cameraHeading: Double,mapRotation: Double = Double.NaN): Double {
