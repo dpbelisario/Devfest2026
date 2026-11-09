@@ -25,6 +25,7 @@ actor OverlayDisk {
         var value = try JSONDecoder().decode(GeographicOverlay.self, from: Data(contentsOf: source))
         guard value.isValid else { throw NativeOverlayError.invalid }
         if let pins = value.destinations { value.destinations = FloorLabelDeduplicator.deduplicate(pins) }
+        value.walkingNetwork = value.walkingNetwork?.pruning(destinations: value.destinations ?? [])
         return value
     }
     func json() throws -> String {
@@ -33,7 +34,17 @@ actor OverlayDisk {
         guard var object = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { throw NativeOverlayError.invalid }
         let digest = SHA256.hash(data: value.image).map { String(format: "%02x", $0) }.joined()
         object["libraryReferenceImage"] = value.floorName == "2F" && digest == LibraryExitGeometry.shared.imageSha256
+        object["routingRevision"] = try FloorLandmarkPlanner.revision(value)
         return String(decoding: try JSONSerialization.data(withJSONObject: object), as: UTF8.self)
+    }
+    func landmarkRoute(start: UUID, destination: UUID, floor: String, revision: String) throws -> FloorLandmarkRoute {
+        guard let overlay = try load() else { throw NativeOverlayError.invalid }
+        let current = try FloorLandmarkPlanner.revision(overlay)
+        guard floor == overlay.floorName, current == revision else {
+            return FloorLandmarkRoute(status: "outdated", floor: floor, routingRevision: current,
+                message: "The saved floor map changed. Reopen Floor Maps and generate the instructions again.")
+        }
+        return try FloorLandmarkPlanner.plan(overlay: overlay, start: start, destination: destination)
     }
     func save(_ value: GeographicOverlay) throws {
         guard value.isValid else { throw NativeOverlayError.invalid }
@@ -56,6 +67,8 @@ actor OverlayDisk {
         guard value.isValid else { throw NativeOverlayError.invalid }
         return value
     }
+    /// Raster analysis runs on the disk actor, not the UI thread; no image leaves the device.
+    func detectWalls(_ data: Data, ink: String = "Automatic") throws -> FloorWallGeometry { try FloorWallDetector.detect(data, ink: ink) }
     /// Vision runs on the disk actor, not the UI thread; no image leaves the device.
     func detectLabels(_ data: Data) throws -> [FloorDestination] {
         try Task.checkCancellation()
@@ -90,6 +103,8 @@ private final class NativeOverlayStore: ObservableObject {
     @Published var message = "Loading saved floor plan…"
     @Published var focusID = UUID()
     @Published var review: [FloorDestination]?
+    @Published var wallReview: FloorWallGeometry?
+    @Published var connectionReview: FloorWalkingNetwork?
     private let disk = OverlayDisk.shared
     var value: GeographicOverlay? { draft ?? saved }
     init() {
@@ -102,6 +117,24 @@ private final class NativeOverlayStore: ObservableObject {
             } catch { saved = nil; message = "Saved overlay could not be opened. Import an image to recover." }
             busy = false
         }
+    }
+    func detectWalls() async {
+        guard let value, !busy else { return }
+        busy = true; message = "Detecting wall lines on this iPhone…"
+        defer { busy = false }
+        do {
+            wallReview = try await disk.detectWalls(value.image)
+            message = "Review detected walls and mark door openings before saving."
+        } catch is CancellationError { message = "Wall detection cancelled." }
+        catch { message = "Wall detection failed. Open Review walls to draw them manually." }
+    }
+    func applyWalls(_ geometry: FloorWallGeometry) async {
+        guard var value, !busy, geometry.isValid, geometry.reviewed else { return }
+        value.wallGeometry = geometry
+        let wasEditing = draft != nil
+        draft = value; wallReview = nil
+        if wasEditing { message = "Walls updated. Save alignment to keep these changes." }
+        else { await save() }
     }
     func detectLabels() async {
         guard let value, !busy else { return }
@@ -118,10 +151,19 @@ private final class NativeOverlayStore: ObservableObject {
     func applyDestinations(_ pins: [FloorDestination]) async {
         guard var value, !busy else { return }
         value.destinations = pins
+        value.walkingNetwork = value.walkingNetwork?.pruning(destinations: pins)
         guard value.isValid else { message = "Check pin names and positions before saving."; return }
         let wasEditing = draft != nil
         draft = value; review = nil
         if wasEditing { message = "Pins updated. Save alignment to keep these changes." }
+        else { await save() }
+    }
+    func applyConnections(_ network: FloorWalkingNetwork) async {
+        guard var value, !busy, network.reviewed, network.isValid(for: value.destinations ?? []) else { return }
+        value.walkingNetwork = network
+        let wasEditing = draft != nil
+        draft = value; connectionReview = nil
+        if wasEditing { message = "Walking connections updated. Save alignment to keep them." }
         else { await save() }
     }
     func edit() { draft = saved; message = "Editing alignment. Save to keep your changes." }
@@ -167,6 +209,7 @@ private final class NativeOverlayStore: ObservableObject {
 
 @available(iOS 17.0, *)
 struct NativeFloorOverlay: View {
+    var showWalkingConnections = false
     @Environment(\.dismiss) private var dismiss
     @StateObject private var store = NativeOverlayStore()
     @State private var photo: PhotosPickerItem?
@@ -175,6 +218,7 @@ struct NativeFloorOverlay: View {
     @State private var panelCollapsed = false
     @GestureState private var panelDrag: CGFloat = 0
     @State private var movePlan = true
+    @State private var openedConnections = false
     @State private var center = CLLocationCoordinate2D(latitude: 35.1545, longitude: 136.9645)
 
     private var displayValue: GeographicOverlay? {
@@ -229,6 +273,25 @@ struct NativeFloorOverlay: View {
                     FloorDestinationReview(image: image, initial: pins) { pins in
                         Task { await store.applyDestinations(pins) }
                     }
+                }
+            }
+            .sheet(isPresented: Binding(get: { store.wallReview != nil }, set: { if !$0 { store.wallReview = nil } })) {
+                if let geometry = store.wallReview, let value = store.value, let image = UIImage(data: value.image) {
+                    FloorWallReview(image: image, geometry: geometry) { result in
+                        Task { await store.applyWalls(result) }
+                    }
+                }
+            }
+            .sheet(isPresented: Binding(get: { store.connectionReview != nil }, set: { if !$0 { store.connectionReview = nil } })) {
+                if let network = store.connectionReview, let value = store.value {
+                    FloorWalkingConnectionReview(overlay: value, network: network) { result in
+                        Task { await store.applyConnections(result) }
+                    }
+                }
+            }
+            .onChange(of: store.busy, initial: true) { _, busy in
+                if showWalkingConnections, !busy, !openedConnections, let value = store.value {
+                    openedConnections = true; store.connectionReview = FloorWalkingNetwork.draft(for: value)
                 }
             }
             .fileImporter(isPresented: $showFiles, allowedContentTypes: [.image]) { result in
@@ -310,10 +373,22 @@ struct NativeFloorOverlay: View {
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18))
     }
     private var destinationControls: some View {
-        HStack {
-            Button { Task { await store.detectLabels() } } label: { Label("Detect labels", systemImage: "text.viewfinder") }
-                .accessibilityIdentifier("detectFloorLabels")
-            Button("Review pins (\(store.value?.destinations?.count ?? 0))") { store.review = store.value?.destinations ?? [] }
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Button { Task { await store.detectLabels() } } label: { Label("Detect labels", systemImage: "text.viewfinder") }
+                    .accessibilityIdentifier("detectFloorLabels")
+                Button("Review pins (\(store.value?.destinations?.count ?? 0))") { store.review = store.value?.destinations ?? [] }
+            }
+            HStack {
+                Button { Task { await store.detectWalls() } } label: { Label("Detect walls", systemImage: "square.dashed") }
+                    .accessibilityIdentifier("detectFloorWalls")
+                Button("Review walls (\(store.value?.wallGeometry?.walls.count ?? 0))") {
+                    store.wallReview = store.value?.wallGeometry ?? FloorWallGeometry()
+                }
+            }
+            Button("Walking connections") {
+                if let value = store.value { store.connectionReview = FloorWalkingNetwork.draft(for: value) }
+            }.disabled(store.value?.destinations?.isEmpty ?? true)
         }
     }
     private var editControls: some View {

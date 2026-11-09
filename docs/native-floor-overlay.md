@@ -106,6 +106,11 @@ Closing Floor Maps or backgrounding pauses the tracker and requires reconfirmati
 Opening/closing the native AR camera preserves the shared tracker while foregrounded.
 Reloading, editing the image/alignment or moving/removing the anchor clears the session.
 See [indoor-step-navigation.md](indoor-step-navigation.md) for behavior and limits.
+**Detect walls** in the native editor creates an editable draft of wall lines.
+After reviewing and saving walls/openings, the next confirmed session rejects
+estimated steps through them. **Show saved walls** previews the geometry on Floor
+Maps. See [automatic-floor-walls.md](automatic-floor-walls.md); this does not yet
+create a walking route around walls.
 
 Before confirmation, the facing arrow uses a separate native compass subscription
 (true heading when available, magnetic otherwise). Confirmation seeds the gyro
@@ -131,7 +136,19 @@ walkable checkpoint geometry and ongoing indoor tracking remain future work.
 
 ## Open AR navigation
 
-A full-width **Open AR navigation** button sits directly beneath **Saved destinations**.
+The current map-first screen has floating **From / To** fields and a draggable
+bottom route card; editing and position tools are under **Map options**. See
+[floor-map-route-ui.md](floor-map-route-ui.md) for controls and layout behavior.
+
+For a fixed numbered landmark sequence, choose a start and destination. The path
+appears automatically on the map, with instructions in the bottom route card; **Recalculate route** retries. It uses the chosen start without requiring position confirmation,
+AR or motion access. **Edit walking connections** sets up the floor's approach points
+and optional bent passages. Reviewed walls/openings are required; visible pin pairs
+are connected automatically, prioritizing fewer intermediate pins and then shorter
+length. See [landmark-directions.md](landmark-directions.md). The existing
+AR action remains a separate option.
+
+The **AR** button sits in the bottom route card.
 It requires a confirmed start and a different selected destination. Stand at the
 confirmed pin before opening the full-screen native camera. The structured native
 bridge validates the floor, finite coordinates, names and a goal distance between

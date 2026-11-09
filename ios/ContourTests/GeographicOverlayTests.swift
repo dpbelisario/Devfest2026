@@ -6,6 +6,207 @@ import WebKit
 @testable import Contour
 
 final class GeographicOverlayTests: XCTestCase {
+    private var landmarkPlan: GeographicOverlay {
+        var plan = sample; plan.width = 10; plan.aspect = 1; plan.angle = 0
+        plan.destinations = [FloorDestination(name: "Start", x: 0.1, y: 0.1),
+            FloorDestination(name: "Reference Books", x: 0.1, y: 0.8),
+            FloorDestination(name: "Group Learning Area", x: 0.9, y: 0.8),
+            FloorDestination(name: "Entrance Hall", x: 0.9, y: 0.1),
+            FloorDestination(name: "Isolated Room", x: 0.05, y: 0.95)]
+        let pins = plan.destinations!
+        plan.wallGeometry = FloorWallGeometry(walls: [.init(start: .init(x: 0.4, y: 0), end: .init(x: 0.4, y: 0.65))], reviewed: true)
+        plan.walkingNetwork = FloorWalkingNetwork(points: pins.map { .init(destinationID: $0.id, position: .init(x: $0.x, y: $0.y)) },
+            connections: [.init(from: pins[0].id, to: pins[1].id), .init(from: pins[1].id, to: pins[2].id),
+                .init(from: pins[2].id, to: pins[3].id), .init(from: pins[0].id, to: pins[3].id)], reviewed: true)
+        return plan
+    }
+
+    func testLandmarkSequenceFindsShortestConnectedPassagesInsteadOfCrossingWalls() throws {
+        let plan = landmarkPlan, pins = plan.destinations!
+        let route = try FloorLandmarkPlanner.plan(overlay: plan, start: pins[0].id, destination: pins[3].id)
+        XCTAssertEqual(route.status, "ok")
+        XCTAssertEqual(route.landmarkIDs, Array(pins.prefix(4)).map(\.id))
+        XCTAssertEqual(route.distance, 22, accuracy: 0.001)
+        XCTAssertEqual(route.instructions.count, 4)
+        XCTAssertTrue(route.instructions[0].contains("Reference Books"))
+        XCTAssertTrue(route.instructions[1].contains("turn left"))
+        XCTAssertTrue(route.instructions[2].contains("Entrance Hall"))
+        XCTAssertEqual(route.path.count, 4)
+        let reverse = try FloorLandmarkPlanner.plan(overlay: plan, start: pins[3].id, destination: pins[0].id)
+        XCTAssertEqual(reverse.landmarkIDs, Array(pins.prefix(4)).map(\.id).reversed())
+        XCTAssertTrue(reverse.instructions[1].contains("turn right"))
+        var doubled = plan; doubled.width = 20
+        XCTAssertEqual(try FloorLandmarkPlanner.plan(overlay: doubled, start: pins[0].id, destination: pins[3].id).distance, 44, accuracy: 0.001)
+    }
+
+    func testAutomaticRoutesRespectOpeningsAndNeedReviewedWallsRatherThanManualLinks() throws {
+        var plan = landmarkPlan; let pins = plan.destinations!
+        plan.walkingNetwork = nil
+        XCTAssertEqual(try FloorLandmarkPlanner.plan(overlay: plan, start: pins[0].id, destination: pins[3].id).status, "ok", "Connections are now inferred automatically from visibility")
+        plan.wallGeometry?.walls[0].end.y = 1
+        XCTAssertEqual(try FloorLandmarkPlanner.plan(overlay: plan, start: pins[0].id, destination: pins[3].id).status, "no-path")
+        plan.wallGeometry?.openings = [.init(start: .init(x: 0.4, y: 0.04), end: .init(x: 0.4, y: 0.16))]
+        let throughDoor = try FloorLandmarkPlanner.plan(overlay: plan, start: pins[0].id, destination: pins[3].id)
+        XCTAssertEqual(throughDoor.landmarkIDs, [pins[0].id, pins[3].id]); XCTAssertEqual(throughDoor.distance, 8, accuracy: 0.001)
+        plan.wallGeometry?.reviewed = false
+        let draft = try FloorLandmarkPlanner.plan(overlay: plan, start: pins[0].id, destination: pins[3].id)
+        XCTAssertEqual(draft.status, "needs-walls"); XCTAssertTrue(draft.instructions.isEmpty)
+        XCTAssertEqual(try FloorLandmarkPlanner.plan(overlay: plan, start: pins[0].id, destination: pins[0].id).status, "same-place")
+        XCTAssertEqual(try FloorLandmarkPlanner.plan(overlay: plan, start: UUID(), destination: pins[0].id).status, "invalid")
+    }
+
+    func testFewerIntermediatePinsTakePriorityOverAShorterMultiPinRoute() throws {
+        var plan = landmarkPlan; let pins = plan.destinations!
+        plan.walkingNetwork?.connections.removeAll { Set([$0.from, $0.to]) == Set([pins[0].id, pins[3].id]) }
+        plan.walkingNetwork?.connections.append(.init(from: pins[0].id, to: pins[3].id,
+            via: [.init(x: 0.1, y: 0.9), .init(x: 0.9, y: 0.9)]))
+        let route = try FloorLandmarkPlanner.plan(overlay: plan, start: pins[0].id, destination: pins[3].id)
+        XCTAssertEqual(route.landmarkIDs, [pins[0].id, pins[3].id])
+        XCTAssertEqual(route.distance, 24, accuracy: 0.001, "Zero intermediate pins wins over the 22 m route with two pins")
+        XCTAssertEqual(route.path.count, 4, "Keep bends; do not simplify into a straight line through the wall")
+        let map = FloorWallMap(latitude: plan.latitude, longitude: plan.longitude, width: plan.width,
+            aspect: plan.aspect, angle: plan.angle, geometry: plan.wallGeometry!)
+        let points = route.path.map { map.local(latitude: $0.latitude, longitude: $0.longitude) }
+        for pair in zip(points, points.dropFirst()) { XCTAssertFalse(FloorWallMap.blocks(from: pair.0, to: pair.1, barriers: map.barriers)) }
+    }
+
+    func testShortestLengthBreaksTiesBetweenRoutesWithTheSamePinCount() throws {
+        var plan = landmarkPlan; plan.walkingNetwork = nil
+        plan.destinations = [.init(name: "Start", x: 0.2, y: 0.2), .init(name: "Near opening", x: 0.5, y: 0.7),
+            .init(name: "Far detour", x: 0.5, y: 0.9), .init(name: "Goal", x: 0.8, y: 0.2)]
+        plan.wallGeometry?.walls = [.init(start: .init(x: 0.5, y: 0), end: .init(x: 0.5, y: 0.6))]
+        let pins = plan.destinations!
+        let route = try FloorLandmarkPlanner.plan(overlay: plan, start: pins[0].id, destination: pins[3].id)
+        XCTAssertEqual(route.landmarkIDs, [pins[0].id, pins[1].id, pins[3].id])
+        XCTAssertEqual(route.distance, 2 * hypot(3, 5), accuracy: 0.001)
+        plan.destinations?[1].name = "2F"; plan.destinations?[2].name = "3F"
+        XCTAssertEqual(try FloorLandmarkPlanner.plan(overlay: plan, start: pins[0].id, destination: pins[3].id).status, "no-path", "Do not use printed floor labels as passage landmarks")
+    }
+
+    func testWalkingNetworkPersistencePruningAndRevisionInvalidateStaleRoutes() throws {
+        let plan = landmarkPlan, pins = plan.destinations!
+        let restored = try JSONDecoder().decode(GeographicOverlay.self, from: JSONEncoder().encode(plan))
+        XCTAssertEqual(restored.walkingNetwork, plan.walkingNetwork)
+        var pruned = try XCTUnwrap(plan.walkingNetwork).pruning(destinations: [pins[0], pins[3]])
+        XCTAssertEqual(pruned.connections.count, 1); XCTAssertFalse(pruned.reviewed)
+        XCTAssertTrue(pruned.isValid(for: [pins[0], pins[3]]))
+        pruned.connections.append(.init(from: pins[3].id, to: pins[0].id))
+        XCTAssertFalse(pruned.isValid(for: [pins[0], pins[3]]), "Reject duplicate reverse edges")
+        var renamed = plan; renamed.destinations?[0].name = "New name"
+        XCTAssertNotEqual(try FloorLandmarkPlanner.revision(plan), try FloorLandmarkPlanner.revision(renamed))
+        renamed = plan; renamed.opacity = 0.5; renamed.visible.toggle()
+        XCTAssertEqual(try FloorLandmarkPlanner.revision(plan), try FloorLandmarkPlanner.revision(renamed))
+        renamed = plan; renamed.angle += 12
+        XCTAssertNotEqual(try FloorLandmarkPlanner.revision(plan), try FloorLandmarkPlanner.revision(renamed))
+        var network = FloorWalkingNetwork.draft(for: plan); network.connections = []
+        let suggested = FloorLandmarkPlanner.suggest(network, overlay: plan)
+        XCTAssertFalse(suggested.reviewed); XCTAssertTrue(suggested.isValid(for: pins))
+        XCTAssertFalse(suggested.connections.contains { Set([$0.from, $0.to]) == Set([pins[0].id, pins[3].id]) }, "Draft suggestions must respect reviewed walls")
+    }
+
+    func testSavedOverlayRouteRevisionIsTransferredAndOutdatedRequestsAreRejected() async throws {
+        let json = try await OverlayDisk.shared.json()
+        let object = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any])
+        let revision = try XCTUnwrap(object["routingRevision"] as? String)
+        XCTAssertEqual(revision.count, 64)
+        let floor = object["floor"] as? String ?? "2F"
+        let invalidID = try await OverlayDisk.shared.landmarkRoute(start: UUID(), destination: UUID(), floor: floor, revision: revision)
+        XCTAssertEqual(invalidID.status, "invalid")
+        let stale = try await OverlayDisk.shared.landmarkRoute(start: UUID(), destination: UUID(), floor: "1F", revision: String(repeating: "0", count: 64))
+        XCTAssertEqual(stale.status, "outdated"); XCTAssertTrue(stale.path.isEmpty)
+        XCTAssertEqual(stale.floor, "1F", "Return stale-map feedback to the request's floor without a route")
+    }
+
+    func testWallDetectionRetainsDoorGapsAndRejectsThickFurniture() throws {
+        let format = UIGraphicsImageRendererFormat(); format.scale = 1
+        let image = UIGraphicsImageRenderer(size: CGSize(width: 360, height: 260), format: format).image { context in
+            UIColor.white.setFill(); context.fill(CGRect(x: 0, y: 0, width: 360, height: 260))
+            let cg = context.cgContext
+            cg.setStrokeColor(UIColor(red: 0.45, green: 0.58, blue: 0.28, alpha: 1).cgColor); cg.setLineWidth(3)
+            cg.move(to: CGPoint(x: 30, y: 60)); cg.addLine(to: CGPoint(x: 150, y: 60))
+            cg.move(to: CGPoint(x: 180, y: 60)); cg.addLine(to: CGPoint(x: 330, y: 60))
+            cg.move(to: CGPoint(x: 280, y: 100)); cg.addLine(to: CGPoint(x: 280, y: 230)); cg.strokePath()
+            UIColor.darkGray.setFill(); context.fill(CGRect(x: 45, y: 125, width: 65, height: 60))
+            ("ROOM A" as NSString).draw(at: CGPoint(x: 130, y: 150), withAttributes: [.font: UIFont.systemFont(ofSize: 12), .foregroundColor: UIColor.black])
+        }
+        let detected = try FloorWallDetector.detect(XCTUnwrap(image.pngData()))
+        XCTAssertTrue(detected.isValid); XCTAssertFalse(detected.reviewed)
+        let top = detected.walls.filter { abs($0.start.y - 60.0 / 260) < 0.02 && abs($0.end.y - $0.start.y) < 0.01 }
+        XCTAssertGreaterThanOrEqual(top.count, 2)
+        XCTAssertFalse(top.contains { $0.start.x < 150.0 / 360 && $0.end.x > 180.0 / 360 }, "Door gaps must not be filled by line merging")
+        XCTAssertTrue(detected.walls.contains { abs($0.start.x - 280.0 / 360) < 0.02 && $0.end.y - $0.start.y > 0.3 })
+        XCTAssertFalse(detected.walls.contains { $0.start.x > 0.12 && $0.end.x < 0.32 && $0.start.y > 0.45 && $0.end.y < 0.75 }, "Filled furniture must not turn into wall centerlines")
+    }
+
+    func testReviewedWallsRoundTripAndDoorOpeningsCutOnlyTheMatchingWall() throws {
+        let wall = FloorWallSegment(start: .init(x: 0.1, y: 0.5), end: .init(x: 0.9, y: 0.5))
+        let opening = FloorWallSegment(start: .init(x: 0.4, y: 0.5), end: .init(x: 0.6, y: 0.5))
+        var value = sample
+        value.wallGeometry = FloorWallGeometry(walls: [wall], openings: [opening], reviewed: true)
+        let restored = try JSONDecoder().decode(GeographicOverlay.self, from: JSONEncoder().encode(value))
+        XCTAssertEqual(restored.wallGeometry, value.wallGeometry)
+        let map = FloorWallMap(latitude: 35, longitude: 136, width: 10, aspect: 1, angle: 0, geometry: try XCTUnwrap(restored.wallGeometry))
+        XCTAssertTrue(map.isValid); XCTAssertEqual(map.barriers.count, 2)
+        XCTAssertFalse(FloorWallMap.blocks(from: CGPoint(x: 0, y: -1), to: CGPoint(x: 0, y: 1), barriers: map.barriers), "The marked doorway stays passable")
+        XCTAssertTrue(FloorWallMap.blocks(from: CGPoint(x: -2, y: -1), to: CGPoint(x: -2, y: 1), barriers: map.barriers))
+        XCTAssertTrue(FloorWallMap.blocks(from: CGPoint(x: -3, y: 0), to: CGPoint(x: -1.5, y: 0), barriers: map.barriers), "Collinear overlap blocks too")
+        XCTAssertFalse(FloorWallMap.blocks(from: CGPoint(x: -10, y: 0), to: CGPoint(x: -8, y: 0), barriers: map.barriers))
+        var unreviewed = map.geometry; unreviewed.reviewed = false
+        XCTAssertFalse(FloorWallMap(latitude: 35, longitude: 136, width: 10, aspect: 1, angle: 0, geometry: unreviewed).isValid)
+        var invalid = map.geometry; invalid.walls[0].start.x = .nan
+        XCTAssertFalse(invalid.isValid)
+        let rotated = FloorWallMap(latitude: 35, longitude: 136, width: 10, aspect: 1, angle: 90, geometry: map.geometry)
+        let east = rotated.local(latitude: 35, longitude: 136 + 2 / (111319.49079327358 * cos(35 * .pi / 180)))
+        XCTAssertEqual(east.x, 0, accuracy: 0.0001); XCTAssertEqual(east.y, -2, accuracy: 0.0001)
+    }
+
+    func testBlackWallFallbackBlankPlansAndPerpendicularDoorStrokes() throws {
+        let format = UIGraphicsImageRendererFormat(); format.scale = 1
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: 300, height: 200), format: format)
+        let blank = renderer.image { context in
+            UIColor.white.setFill(); context.fill(CGRect(x: 0, y: 0, width: 300, height: 200))
+        }
+        XCTAssertTrue(try FloorWallDetector.detect(XCTUnwrap(blank.pngData())).walls.isEmpty)
+        let blackPlan = renderer.image { context in
+            blank.draw(at: .zero)
+            UIColor.black.setFill(); context.fill(CGRect(x: 30, y: 40, width: 220, height: 3))
+            // A filled green furniture region must not force green-only detection.
+            UIColor(red: 0.45, green: 0.58, blue: 0.28, alpha: 1).setFill()
+            context.fill(CGRect(x: 60, y: 100, width: 80, height: 60))
+        }
+        let detected = try FloorWallDetector.detect(XCTUnwrap(blackPlan.pngData()))
+        XCTAssertTrue(detected.walls.contains { $0.start.x < 0.15 && $0.end.x > 0.8 && $0.start.y < 0.25 })
+        XCTAssertThrowsError(try FloorWallDetector.detect(Data("not an image".utf8)))
+        let geometry = FloorWallGeometry(walls: [.init(start: .init(x: 0.1, y: 0.5), end: .init(x: 0.9, y: 0.5))],
+            openings: [.init(start: .init(x: 0.5, y: 0.4), end: .init(x: 0.5, y: 0.6))], reviewed: true)
+        let map = FloorWallMap(latitude: 35, longitude: 136, width: 10, aspect: 1, angle: 0, geometry: geometry)
+        XCTAssertEqual(map.barriers.count, 1, "An opening must follow the wall; perpendicular strokes cannot erase it")
+        XCTAssertTrue(FloorWallMap.blocks(from: CGPoint(x: 0, y: -1), to: CGPoint(x: 0, y: 1), barriers: map.barriers))
+    }
+
+    func testBundledPlanWallDetectionProducesReviewableDraft() throws {
+        let url = try XCTUnwrap(Bundle.main.url(forResource: "default-floor-overlay", withExtension: "json"))
+        let plan = try JSONDecoder().decode(GeographicOverlay.self, from: Data(contentsOf: url))
+        let detected = try FloorWallDetector.detect(plan.image)
+        XCTAssertTrue(detected.isValid); XCTAssertFalse(detected.reviewed)
+        XCTAssertGreaterThan(detected.walls.count, 10)
+        XCTAssertLessThan(detected.walls.count, 500)
+        let source = try XCTUnwrap(UIImage(data: plan.image))
+        let format = UIGraphicsImageRendererFormat(); format.scale = 1
+        let preview = UIGraphicsImageRenderer(size: source.size, format: format).image { renderer in
+            source.draw(at: .zero)
+            let context = renderer.cgContext
+            context.setStrokeColor(UIColor.red.withAlphaComponent(0.75).cgColor); context.setLineWidth(2)
+            for wall in detected.walls {
+                context.move(to: CGPoint(x: wall.start.x * source.size.width, y: wall.start.y * source.size.height))
+                context.addLine(to: CGPoint(x: wall.end.x * source.size.width, y: wall.end.y * source.size.height)); context.strokePath()
+            }
+        }
+        let output = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("contour-wall-detection-preview.png")
+        try preview.pngData()?.write(to: output)
+        print("Wall detection: \(detected.walls.count) candidates. Preview: \(output.path)")
+    }
+
     @MainActor
     func testDetailsOverlayEntryRemainsWithoutBottomButton() throws {
         let delegate = try XCTUnwrap(UIApplication.shared.delegate as? AppDelegate)
@@ -70,6 +271,19 @@ final class GeographicOverlayTests: XCTestCase {
         }
         _ = try await root.web.evaluateJavaScript("document.getElementById('indoorBtn').click(); true;")
         try await waitForMap(imageCount: 1, pinCount: 1)
+        let layout = try await root.web.evaluateJavaScript("""
+            (() => {
+              const root = document.getElementById('libraryMaps').getBoundingClientRect();
+              const card = document.querySelector('.contour-route-card').getBoundingClientRect();
+              const map = document.querySelector('.contour-start-map').getBoundingClientRect();
+              const sheet = document.querySelector('.contour-floor-controls').getBoundingClientRect();
+              return card.width > 0 && card.left >= root.left && card.right <= root.right + 1 &&
+                map.height > root.height * 0.5 && map.bottom <= sheet.top + 2 && sheet.bottom <= root.bottom + 2 &&
+                !!document.querySelector('.contour-route-card select[aria-label="Starting point"]') &&
+                !!document.querySelector('.contour-route-card select[aria-label="Saved floor destinations"]');
+            })()
+            """) as? Bool
+        XCTAssertEqual(layout, true, "Route fields must fit the native viewport, with a large map and unobscured map footer above the route sheet")
         let source = try await root.web.evaluateJavaScript("document.getElementById('libraryMapImage').getAttribute('src')") as? String
         XCTAssertEqual(source, "data:image/png;base64," + value.image.base64EncodedString())
         let mainPins = try await root.web.evaluateJavaScript("document.querySelectorAll('#map .contour-floor-pin').length") as? Int

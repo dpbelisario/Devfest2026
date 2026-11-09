@@ -3,6 +3,25 @@ import ARKit
 @testable import Contour
 
 final class ContourTests: XCTestCase {
+    func testReviewedWallRejectsCrossingStepWithoutChangingHeadingOrLosingCounts() {
+        let geometry = FloorWallGeometry(walls: [.init(start: .init(x: 0.1, y: 0.52), end: .init(x: 0.9, y: 0.52))], reviewed: true)
+        let map = FloorWallMap(latitude: 35, longitude: 136, width: 10, aspect: 1, angle: 0, geometry: geometry)
+        let request = IndoorStepRequest(sessionID: "wall", floor: "2F", latitude: 35, longitude: 136, heading: 180, stepLength: 0.72, wallMap: map)
+        XCTAssertTrue(request.isValid)
+        var model = IndoorStepModel(request: request, time: 100)
+        XCTAssertTrue(model.turn(clockwiseRadiansPerSecond: 0, time: 100.1))
+        XCTAssertTrue(model.countSteps(1, time: 100.1))
+        XCTAssertTrue(model.pose.wallBlocked)
+        XCTAssertEqual(model.pose.latitude, 35); XCTAssertEqual(model.pose.longitude, 136)
+        XCTAssertEqual(model.pose.steps, 1); XCTAssertEqual(model.pose.heading, 180)
+        // Turn north and walk away: don't stick permanently or double-apply the rejected count.
+        for tick in 1...10 { XCTAssertTrue(model.turn(clockwiseRadiansPerSecond: .pi, time: 100.1 + Double(tick) / 10)) }
+        XCTAssertTrue(model.countSteps(2, time: 101.1))
+        XCTAssertFalse(model.pose.wallBlocked)
+        XCTAssertEqual((model.pose.latitude - 35) * 111319.49079327358, 0.72, accuracy: 0.001)
+        XCTAssertEqual(model.pose.steps, 2)
+    }
+
     func testIndoorStepsAndGyroTurnsAdvanceFromConfirmedOrigin() {
         let request = IndoorStepRequest(sessionID: "walk", floor: "2F", latitude: 35, longitude: 136, heading: 0, stepLength: 0.72)
         XCTAssertTrue(request.isValid)

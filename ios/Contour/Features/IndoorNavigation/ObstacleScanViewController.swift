@@ -418,6 +418,12 @@ final class ObstacleScanViewController: UIViewController, ARSessionDelegate, ARS
             status.text = "Motion tracking is paused or unavailable. Close AR and set your position again."
             return
         }
+        guard !pose.wallBlocked else {
+            immediateArrow.update(relative: nil, stopped: true)
+            arrow.text = "Position reached a mapped wall"
+            status.text = "Estimated movement crossed a reviewed wall. Close AR and check your position, heading or the saved doorway geometry."
+            return
+        }
         let goal = floorGoal.guidance(from: pose)
         let fresh = CACurrentMediaTime() - lastObstacleAt < 0.6
         let blocked = fresh && lastBlocked

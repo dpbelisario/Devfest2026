@@ -84,6 +84,8 @@
   };
   window.ContourBridge = {
     openFloorOverlay: () => send("openFloorOverlay"),
+    openWalkingConnections: () => send("openWalkingConnections"),
+    planLandmarkRoute: (request) => send("planLandmarkRoute", { request }),
     startFloorAR: (goal) => send("startFloorAR", { goal }),
     startIndoorTracking: (request) => send("startIndoorTracking", { request }),
     pauseIndoorTracking: () => send("pauseIndoorTracking"),

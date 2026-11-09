@@ -53,6 +53,22 @@ test("floor overlay opens separately through the trusted native bridge", () => {
   p.ContourBridge.openFloorOverlay();
   assert.equal(sent.at(-1).action, "openFloorOverlay");
 });
+test("static landmark directions and walking editor require no sensor actions", () => {
+  const { context: p, sent } = page();
+  const request = {
+    requestID: "request-1",
+    startID: "a",
+    destinationID: "b",
+    floor: "2F",
+    routingRevision: "a".repeat(64),
+  };
+  p.ContourBridge.planLandmarkRoute(request);
+  p.ContourBridge.openWalkingConnections();
+  assert.equal(sent[0].action, "planLandmarkRoute");
+  assert.deepEqual(JSON.parse(JSON.stringify(sent[0].request)), request);
+  assert.equal(sent[1].action, "openWalkingConnections");
+  assert.equal(sent.length, 2);
+});
 test("denial and timeout release native location and report an error", () => {
   for (const fail of ["denied", "timeout"]) {
     const { context: p, sent, timers } = page();

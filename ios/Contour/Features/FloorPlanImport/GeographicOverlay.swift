@@ -14,6 +14,8 @@ struct GeographicOverlay: Codable, Equatable {
     var visible = true
     // Optional for compatibility with floor plans saved before destination pins.
     var destinations: [FloorDestination]? = nil
+    var wallGeometry: FloorWallGeometry? = nil
+    var walkingNetwork: FloorWalkingNetwork? = nil
     var floor: String? = nil
     var floorName: String { floor ?? "2F" }
 
@@ -23,6 +25,7 @@ struct GeographicOverlay: Codable, Equatable {
         ["B1", "1F", "2F", "3F", "4F"].contains(floorName) &&
         (destinations?.count ?? 0) <= 120 && (destinations ?? []).allSatisfy(\.isValid) &&
         Set((destinations ?? []).map(\.id)).count == (destinations?.count ?? 0) &&
+        (wallGeometry?.isValid ?? true) && (walkingNetwork?.isValid(for: destinations ?? []) ?? true) &&
         version == 1 && !image.isEmpty && image.count <= 12_000_000 && name.count <= 80 &&
         latitude.isFinite && abs(latitude) < 85 && longitude.isFinite && abs(longitude) <= 180 &&
         width.isFinite && width >= 1 && width <= 2000 && aspect.isFinite && aspect >= 0.05 &&

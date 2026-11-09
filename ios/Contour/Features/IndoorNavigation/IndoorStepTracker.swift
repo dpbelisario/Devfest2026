@@ -10,10 +10,12 @@ struct IndoorStepRequest: Codable {
     let longitude: Double
     let heading: Double
     let stepLength: Double
+    var wallMap: FloorWallMap? = nil
     var isValid: Bool {
         !sessionID.isEmpty && sessionID.count <= 80 && ["B1", "1F", "2F", "3F", "4F"].contains(floor) &&
         latitude.isFinite && abs(latitude) < 85 && longitude.isFinite && abs(longitude) <= 180 &&
-        heading.isFinite && heading >= 0 && heading < 360 && stepLength.isFinite && (0.4...1.1).contains(stepLength)
+        heading.isFinite && heading >= 0 && heading < 360 && stepLength.isFinite && (0.4...1.1).contains(stepLength) &&
+        (wallMap?.isValid ?? true)
     }
 }
 
@@ -28,6 +30,7 @@ struct IndoorStepPose: Codable {
     let stepLength: Double
     var status: String
     var timestamp: Double
+    var wallBlocked = false
 }
 
 /// Integrates turns around gravity and advances only on new pedometer counts.
@@ -39,6 +42,7 @@ struct IndoorStepModel {
     private var lastMotion: TimeInterval?
     private var lastStepTime: TimeInterval
     private var headings: [(time: TimeInterval, degrees: Double)]
+    private let barriers: [(CGPoint, CGPoint)]
 
     init(request: IndoorStepRequest, time: TimeInterval) {
         self.request = request
@@ -47,6 +51,7 @@ struct IndoorStepModel {
             stepLength: request.stepLength, status: "starting", timestamp: time * 1000)
         lastStepTime = time
         headings = [(time, request.heading)]
+        barriers = request.wallMap?.barriers ?? []
     }
     mutating func turn(clockwiseRadiansPerSecond rate: Double, time: TimeInterval) -> Bool {
         guard time.isFinite, rate.isFinite, abs(rate) <= 8 else { return false }
@@ -68,11 +73,26 @@ struct IndoorStepModel {
               let motionTime = lastMotion, abs(time - motionTime) <= 2 else { return false }
         // iOS reports cumulative batches, not individual step timestamps. Spread a batch
         // over its interval and use historical gyro headings instead of the latest turn.
+        pose.wallBlocked = false
         for index in 1...count {
             let stepTime = lastStepTime + (time - lastStepTime) * Double(index) / Double(count)
             let heading = headings.last(where: { $0.time <= stepTime })?.degrees ?? pose.heading
-            east += request.stepLength * sin(heading * .pi / 180)
-            north += request.stepLength * cos(heading * .pi / 180)
+            let nextEast = east + request.stepLength * sin(heading * .pi / 180)
+            let nextNorth = north + request.stepLength * cos(heading * .pi / 180)
+            let nextLatitude = request.latitude + nextNorth / 111319.49079327358
+            let nextLongitude = request.longitude + nextEast / (111319.49079327358 * cos(request.latitude * .pi / 180))
+            if let map = request.wallMap, !barriers.isEmpty {
+                let currentLatitude = request.latitude + north / 111319.49079327358
+                let currentLongitude = request.longitude + east / (111319.49079327358 * cos(request.latitude * .pi / 180))
+                if FloorWallMap.blocks(from: map.local(latitude: currentLatitude, longitude: currentLongitude),
+                    to: map.local(latitude: nextLatitude, longitude: nextLongitude), barriers: barriers) {
+                    pose.wallBlocked = true
+                    // Keep consuming counts, but never teleport across a mapped wall or choose
+                    // an arbitrary side. The user can correct the start, heading, stride or geometry.
+                    continue
+                }
+            }
+            east = nextEast; north = nextNorth
         }
         pose.steps = total; pose.distance = Double(total) * request.stepLength
         pose.latitude = request.latitude + north / 111319.49079327358

@@ -22,17 +22,282 @@
   let indoorPose = null;
   let trackingRequested = false;
   let stepLength = 0.72;
+  let showWalls = false;
+  let mapPinTarget = "start";
+  let landmarkSelection = null;
+  let landmarkRoute = null;
+  let directionStep = 0;
+  let landmarkRequest = null;
+  let landmarkTimer = null;
+  let landmarkVersion = 0;
+  let automaticLandmarkKey = null;
+  let automaticLandmarkTimer = null;
+  function landmarkStartID() {
+    return chosenStartID || confirmedStart?.id || null;
+  }
+  function landmarkKey() {
+    return JSON.stringify([
+      pending?.routingRevision || revision,
+      floorUI?.floor.value,
+      landmarkStartID(),
+      selectedID,
+    ]);
+  }
+  function clearLandmarkDirections() {
+    clearTimeout(automaticLandmarkTimer);
+    automaticLandmarkTimer = null;
+    clearTimeout(landmarkTimer);
+    landmarkTimer = null;
+    landmarkRoute = null;
+    directionStep = 0;
+    landmarkRequest = null;
+    landmarkVersion++;
+  }
+  function updateLandmarkDirections() {
+    if (!floorUI) return;
+    const ui = floorUI,
+      key = landmarkKey();
+    if (key !== landmarkSelection) {
+      clearLandmarkDirections();
+      landmarkSelection = key;
+      automaticLandmarkKey = null;
+    }
+    const start = pending?.destinations?.find(
+      (p) => p.id === landmarkStartID(),
+    );
+    const destination = pending?.destinations?.find((p) => p.id === selectedID);
+    const active =
+      !ui.root.hidden && ui.floor.value === (pending?.floor || "2F");
+    ui.generateDirections.disabled =
+      !active ||
+      !start ||
+      !destination ||
+      !!landmarkRequest ||
+      typeof window.ContourBridge?.planLandmarkRoute !== "function";
+    ui.generateDirections.textContent = landmarkRequest
+      ? "Finding route…"
+      : "Recalculate route";
+    if (!ui.generateDirections.disabled && automaticLandmarkKey !== key) {
+      automaticLandmarkKey = key;
+      automaticLandmarkTimer = setTimeout(() => {
+        if (key === landmarkKey() && !ui.root.hidden && !landmarkRequest)
+          generateLandmarkDirections();
+      }, 120);
+    }
+    ui.directionsHint.textContent = !start
+      ? "Choose your starting point above or tap a pin on the map."
+      : !destination
+        ? "Choose where you want to go."
+        : "Route preview based on saved walls and floor-plan locations.";
+    ui.directionsSection.dataset.state = landmarkRequest
+      ? "loading"
+      : landmarkRoute?.status || "idle";
+    if (ui.directionsVersion === landmarkVersion) return;
+    ui.directionsVersion = landmarkVersion;
+    ui.directionList.replaceChildren();
+    ui.directionMessage.textContent = landmarkRequest
+      ? "Finding a path between pins without crossing mapped walls…"
+      : landmarkRoute?.message || "";
+    for (const instruction of landmarkRoute?.instructions || []) {
+      const item = document.createElement("li");
+      item.textContent = instruction;
+      ui.directionList.appendChild(item);
+    }
+    ui.directionSummary.textContent =
+      landmarkRoute?.status === "ok"
+        ? `${Math.max(0, landmarkRoute.landmarkIDs.length - 2)} intermediate pins · approximately ${Math.round(landmarkRoute.distance)} m. Blue line: route preview.`
+        : "";
+    updateDirectionStep();
+    updateFloorMapSummary();
+  }
+  function updateDirectionStep() {
+    if (!floorUI) return;
+    const ui = floorUI;
+    const count = directionStepCount();
+    const complete = count > 0 && directionStep >= count;
+    [...ui.directionList.children].forEach((item, index) => {
+      item.hidden = complete || index !== directionStep;
+    });
+    ui.directionList.start = directionStep + 1;
+    ui.stepProgress.hidden = !count;
+    ui.stepProgress.textContent = complete
+      ? "Destination reached — you confirmed arrival."
+      : `Step ${directionStep + 1} of ${count}`;
+    ui.arrived.hidden = !count || complete;
+    ui.arrived.textContent =
+      directionStep === count - 1
+        ? "I've arrived at my destination"
+        : "I've arrived — next step";
+    ui.previousStep.hidden = !count || directionStep === 0;
+  }
+  function directionStepCount() {
+    if (landmarkRoute?.status !== "ok") return 0;
+    const instructions = landmarkRoute.instructions;
+    // The planner appends a finish reminder after the last actual walking leg.
+    return (
+      instructions.length -
+      (instructions.length > 1 && /^Finish at /.test(instructions.at(-1))
+        ? 1
+        : 0)
+    );
+  }
+  function updateFloorMapSummary() {
+    if (!floorUI?.routeMetric) return;
+    const ui = floorUI,
+      state = landmarkRequest ? "loading" : landmarkRoute?.status;
+    ui.routeMetric.textContent =
+      state === "ok"
+        ? `~${Math.round(landmarkRoute.distance)} m`
+        : state === "same-place"
+          ? "Same location"
+          : state === "loading"
+            ? "Finding route…"
+            : state === "needs-walls"
+              ? "Set up floor walls"
+              : state === "no-path"
+                ? "No route found"
+                : "Plan your route";
+    ui.routeCaption.textContent =
+      state === "ok"
+        ? `${Math.max(0, landmarkRoute.landmarkIDs.length - 2)} intermediate stops · Floor ${pending?.floor || "2F"}`
+        : "Choose a start and destination above";
+    ui.showDirections.disabled = !landmarkRoute?.instructions?.length;
+    ui.swap.disabled = !landmarkStartID() || !selectedID;
+  }
+  function setMapPinTarget(target) {
+    mapPinTarget = target;
+    if (!floorUI?.startField) return;
+    floorUI.startField.classList.toggle(
+      "contour-field-active",
+      target === "start",
+    );
+    floorUI.destinationField.classList.toggle(
+      "contour-field-active",
+      target === "destination",
+    );
+    floorUI.startMode.setAttribute("aria-pressed", String(target === "start"));
+    floorUI.destinationMode.setAttribute(
+      "aria-pressed",
+      String(target === "destination"),
+    );
+    floorUI.pinHint.textContent =
+      target === "start"
+        ? "Tap your location to set your start"
+        : "Tap a pin to choose your destination";
+    startRenderKey = null;
+    renderStartSuggestion();
+  }
+  function generateLandmarkDirections() {
+    updateLandmarkDirections();
+    if (!floorUI || floorUI.generateDirections.disabled) return;
+    clearLandmarkDirections();
+    automaticLandmarkKey = landmarkKey();
+    const requestID =
+      window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`;
+    landmarkRequest = { requestID, key: landmarkKey() };
+    landmarkTimer = setTimeout(() => {
+      if (landmarkRequest?.requestID !== requestID) return;
+      landmarkRequest = null;
+      landmarkRoute = {
+        status: "error",
+        message:
+          "Instructions could not be prepared. Try again or reopen Floor Maps.",
+      };
+      landmarkVersion++;
+      updateLandmarkDirections();
+    }, 15000);
+    updateLandmarkDirections();
+    window.ContourBridge.planLandmarkRoute({
+      requestID,
+      startID: landmarkStartID(),
+      destinationID: selectedID,
+      floor: pending.floor || "2F",
+      routingRevision: pending.routingRevision || "",
+    });
+  }
+  window.contourIOSLandmarkRoute = (value) => {
+    if (
+      !landmarkRequest ||
+      value?.requestID !== landmarkRequest.requestID ||
+      landmarkRequest.key !== landmarkKey() ||
+      floorUI?.root.hidden ||
+      value.floor !== (pending?.floor || "2F")
+    )
+      return;
+    const statuses = [
+      "ok",
+      "same-place",
+      "needs-connections",
+      "needs-walls",
+      "no-path",
+      "invalid",
+      "outdated",
+      "error",
+    ];
+    if (
+      !statuses.includes(value.status) ||
+      typeof value.message !== "string" ||
+      value.message.length > 600
+    )
+      return;
+    if (
+      value.status !== "outdated" &&
+      value.routingRevision !== pending.routingRevision
+    )
+      return;
+    if (["ok", "same-place"].includes(value.status)) {
+      if (
+        !Array.isArray(value.instructions) ||
+        !value.instructions.length ||
+        value.instructions.length > 122 ||
+        !value.instructions.every(
+          (s) => typeof s === "string" && s.length <= 400,
+        ) ||
+        !Array.isArray(value.landmarkIDs) ||
+        !value.landmarkIDs.length ||
+        value.landmarkIDs.length > 120 ||
+        value.landmarkIDs[0] !== landmarkStartID() ||
+        value.landmarkIDs.at(-1) !== selectedID ||
+        !value.landmarkIDs.every((id) =>
+          pending.destinations.some((p) => p.id === id),
+        ) ||
+        !Number.isFinite(value.distance) ||
+        value.distance < 0 ||
+        !Array.isArray(value.path) ||
+        value.path.length > 3200 ||
+        !value.path.every(
+          (p) =>
+            Number.isFinite(p.latitude) &&
+            Math.abs(p.latitude) < 85 &&
+            Number.isFinite(p.longitude) &&
+            Math.abs(p.longitude) <= 180,
+        ) ||
+        (value.status === "ok" && value.path.length < 2)
+      )
+        return;
+    }
+    clearTimeout(landmarkTimer);
+    landmarkTimer = null;
+    landmarkRequest = null;
+    landmarkRoute = value;
+    directionStep = 0;
+    landmarkVersion++;
+    updateLandmarkDirections();
+    startRenderKey = null;
+    renderStartSuggestion();
+  };
   function clearIndoorTracking() {
     window.ContourBridge?.clearIndoorTracking?.();
     indoorPose = null;
     trackingRequested = false;
   }
   function beginIndoorTracking() {
+    const heading = confirmedStart?.heading || phoneHeading;
     if (
       !confirmedStart ||
       trackingRequested ||
-      !phoneHeading ||
-      Date.now() - phoneHeading.timestamp > 10000 ||
+      !heading ||
+      Date.now() - heading.timestamp > 10000 ||
       !window.ContourBridge?.startIndoorTracking
     )
       return;
@@ -42,8 +307,20 @@
       floor: pending.floor || "2F",
       latitude: confirmedStart.ll[0],
       longitude: confirmedStart.ll[1],
-      heading: phoneHeading.degrees,
+      heading: heading.degrees,
       stepLength,
+      ...(pending.wallGeometry?.reviewed
+        ? {
+            wallMap: {
+              latitude: pending.latitude,
+              longitude: pending.longitude,
+              width: pending.width,
+              aspect: pending.aspect,
+              angle: pending.angle,
+              geometry: pending.wallGeometry,
+            },
+          }
+        : {}),
     });
   }
   window.contourIOSIndoorPose = (value) => {
@@ -65,6 +342,7 @@
       value.steps < 0 ||
       !Number.isFinite(value.distance) ||
       value.distance < 0 ||
+      (value.wallBlocked != null && typeof value.wallBlocked !== "boolean") ||
       ![
         "starting",
         "tracking",
@@ -79,7 +357,10 @@
     renderStartSuggestion();
   };
   function displayedHeading() {
-    if (!confirmedStart) return phoneHeading;
+    // Viewing direction follows the compass independently of step/gyro navigation.
+    if (phoneHeading && Date.now() - phoneHeading.timestamp <= 10000)
+      return phoneHeading;
+    if (!confirmedStart) return null;
     if (!indoorPose || indoorPose.status !== "tracking") return null;
     return { degrees: indoorPose.heading, timestamp: indoorPose.timestamp };
   }
@@ -95,6 +376,7 @@
       pin.id,
       pin.x,
       pin.y,
+      value.wallGeometry,
     ]);
   }
   function displayedFix(fix) {
@@ -105,11 +387,14 @@
       confirmed: true,
     };
   }
-  function confirmStartingPoint() {
-    const pin = pending?.destinations?.find((pin) => pin.id === suggestedID);
+  function confirmStartingPoint(pinID = suggestedID) {
+    const pin = pending?.destinations?.find((pin) => pin.id === pinID);
     if (!pin) return;
-    clearIndoorTracking();
     chosenStartID = pin.id;
+    positionAtPin(pin);
+  }
+  function positionAtPin(pin, heading = null) {
+    clearIndoorTracking();
     confirmedStart = {
       sessionID:
         window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`,
@@ -117,6 +402,7 @@
       name: pin.name,
       ll: coordinate(pending, pin),
       signature: startSignature(pending, pin),
+      heading,
     };
     startFitKey = null;
     beginIndoorTracking();
@@ -147,6 +433,89 @@
   let startRenderKey = null;
   let startError = "Waiting for your phone’s location…";
 
+  const validWallSegment = (s) =>
+    s &&
+    typeof s.id === "string" &&
+    s.id.length <= 80 &&
+    [s.start, s.end].every(
+      (p) =>
+        p &&
+        Number.isFinite(p.x) &&
+        p.x >= 0 &&
+        p.x <= 1 &&
+        Number.isFinite(p.y) &&
+        p.y >= 0 &&
+        p.y <= 1,
+    ) &&
+    Math.hypot(s.start.x - s.end.x, s.start.y - s.end.y) > 0.0001;
+  const validWallGeometry = (g) =>
+    g &&
+    g.version === 1 &&
+    typeof g.reviewed === "boolean" &&
+    Array.isArray(g.walls) &&
+    g.walls.length <= 1000 &&
+    Array.isArray(g.openings) &&
+    g.openings.length <= 200 &&
+    [...g.walls, ...g.openings].every(validWallSegment) &&
+    new Set([...g.walls, ...g.openings].map((s) => s.id)).size ===
+      g.walls.length + g.openings.length;
+  const validWalkingNetwork = (g, pins) => {
+    if (
+      !g ||
+      g.version !== 1 ||
+      typeof g.reviewed !== "boolean" ||
+      !Array.isArray(g.points) ||
+      g.points.length > 120 ||
+      !Array.isArray(g.connections) ||
+      g.connections.length > 600 ||
+      !g.points.every((p) => p && typeof p.destinationID === "string") ||
+      !g.connections.every(
+        (e) => e && typeof e.from === "string" && typeof e.to === "string",
+      )
+    )
+      return false;
+    const ids = new Set(g.points.map((p) => p.destinationID));
+    if (
+      ids.size !== g.points.length ||
+      !g.points.every(
+        (p) =>
+          pins.some((pin) => pin.id === p.destinationID) &&
+          p.position &&
+          Number.isFinite(p.position.x) &&
+          p.position.x >= 0 &&
+          p.position.x <= 1 &&
+          Number.isFinite(p.position.y) &&
+          p.position.y >= 0 &&
+          p.position.y <= 1,
+      )
+    )
+      return false;
+    return (
+      new Set(g.connections.map((e) => e.id)).size === g.connections.length &&
+      new Set(g.connections.map((e) => [e.from, e.to].sort().join(":")))
+        .size === g.connections.length &&
+      g.connections.every(
+        (e) =>
+          typeof e.id === "string" &&
+          e.id.length <= 80 &&
+          ids.has(e.from) &&
+          ids.has(e.to) &&
+          e.from !== e.to &&
+          Array.isArray(e.via) &&
+          e.via.length <= 24 &&
+          e.via.every(
+            (p) =>
+              p &&
+              Number.isFinite(p.x) &&
+              p.x >= 0 &&
+              p.x <= 1 &&
+              Number.isFinite(p.y) &&
+              p.y >= 0 &&
+              p.y <= 1,
+          ),
+      )
+    );
+  };
   const valid = (v) =>
     v &&
     v.version === 1 &&
@@ -169,6 +538,12 @@
     v.opacity >= 0.1 &&
     v.opacity <= 1 &&
     typeof v.visible === "boolean" &&
+    (v.wallGeometry == null || validWallGeometry(v.wallGeometry)) &&
+    (v.routingRevision == null ||
+      (typeof v.routingRevision === "string" &&
+        /^[a-f0-9]{64}$/.test(v.routingRevision))) &&
+    (v.walkingNetwork == null ||
+      validWalkingNetwork(v.walkingNetwork, v.destinations || [])) &&
     (v.floor == null || ["B1", "1F", "2F", "3F", "4F"].includes(v.floor)) &&
     (v.destinations == null ||
       (Array.isArray(v.destinations) &&
@@ -316,14 +691,14 @@
     startLayers = [];
     if (floorUI) floorUI.startMap.dataset.hasLine = "false";
   }
-  function stopStartLocation() {
+  function stopStartLocation(preserveStart = false) {
     if (startWatch !== null) navigator.geolocation.clearWatch(startWatch);
     startWatch = null;
     clearInterval(startTimer);
     startTimer = null;
     startFix = null;
     suggestedID = null;
-    chosenStartID = null;
+    if (!preserveStart) chosenStartID = null;
     startFitKey = null;
     startRenderKey = null;
     clearStartLayers();
@@ -386,7 +761,12 @@
       button.dataset.id = pin.id;
       button.textContent = String(index + 1);
       button.title = pin.name;
-      button.setAttribute("aria-label", "Choose starting point " + pin.name);
+      button.setAttribute(
+        "aria-label",
+        (mapPinTarget === "start"
+          ? "Choose starting point "
+          : "Choose destination ") + pin.name,
+      );
       button.setAttribute("aria-pressed", String(pin.id === suggestedID));
       button.classList.toggle(
         "contour-floor-destination",
@@ -394,8 +774,11 @@
       );
       button.onclick = (event) => {
         event.stopPropagation();
-        chosenStartID = pin.id;
-        renderStartSuggestion();
+        if (mapPinTarget === "destination") {
+          selectFloorPin(pin.id);
+          return;
+        }
+        confirmStartingPoint(pin.id);
       };
       container.appendChild(button);
       return { button, ll: coordinate(value, pin) };
@@ -410,11 +793,11 @@
         `Facing ${Math.round(heading.degrees)} degrees`,
       );
       direction.innerHTML =
-        '<svg width="56" height="56" viewBox="0 0 56 56"><path d="M28 2 L39 24 L28 18 L17 24 Z" fill="#2469ca" fill-opacity=".7" stroke="white" stroke-width="1.5"/></svg>';
+        '<svg width="72" height="72" viewBox="0 0 72 72" aria-hidden="true"><defs><linearGradient id="contour-view-cone" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#188038" stop-opacity=".45"/><stop offset="1" stop-color="#188038" stop-opacity=".05"/></linearGradient></defs><path d="M36 36 L8 5 Q36 -5 64 5 Z" fill="url(#contour-view-cone)"/><path d="M36 10 L44 25 L36 21 L28 25 Z" fill="#188038" stroke="white" stroke-width="1.5"/></svg>';
       Object.assign(direction.style, {
         position: "absolute",
-        width: "56px",
-        height: "56px",
+        width: "72px",
+        height: "72px",
         pointerEvents: "none",
         transform: `translate(-50%,-50%) rotate(${heading.degrees}deg)`,
       });
@@ -422,6 +805,9 @@
     }
     function position(project) {
       if (direction) {
+        const mapHeading =
+          kind === "google" ? targetMap.getHeading?.() || 0 : 0;
+        direction.style.transform = `translate(-50%,-50%) rotate(${heading.degrees - mapHeading}deg)`;
         const point = project(fix.ll);
         if (point) {
           direction.style.left = `${point.x}px`;
@@ -482,27 +868,32 @@
   function renderStartMap(target, fix) {
     if (!floorUI || !pending) return;
     const host = floorUI.startMap;
+    const floorImage = { ...pending, opacity: 1 };
     if (!startMap) {
       if (provider === "google" && window.google?.maps?.Map) {
         startMapProvider = "google";
         startMap = new window.google.maps.Map(host, {
           center: { lat: pending.latitude, lng: pending.longitude },
           disableDefaultUI: true,
-          zoomControl: true,
+          zoomControl: false,
           keyboardShortcuts: false,
           clickableIcons: false,
           tilt: 0,
           heading: 0,
           zoom: 19,
+          isFractionalZoomEnabled: true,
           mapTypeControl: false,
           streetViewControl: false,
           fullscreenControl: false,
-          gestureHandling: "cooperative",
+          gestureHandling: "greedy",
         });
       } else if (window.L?.map) {
         startMapProvider = "leaflet";
         startMap = window.L.map(host, {
           attributionControl: false,
+          zoomControl: false,
+          zoomSnap: 0.1,
+          zoomDelta: 0.5,
           maxZoom: 22,
         });
       } else return;
@@ -515,14 +906,19 @@
       { x: 1, y: 1 },
       { x: 0, y: 1 },
     ].map((pin) => coordinate(pending, pin));
-    const key = `${revision}:${suggestedID || "none"}:${ll ? "located" : "unlocated"}:${confirmedStart?.id || "raw"}`;
+    const key = `${revision}:${suggestedID || "none"}:${ll ? "located" : "unlocated"}:${confirmedStart?.id || "raw"}:${landmarkRoute?.status === "ok" ? landmarkRoute.landmarkIDs.join(":") : "no-route"}`;
+    const hasRoute = landmarkRoute?.status === "ok";
+    const topPadding = Math.min(
+      floorUI.root.dataset.sheetExpanded === "true" ? 105 : 210,
+      Math.round(host.clientHeight * 0.4),
+    );
     const shouldFit = startFitKey !== key;
     startFitKey = key;
     if (startMapProvider === "google") {
       const gm = window.google.maps;
       const current = ll ? { lat: ll[0], lng: ll[1] } : null;
       startLayers.push(
-        createGoogleImage(pending, startMap, "contour-start-floor-plan"),
+        createGoogleImage(floorImage, startMap, "contour-start-floor-plan"),
       );
       if (current) {
         startLayers.push(
@@ -535,7 +931,7 @@
             icon: {
               path: gm.SymbolPath.CIRCLE,
               scale: 7,
-              fillColor: "#2469ca",
+              fillColor: fix.confirmed ? "#188038" : "#2469ca",
               fillOpacity: 1,
               strokeColor: "white",
               strokeWeight: 2,
@@ -557,11 +953,12 @@
           );
       }
       const bounds = new gm.LatLngBounds();
-      if (current) bounds.extend(current);
-      corners.forEach((point) =>
-        bounds.extend({ lat: point[0], lng: point[1] }),
-      );
-      if (target && current) {
+      if (current && !hasRoute) bounds.extend(current);
+      (hasRoute
+        ? landmarkRoute.path.map((p) => [p.latitude, p.longitude])
+        : corners
+      ).forEach((point) => bounds.extend({ lat: point[0], lng: point[1] }));
+      if (target && current && !hasRoute) {
         const end = { lat: target.ll[0], lng: target.ll[1] };
         bounds.extend(end);
         startLayers.push(
@@ -585,7 +982,12 @@
         );
       }
       if (shouldFit) {
-        startMap.fitBounds(bounds, 35);
+        startMap.fitBounds(bounds, {
+          top: topPadding,
+          bottom: 24,
+          left: 24,
+          right: 24,
+        });
         startMap.setOptions({ maxZoom: 20 });
       }
     } else {
@@ -593,7 +995,7 @@
       startMap.invalidateSize();
       startLayers.push(
         createLeafletImage(
-          pending,
+          floorImage,
           startMap,
           "startFloorPlan",
           "contour-start-floor-plan",
@@ -612,12 +1014,12 @@
           L.circleMarker(ll, {
             radius: 7,
             color: "white",
-            fillColor: "#2469ca",
+            fillColor: fix.confirmed ? "#188038" : "#2469ca",
             fillOpacity: 1,
           }).addTo(startMap),
         );
       }
-      if (target && ll) {
+      if (target && ll && !hasRoute) {
         startLayers.push(
           L.polyline([ll, target.ll], {
             color: "#b84a10",
@@ -628,24 +1030,93 @@
       if (shouldFit)
         startMap.fitBounds(
           L.latLngBounds([
-            ...corners,
-            ...(ll ? [ll] : []),
+            ...(hasRoute
+              ? landmarkRoute.path.map((p) => [p.latitude, p.longitude])
+              : corners),
+            ...(ll && !hasRoute ? [ll] : []),
             ...(target ? [target.ll] : []),
           ]),
-          { padding: [35, 35], maxZoom: 20 },
+          {
+            paddingTopLeft: [24, topPadding],
+            paddingBottomRight: [24, 24],
+            maxZoom: 20,
+          },
         );
     }
+    if (showWalls && pending.wallGeometry) {
+      const geometry = pending.wallGeometry;
+      for (const [segments, color] of [
+        [geometry.walls, "#d62626"],
+        [geometry.openings, "#12833a"],
+      ]) {
+        for (const segment of segments) {
+          const points = [
+            coordinate(pending, segment.start),
+            coordinate(pending, segment.end),
+          ];
+          startLayers.push(
+            startMapProvider === "google"
+              ? new window.google.maps.Polyline({
+                  map: startMap,
+                  path: points.map((p) => ({ lat: p[0], lng: p[1] })),
+                  strokeColor: color,
+                  strokeWeight: 3,
+                  strokeOpacity: 0.75,
+                  clickable: false,
+                })
+              : window.L.polyline(points, {
+                  color,
+                  weight: 3,
+                  opacity: 0.75,
+                  interactive: false,
+                }).addTo(startMap),
+          );
+        }
+      }
+    }
+    host.dataset.wallSegments = String(
+      showWalls
+        ? (pending.wallGeometry?.walls.length || 0) +
+            (pending.wallGeometry?.openings.length || 0)
+        : 0,
+    );
+    if (landmarkRoute?.status === "ok") {
+      const points = landmarkRoute.path.map((p) => [p.latitude, p.longitude]);
+      startLayers.push(
+        startMapProvider === "google"
+          ? new window.google.maps.Polyline({
+              map: startMap,
+              path: points.map((p) => ({ lat: p[0], lng: p[1] })),
+              strokeColor: "#185abc",
+              strokeWeight: 5,
+              strokeOpacity: 0.8,
+              clickable: false,
+            })
+          : window.L.polyline(points, {
+              color: "#185abc",
+              weight: 5,
+              opacity: 0.8,
+              interactive: false,
+              smoothFactor: 0, // Preserve detour bends instead of visually cutting across a wall.
+            }).addTo(startMap),
+      );
+    }
+    host.dataset.hasLandmarkRoute = String(landmarkRoute?.status === "ok");
     startLayers.push(createFloorPins(pending, startMap, startMapProvider, fix));
     host.dataset.provider = startMapProvider;
-    host.dataset.hasLine = String(!!target && !!ll);
+    host.dataset.hasLine = String(!!target && !!ll && !hasRoute);
   }
   function renderStartSuggestion() {
     const ui = floorUI;
     if (!ui || ui.root.hidden || ui.startSection.hidden) return;
+    updateLandmarkDirections();
     const fresh = startFix && Date.now() - startFix.timestamp <= 30000;
     const renderKey = JSON.stringify([
       !confirmedStart && fresh ? startFix : null,
       revision,
+      showWalls,
+      mapPinTarget,
+      landmarkVersion,
       chosenStartID,
       confirmedStart
         ? [confirmedStart.id, confirmedStart.ll, confirmedStart.last]
@@ -660,6 +1131,7 @@
             Math.round(indoorPose.heading),
             indoorPose.steps,
             indoorPose.status,
+            indoorPose.wallBlocked,
           ]
         : null,
       startError,
@@ -694,17 +1166,20 @@
         (item) => item.pin.id === (chosenStartID || confirmedStart?.id),
       ) || automatic;
     suggestedID = target?.pin.id || null;
-    ui.startSelect.replaceChildren();
-    const auto = document.createElement("option");
-    auto.value = "";
-    auto.textContent = "Suggest nearest landmark automatically";
-    ui.startSelect.appendChild(auto);
-    (pending.destinations || []).forEach((pin, index) => {
-      const option = document.createElement("option");
-      option.value = pin.id;
-      option.textContent = `${index + 1}. ${pin.name}`;
-      ui.startSelect.appendChild(option);
-    });
+    if (ui.startOptionRevision !== revision) {
+      ui.startOptionRevision = revision;
+      ui.startSelect.replaceChildren();
+      const auto = document.createElement("option");
+      auto.value = "";
+      auto.textContent = "Choose starting point";
+      ui.startSelect.appendChild(auto);
+      (pending.destinations || []).forEach((pin, index) => {
+        const option = document.createElement("option");
+        option.value = pin.id;
+        option.textContent = `${index + 1}. ${pin.name}`;
+        ui.startSelect.appendChild(option);
+      });
+    }
     ui.startSelect.value = chosenStartID || confirmedStart?.id || "";
     ui.startMap.hidden = false;
     let locationStatus = fresh
@@ -723,13 +1198,14 @@
         ? "Update my position here"
         : "Set my position here";
     ui.confirmHint.textContent = target
-      ? `Moves your blue position dot to ${target.pin.name}. Keeps your compass direction.`
+      ? `Moves your indoor position dot to ${target.pin.name}. Keeps your compass direction.`
       : "Choose a numbered pin, then set your position here.";
     ui.resetPosition.hidden = !confirmedStart;
+    ui.wallToggleLabel.hidden = !pending.wallGeometry;
     ui.startStatus.textContent =
       (confirmedStart
         ? indoorPose?.status === "tracking"
-          ? `Indoor position · ${indoorPose.steps} steps · approximately ${indoorPose.distance.toFixed(1)} m. Phone held in front; GPS does not move this dot. `
+          ? `Indoor position · ${indoorPose.steps} steps · approximately ${indoorPose.distance.toFixed(1)} m. ${indoorPose.wallBlocked ? "Movement held at a mapped wall. Check your position, heading or doorway geometry. " : ""}${pending.wallGeometry?.reviewed && pending.wallGeometry.walls.length ? "Reviewed wall constraints active. " : ""}Phone held in front; GPS does not move this dot. `
           : indoorPose?.status === "motion-unavailable"
             ? "Motion tracking unavailable. Allow Motion & Fitness in Settings, then set your position again. "
             : indoorPose && indoorPose.status !== "starting"
@@ -746,6 +1222,7 @@
     // Retain all locations and the floor image without a fix; only the reported dot/line require fresh data.
     renderStartMap(target, displayedFix(fresh ? startFix : null));
     updateFloorAR();
+    updateFloorMapSummary();
   }
   function updateFloorAR() {
     if (!floorUI) return;
@@ -756,6 +1233,7 @@
       !!confirmedStart &&
       !!destination &&
       indoorPose?.status === "tracking" &&
+      !indoorPose.wallBlocked &&
       confirmedStart.id !== destination.id &&
       typeof window.ContourBridge?.startFloorAR === "function";
     floorUI.openAR.disabled = !ready;
@@ -763,11 +1241,14 @@
       ? "Set your starting position on the map first."
       : indoorPose?.status !== "tracking"
         ? "Allow motion access and set your position to start indoor tracking."
-        : !destination
-          ? "Choose a saved destination to open camera navigation."
-          : confirmedStart.id === destination.id
-            ? "Choose a destination different from your starting point."
-            : `Open AR toward ${destination.name}. Position comes from steps and turns, not GPS. Camera-only obstacle cues; no wall-aware route yet.`;
+        : indoorPose.wallBlocked
+          ? "Position held at a mapped wall. Check your position, heading or saved door openings before opening AR."
+          : !destination
+            ? "Choose a saved destination to open camera navigation."
+            : confirmedStart.id === destination.id
+              ? "Choose a destination different from your starting point."
+              : `Open AR toward ${destination.name}. Position comes from steps and turns, not GPS. Camera-only obstacle cues; no wall-aware route yet.`;
+    floorUI.openAR.title = floorUI.arHint.textContent;
   }
   function openFloorAR() {
     const destination = pending?.destinations?.find(
@@ -825,7 +1306,7 @@
     style.textContent = `
       #libraryMaps .library-map-body > .library-controls,#libraryMaps .library-map-body > details,#libraryMaps #libraryGuide{display:none!important}
       .contour-floor-pins{position:absolute;inset:0;pointer-events:none;z-index:3}
-      .contour-floor-pin{position:absolute;transform:translate(-50%,-50%);pointer-events:auto;border:2px solid white;border-radius:50%;background:rgba(36,105,202,.48);color:#102c52;font:bold 13px system-ui;min-width:36px;min-height:36px;box-shadow:0 1px 5px #0006;cursor:pointer}
+      .contour-floor-pin{position:absolute;transform:translate(-50%,-50%);pointer-events:auto;border:1.5px solid white;border-radius:50%;background:rgba(36,105,202,.38);color:#102c52;font:bold 10px system-ui;width:24px;height:24px;min-width:24px;min-height:24px;padding:0;box-shadow:0 1px 3px #0004;cursor:pointer}
       .contour-floor-pin.contour-floor-destination{box-shadow:0 0 0 4px #16714a}
       .contour-floor-pin[aria-pressed="true"]{background:rgba(184,74,16,.48);outline:3px solid #f5b34b;color:#381800}
       .contour-saved-pins #libraryOverlay [data-checkpoint]{display:none}
@@ -850,6 +1331,12 @@
       .contour-floor-controls .contour-open-ar:disabled{background:#dce3ed;color:#566579;cursor:default}
       .contour-floor-controls .contour-ar-hint{width:100%;margin:0 0 8px;font-size:14px;line-height:1.4}
       .contour-floor-status{width:100%;margin:0}
+      .contour-landmark-directions{width:100%;padding:12px;border:1px solid #b7cce7;border-radius:12px;box-sizing:border-box;overflow-wrap:anywhere}
+      .contour-landmark-directions h3{font-size:18px;margin:0 0 8px}.contour-landmark-directions p{margin:8px 0;font-size:14px;line-height:1.4}
+      .contour-landmark-directions ol{padding-left:24px;margin:12px 0}.contour-landmark-directions li{margin:12px 0;line-height:1.5}
+      .contour-landmark-directions .contour-generate-directions{width:100%;min-height:48px;padding:12px;border:0;border-radius:10px;background:#185abc;color:white;font:700 16px system-ui;cursor:pointer}
+      .contour-landmark-directions .contour-generate-directions:disabled{background:#dce3ed;color:#566579;cursor:default}
+      .contour-step-progress{font-weight:700!important;color:#087f8c}.contour-step-arrived,.contour-step-previous{width:100%;min-height:44px;padding:12px;margin:5px 0;border:0;border-radius:12px;font:650 15px system-ui;cursor:pointer}.contour-step-arrived{background:#087f8c;color:white}.contour-step-previous{background:#edf3f6;color:#334155}.contour-step-arrived[hidden],.contour-step-previous[hidden],.contour-step-progress[hidden],.contour-landmark-directions li[hidden]{display:none!important}
     `;
     document.head.appendChild(style);
     const controls = document.createElement("div");
@@ -882,7 +1369,85 @@
     arHint.id = "contour-ar-hint";
     arHint.className = "contour-ar-hint";
     openAR.setAttribute("aria-describedby", arHint.id);
-    controls.append(label, openAR, arHint, clear, edit, status);
+    const directionsSection = document.createElement("section");
+    directionsSection.className = "contour-landmark-directions";
+    directionsSection.setAttribute("aria-label", "Landmark directions");
+    const directionsTitle = document.createElement("h3");
+    directionsTitle.textContent = "Landmark directions";
+    const directionsHint = document.createElement("p");
+    const generateDirections = document.createElement("button");
+    generateDirections.type = "button";
+    generateDirections.className = "contour-generate-directions";
+    generateDirections.onclick = generateLandmarkDirections;
+    const directionMessage = document.createElement("p");
+    directionMessage.setAttribute("role", "status");
+    const directionSummary = document.createElement("p");
+    const directionList = document.createElement("ol");
+    directionList.setAttribute(
+      "aria-label",
+      "Sequential landmark instructions",
+    );
+    const stepProgress = document.createElement("p");
+    stepProgress.setAttribute("role", "status");
+    stepProgress.className = "contour-step-progress";
+    const arrived = document.createElement("button");
+    arrived.type = "button";
+    arrived.className = "contour-step-arrived";
+    arrived.onclick = () => {
+      if (directionStep >= directionStepCount()) return;
+      const pinID =
+        landmarkRoute.landmarkIDs[
+          Math.min(directionStep + 1, landmarkRoute.landmarkIDs.length - 1)
+        ];
+      const pin = pending.destinations.find((pin) => pin.id === pinID);
+      if (!pin) return;
+      const heading =
+        indoorPose?.status === "tracking"
+          ? { degrees: indoorPose.heading, timestamp: indoorPose.timestamp }
+          : phoneHeading;
+      // Retain the planned origin while reanchoring the live indoor pose.
+      chosenStartID = landmarkStartID();
+      directionStep++;
+      positionAtPin(pin, heading);
+      updateDirectionStep();
+    };
+    const previousStep = document.createElement("button");
+    previousStep.type = "button";
+    previousStep.textContent = "Previous step";
+    previousStep.className = "contour-step-previous";
+    previousStep.onclick = () => {
+      directionStep = Math.max(0, directionStep - 1);
+      updateDirectionStep();
+    };
+    const editConnections = document.createElement("button");
+    editConnections.type = "button";
+    editConnections.textContent = "Edit walking connections";
+    editConnections.onclick = () =>
+      (
+        window.ContourBridge?.openWalkingConnections ||
+        window.ContourBridge?.openFloorOverlay
+      )?.();
+    directionsSection.append(
+      directionsTitle,
+      directionsHint,
+      generateDirections,
+      directionMessage,
+      directionSummary,
+      directionList,
+      stepProgress,
+      arrived,
+      previousStep,
+      editConnections,
+    );
+    controls.append(
+      label,
+      directionsSection,
+      openAR,
+      arHint,
+      clear,
+      edit,
+      status,
+    );
     canvas.parentElement.before(controls);
     const startSection = document.createElement("section");
     startSection.className = "contour-start";
@@ -913,7 +1478,7 @@
     confirmHint.id = "contour-position-hint";
     confirmHint.className = "contour-position-hint";
     confirmStart.textContent = "Set my position here";
-    confirmStart.onclick = confirmStartingPoint;
+    confirmStart.onclick = () => confirmStartingPoint();
     const resetPosition = document.createElement("button");
     resetPosition.type = "button";
     resetPosition.textContent = "Use uncorrected phone position";
@@ -941,6 +1506,19 @@
     };
     strideLabel.appendChild(stride);
     startChoices.append(confirmStart, confirmHint, strideLabel, resetPosition);
+    const wallToggleLabel = document.createElement("label");
+    wallToggleLabel.hidden = true;
+    const wallToggle = document.createElement("input");
+    wallToggle.type = "checkbox";
+    wallToggle.onchange = () => {
+      showWalls = wallToggle.checked;
+      renderStartSuggestion();
+    };
+    wallToggleLabel.append(
+      wallToggle,
+      " Show saved walls (red) and openings (green)",
+    );
+    startChoices.appendChild(wallToggleLabel);
     const startMap = document.createElement("div");
     startMap.className = "contour-start-map";
     startMap.setAttribute(
@@ -949,7 +1527,7 @@
     );
     const note = document.createElement("p");
     note.textContent =
-      "Tap a pin, then confirm only when you are there. Orange: chosen start. Green ring: destination. Blue dot: phone position, corrected after confirmation. Arrow: phone compass heading. Dashed line is not a walking route.";
+      "Tap the pin where you are to move your indoor position there. Destination mode selects your goal instead. Green dot: indoor position after setting a start. Blue dot: phone-reported position. Arrow: phone heading. Dashed line is not a walking route.";
     startSection.append(heading, startStatus, startChoices, startMap, note);
     controls.before(startSection);
     floorUI = {
@@ -959,7 +1537,16 @@
       canvas,
       pins: startMap,
       controls,
+      directionsSection,
+      directionsHint,
+      generateDirections,
+      directionMessage,
+      directionSummary,
+      directionList,
       openAR,
+      stepProgress,
+      arrived,
+      previousStep,
       arHint,
       select,
       status,
@@ -970,11 +1557,13 @@
       confirmStart,
       confirmHint,
       resetPosition,
+      wallToggleLabel,
       startMap,
       originals: new Map(),
       disabled: new Map(),
       ownedURL: null,
     };
+    installFloorMapChrome();
     new MutationObserver(syncFloorMap).observe(root, {
       attributes: true,
       attributeFilter: ["hidden"],
@@ -988,6 +1577,380 @@
       new MutationObserver(syncFloorMap).observe(svg, { childList: true });
     floor.addEventListener("change", syncFloorMap);
     syncFloorMap();
+  }
+  // iPhone route-planning chrome. Existing native bridge/state remain the single source of truth.
+  function installFloorMapChrome() {
+    const ui = floorUI,
+      root = ui.root;
+    root.classList.add("contour-map-layout");
+    const make = (tag, className, text) => {
+      const el = document.createElement(tag);
+      el.className = className;
+      if (text) el.textContent = text;
+      return el;
+    };
+    const icons = {
+      back: "M15 5l-7 7 7 7M8 12h13",
+      swap: "M8 3v17m-4-4 4 4 4-4M16 21V4m-4 4 4-4 4 4",
+      more: "M5 12h.01M12 12h.01M19 12h.01",
+      close: "m6 6 12 12M18 6 6 18",
+      fit: "M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5M8 12h8m-4-4v8",
+      walk: "m13 7-3 5 3 3-2 6m-1-9-4 4m7-9 3 5 4 1M10 5a2 2 0 1 0 4 0 2 2 0 1 0-4 0",
+    };
+    function button(label, icon, className = "contour-map-icon") {
+      const el = make("button", className);
+      el.type = "button";
+      el.setAttribute("aria-label", label);
+      el.title = label;
+      el.innerHTML = `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${icons[icon]}"/></svg>`;
+      return el;
+    }
+    const style = make("style", "");
+    style.textContent = `
+      #libraryMaps.contour-map-layout:not([hidden]){display:block!important;position:absolute;inset:0;overflow:hidden;background:#edf1f5;color:#202124;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;--floor-sheet-height:222px;--floor-tools-top:196px}
+      .contour-map-layout[hidden]{display:none!important}
+      .contour-map-layout>.ind-bar{position:absolute;inset:0 0 auto;height:54px;z-index:1200;background:transparent;border:0;padding:8px 14px;gap:12px;display:flex;align-items:center;box-sizing:border-box;pointer-events:none}
+      .contour-map-layout>.ind-bar>*{pointer-events:auto}.contour-map-layout .ind-x{display:grid;place-items:center;width:36px;height:36px;min-width:36px;border:0;border-radius:50%;background:white;color:#243347;box-shadow:0 2px 9px #23364818;font-size:26px}
+      .contour-map-layout .ind-bar h2{font:500 11px/1.2 -apple-system,BlinkMacSystemFont,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;margin:0;color:#536171;text-shadow:0 0 8px white;background:#ffffffd9;border-radius:8px;padding:3px 8px}
+      .contour-map-layout .ind-bar h2::before{content:"Floor Maps";display:block;font-size:18px;font-weight:700;line-height:1.3;color:#202124}
+      .contour-map-layout .library-map-body{position:static;padding:0;overflow:hidden;width:100%;height:100%;background:transparent}
+      .contour-map-layout .library-map-body>p{display:none}.contour-map-layout .library-map-scroll{position:absolute;inset:112px 0 0;overflow:auto}.contour-map-layout .library-map-canvas{width:100%;min-width:360px}
+      .contour-map-layout .contour-start{position:absolute;inset:0 0 var(--floor-sheet-height);padding:0;margin:0;border:0;border-radius:0;overflow:hidden;background:#e9eef4}
+      .contour-map-layout .contour-start-map{position:absolute;inset:0;width:100%;height:100%;max-height:none;border-radius:0}
+      .contour-map-layout .contour-route-card{position:absolute;z-index:1200;top:62px;left:14px;right:14px;padding:8px 46px 8px 8px;background:white;border:1px solid #e4e8ed;border-radius:18px;box-shadow:0 3px 14px #23364824;box-sizing:border-box}
+      .contour-map-layout .contour-route-card[hidden]{display:none!important}.contour-route-field{display:flex;align-items:center;gap:7px;min-width:0;border-radius:10px;padding:4px 3px;height:48px;box-sizing:border-box}
+      .contour-map-layout[data-sheet-expanded="true"] .contour-route-card{display:none!important}
+      #libraryMaps.contour-map-layout[data-sheet-expanded="true"]{--floor-tools-top:62px}
+      .contour-route-field.contour-field-active{background:#f1f5ff}.contour-route-field>label{display:flex;flex-direction:column;min-width:0;flex:1;margin:0;gap:2px}
+      .contour-route-field .contour-field-caption{font:600 10px/1.1 -apple-system,BlinkMacSystemFont,sans-serif;letter-spacing:.07em;color:#64748b;text-transform:uppercase}
+      .contour-map-layout .contour-route-field select{appearance:none;-webkit-appearance:none;width:100%;max-width:100%;min-width:0;box-sizing:border-box;border:0;outline-offset:2px;background:transparent;color:#202124;padding:0 18px 0 0;font:500 15px/1.4 -apple-system,BlinkMacSystemFont,sans-serif;text-overflow:ellipsis;white-space:nowrap;border-radius:0}
+      .contour-route-field label{position:relative}.contour-route-field label::after{content:"⌄";position:absolute;right:0;bottom:1px;font-size:14px;color:#7b8794;pointer-events:none}
+      .contour-field-divider{height:1px;background:#e9edf2;margin:4px 8px 4px 36px}
+      .contour-endpoint-mode{display:grid;place-items:center;flex:0 0 26px;width:26px;height:38px;padding:0;border:0;background:transparent;cursor:pointer}
+      .contour-origin-dot{width:12px;height:12px;background:#4285f4;border:3px solid #e7efff;border-radius:50%;box-sizing:content-box}
+      .contour-destination-dot{width:15px;height:19px;border:3px solid #db4437;border-radius:50% 50% 50% 0;transform:rotate(-45deg);box-sizing:border-box;position:relative}
+      .contour-destination-dot::after{content:"";position:absolute;width:4px;height:4px;background:#db4437;border-radius:50%;top:4px;left:3px}
+      .contour-map-icon{display:grid;place-items:center;width:42px;height:42px;min-width:42px;padding:0;border:0;border-radius:50%;background:white;color:#344054;box-shadow:0 2px 10px #23364826;cursor:pointer}
+      .contour-map-icon:focus-visible,.contour-endpoint-mode:focus-visible,.contour-sheet-grip:focus-visible{outline:3px solid #4285f4;outline-offset:2px}
+      .contour-map-layout .contour-route-swap{position:absolute;right:7px;top:38px;box-shadow:none;width:34px;min-width:34px;height:40px;background:#f4f6f8;border-radius:12px}
+      .contour-route-swap:disabled{opacity:.35;cursor:default}
+      .contour-map-tools{position:absolute;top:var(--floor-tools-top);left:14px;right:14px;z-index:1200;display:flex;align-items:center;gap:8px;pointer-events:none}
+      .contour-map-tools>*{pointer-events:auto}.contour-floor-picker{display:flex;align-items:center;gap:7px;padding:4px 10px;background:white;border-radius:22px;box-shadow:0 2px 10px #23364820;font-size:12px;color:#536171;margin:0}
+      .contour-map-layout .contour-floor-picker select{font:650 14px -apple-system,BlinkMacSystemFont,sans-serif;border:0;background:white;color:#243347;padding:5px 2px;min-height:32px}
+      .contour-pin-hint{font-size:11px;line-height:1.3;background:#ffffffed;border-radius:18px;padding:9px 10px;box-shadow:0 2px 9px #23364812;max-width:150px}
+      .contour-map-tools .contour-map-menu-button{margin-left:auto}.contour-floor-fit{position:absolute;right:15px;bottom:calc(var(--floor-sheet-height) + 38px);z-index:1100;width:46px;height:46px;border-radius:15px}
+      .contour-map-layout:not(.contour-floor-active){--floor-tools-top:62px}.contour-map-layout:not(.contour-floor-active) .contour-pin-hint,.contour-map-layout:not(.contour-floor-active) .contour-floor-fit{display:none}
+      .contour-map-layout .contour-floor-controls{position:absolute;z-index:1300;left:0;right:0;bottom:0;height:var(--floor-sheet-height);max-height:68%;padding:0;margin:0;display:flex;flex-direction:column;gap:0;background:white;border-radius:24px 24px 0 0;box-shadow:0 -3px 20px #23364820;overflow:hidden;box-sizing:border-box}
+      .contour-map-layout .contour-floor-controls[hidden]{display:none!important}
+      .contour-sheet-grip{display:grid;place-items:center;width:100%;height:25px;min-height:25px;padding:0;border:0;background:white;touch-action:none;cursor:ns-resize}
+      .contour-sheet-grip::before{content:"";width:36px;height:4px;border-radius:4px;background:#c6cbd2}
+      .contour-map-layout .contour-landmark-directions{display:flex;flex-direction:column;flex:1;min-height:0;border:0;border-radius:0;padding:0 18px 12px;gap:4px;overflow:hidden}
+      .contour-route-overview{display:flex;align-items:center;justify-content:space-between;gap:8px}.contour-route-mode{display:flex;align-items:center;gap:8px;color:#087f8c;min-width:0}
+      .contour-map-layout .contour-route-mode h3{font:700 19px/1.3 -apple-system,BlinkMacSystemFont,sans-serif;margin:0;color:#202124}
+      .contour-route-metric{font:700 22px/1.2 -apple-system,BlinkMacSystemFont,sans-serif;color:#087f8c;letter-spacing:-.03em;white-space:nowrap}
+      .contour-map-layout .contour-route-caption{font:500 12px/1.4 -apple-system,BlinkMacSystemFont,sans-serif;color:#64748b;margin:0}
+      .contour-map-layout .contour-route-message{font:400 12px/1.4 -apple-system,BlinkMacSystemFont,sans-serif;color:#526174;margin:3px 0 5px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;flex-shrink:0}
+      .contour-route-actions{display:flex;gap:8px;margin-top:auto;padding-top:4px;flex-shrink:0}
+      .contour-map-layout .contour-route-actions button{min-height:44px;box-sizing:border-box;border:0;border-radius:24px;padding:10px 13px;font:650 14px/1.2 -apple-system,BlinkMacSystemFont,sans-serif;cursor:pointer}
+      .contour-map-layout .contour-route-actions .contour-view-directions{flex:1;background:#087f8c;color:white}.contour-map-layout .contour-route-actions .contour-generate-directions{width:auto;background:#e8f4f5;color:#07636c;white-space:nowrap;font-size:12px}
+      .contour-map-layout .contour-route-actions .contour-open-ar{width:46px;min-width:46px;padding:8px;background:#f0f3f6;color:#435468;font-size:12px}
+      .contour-map-layout .contour-route-actions button:disabled{background:#edf0f3;color:#8b96a5;cursor:default}
+      .contour-directions-scroll{display:none;min-height:0;overflow:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding-bottom:8px}
+      .contour-map-layout[data-sheet-expanded="true"] .contour-directions-scroll{display:block;flex:1}.contour-map-layout[data-sheet-expanded="true"] .contour-route-actions{margin-top:4px}
+      .contour-map-layout .contour-directions-scroll ol{margin:10px 0;padding-left:24px}.contour-map-layout .contour-directions-scroll li{font:400 15px/1.5 -apple-system,BlinkMacSystemFont,sans-serif;margin:16px 0;padding-left:4px}
+      .contour-map-layout .contour-old-summary{display:none}.contour-map-layout .contour-directions-scroll p{font-size:12px;line-height:1.5;color:#64748b}
+      .contour-map-options{position:absolute;z-index:1500;top:calc(var(--floor-tools-top) + 50px);right:12px;left:12px;max-height:calc(100% - var(--floor-tools-top) - 64px);overflow:auto;padding:15px;background:white;box-shadow:0 6px 30px #23364838;border:1px solid #e4e8ed;border-radius:18px;box-sizing:border-box;-webkit-overflow-scrolling:touch}
+      .contour-map-options[hidden]{display:none!important}.contour-options-heading{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}.contour-options-heading h3{font-size:17px;margin:0}
+      .contour-map-options .contour-map-icon{box-shadow:none;background:#f1f4f7;width:32px;height:32px;min-width:32px}
+      .contour-map-options button:not(.contour-map-icon){padding:10px 12px;border:1px solid #d9e2ee;border-radius:10px;background:#f6f8fb;color:#234363;font:550 14px/1.3 -apple-system,BlinkMacSystemFont,sans-serif;min-height:42px;margin:3px 4px 3px 0}
+      .contour-map-options label{font-size:13px;display:block;margin:10px 0}.contour-map-options p{font-size:12px;line-height:1.5;color:#64748b;margin:8px 0}
+      .contour-map-options .contour-confirm-position{display:block;width:100%;background:#185abc!important;color:white!important}.contour-map-options .contour-start-status{padding-top:10px;border-top:1px solid #e6ebf2}
+      .contour-map-options input[type="number"]{padding:7px;border:1px solid #d9e2ee;border-radius:8px;width:70px;font:inherit}.contour-map-options a{font-size:12px;color:#185abc}
+      .contour-map-layout .contour-floor-pin.contour-floor-destination{box-shadow:0 0 0 3px #db4437}.contour-map-layout .contour-floor-pin[aria-pressed="true"]{outline-color:#4285f4;background:rgba(66,133,244,.48);color:#12336b}
+      @media(max-height:600px){.contour-map-layout .contour-pin-hint{display:none}.contour-map-layout .contour-route-metric{font-size:18px}.contour-map-layout .contour-route-message{font-size:11px;-webkit-line-clamp:1}}
+    `;
+    document.head.appendChild(style);
+    const back = document.getElementById("libraryMapClose");
+    if (back) {
+      back.setAttribute("aria-label", "Back to building details");
+      back.innerHTML = button("", "back").innerHTML;
+    }
+    const card = make("div", "contour-route-card");
+    function field(label, select, target) {
+      const row = make("div", "contour-route-field");
+      const mode = make("button", "contour-endpoint-mode");
+      mode.type = "button";
+      mode.setAttribute(
+        "aria-label",
+        target === "start"
+          ? "Choose start on map"
+          : "Choose destination on map",
+      );
+      mode.appendChild(
+        make(
+          "span",
+          target === "start" ? "contour-origin-dot" : "contour-destination-dot",
+        ),
+      );
+      mode.onclick = () => setMapPinTarget(target);
+      const wrapper = make("label", "");
+      wrapper.append(make("span", "contour-field-caption", label), select);
+      row.append(mode, wrapper);
+      select.addEventListener("focus", () => setMapPinTarget(target));
+      return { row, mode };
+    }
+    const origin = field("From", ui.startSelect, "start"),
+      destination = field("To", ui.select, "destination");
+    const swap = button(
+      "Swap start and destination",
+      "swap",
+      "contour-map-icon contour-route-swap",
+    );
+    swap.onclick = () => {
+      const start = landmarkStartID(),
+        end = selectedID;
+      if (!start || !end) return;
+      chosenStartID = end;
+      startFitKey = null;
+      selectFloorPin(start);
+    };
+    card.append(
+      origin.row,
+      make("div", "contour-field-divider"),
+      destination.row,
+      swap,
+    );
+    root.appendChild(card);
+    const tools = make("div", "contour-map-tools");
+    const floorLabel = ui.floor.closest("label");
+    if (floorLabel) {
+      floorLabel.classList.add("contour-floor-picker");
+      tools.appendChild(floorLabel);
+    }
+    const pinHint = make("span", "contour-pin-hint");
+    const menu = button(
+      "Map options",
+      "more",
+      "contour-map-icon contour-map-menu-button",
+    );
+    menu.setAttribute("aria-expanded", "false");
+    tools.append(pinHint, menu);
+    root.appendChild(tools);
+    const options = make("div", "contour-map-options");
+    options.hidden = true;
+    options.setAttribute("role", "dialog");
+    options.setAttribute("aria-label", "Map options");
+    const close = button("Close map options", "close");
+    const optionsHeader = make("div", "contour-options-heading");
+    optionsHeader.append(make("h3", "", "Map options"), close);
+    options.appendChild(optionsHeader);
+    const oldButtons = [...ui.controls.children].filter(
+      (el) =>
+        el !== ui.directionsSection &&
+        el !== ui.openAR &&
+        el.tagName !== "LABEL",
+    );
+    // Move the original controls, retaining their listeners, bridge actions and saved state.
+    options.append(
+      ...oldButtons,
+      ...[...ui.startChoices.children].filter(
+        (el) => el.tagName !== "LABEL" || el.querySelector("input"),
+      ),
+      ui.startStatus,
+      ui.arHint,
+    );
+    const source = document.getElementById("libraryMapSource");
+    if (source) options.appendChild(source);
+    const mapNote = ui.startSection.lastElementChild;
+    if (mapNote?.tagName === "P") options.appendChild(mapNote);
+    const editConnections =
+      ui.directionsSection.querySelector("button:last-child");
+    if (editConnections) options.appendChild(editConnections);
+    root.appendChild(options);
+    function closeOptions(focus = true) {
+      options.hidden = true;
+      menu.setAttribute("aria-expanded", "false");
+      if (focus) menu.focus();
+    }
+    menu.onclick = () => {
+      options.hidden = !options.hidden;
+      menu.setAttribute("aria-expanded", String(!options.hidden));
+      if (!options.hidden) close.focus();
+    };
+    close.onclick = () => closeOptions();
+    root.addEventListener(
+      "pointerdown",
+      (event) => {
+        if (
+          !options.hidden &&
+          !options.contains(event.target) &&
+          !menu.contains(event.target)
+        )
+          closeOptions(false);
+      },
+      true,
+    );
+    options.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        event.stopPropagation();
+        closeOptions();
+      }
+    });
+    for (const el of options.querySelectorAll("button")) {
+      if (/Edit floor overlay|Edit walking connections/.test(el.textContent))
+        el.addEventListener("click", () => closeOptions(false));
+    }
+    const fit = button(
+      "Fit floor and route",
+      "fit",
+      "contour-map-icon contour-floor-fit",
+    );
+    fit.onclick = () => {
+      startFitKey = null;
+      startRenderKey = null;
+      renderStartSuggestion();
+    };
+    root.appendChild(fit);
+    ui.startSection.replaceChildren(ui.startMap);
+    const grip = make("button", "contour-sheet-grip");
+    grip.type = "button";
+    grip.setAttribute("aria-label", "Expand route details");
+    grip.setAttribute("aria-expanded", "false");
+    grip.setAttribute("aria-controls", "contour-floor-instructions-scroll");
+    const overview = make("div", "contour-route-overview"),
+      mode = make("div", "contour-route-mode");
+    const walk = button("", "walk");
+    walk.tabIndex = -1;
+    walk.disabled = true;
+    walk.setAttribute("aria-hidden", "true");
+    walk.style.cssText =
+      "box-shadow:none;background:transparent;color:inherit;width:22px;min-width:22px;height:26px";
+    const title = ui.directionsSection.querySelector("h3");
+    title.textContent = "Walk";
+    mode.append(walk, title);
+    const metric = make("span", "contour-route-metric", "Plan your route");
+    overview.append(mode, metric);
+    const caption = make("p", "contour-route-caption");
+    const actions = make("div", "contour-route-actions"),
+      showDirections = make("button", "contour-view-directions", "Directions");
+    showDirections.type = "button";
+    ui.openAR.textContent = "AR";
+    ui.openAR.setAttribute("aria-label", "Open AR navigation");
+    actions.append(showDirections, ui.generateDirections, ui.openAR);
+    const scroll = make("div", "contour-directions-scroll");
+    scroll.id = "contour-floor-instructions-scroll";
+    scroll.append(
+      ui.directionsHint,
+      ui.stepProgress,
+      ui.directionList,
+      ui.arrived,
+      ui.previousStep,
+    );
+    ui.directionMessage.classList.add("contour-route-message");
+    ui.directionSummary.classList.add("contour-old-summary");
+    ui.directionsSection.replaceChildren(
+      overview,
+      caption,
+      ui.directionMessage,
+      actions,
+      scroll,
+      ui.directionSummary,
+    );
+    ui.controls.replaceChildren(grip, ui.directionsSection);
+    let expanded = false,
+      drag = null,
+      moved = false;
+    const collapsedHeight = () =>
+      Math.min(204, Math.max(166, root.clientHeight * 0.25));
+    const expandedHeight = () =>
+      Math.max(collapsedHeight(), Math.min(520, root.clientHeight * 0.57));
+    function setSheet(value) {
+      expanded = value;
+      root.dataset.sheetExpanded = String(value);
+      root.style.setProperty(
+        "--floor-sheet-height",
+        `${value ? expandedHeight() : collapsedHeight()}px`,
+      );
+      grip.setAttribute("aria-expanded", String(value));
+      grip.setAttribute(
+        "aria-label",
+        value ? "Collapse route details" : "Expand route details",
+      );
+      showDirections.setAttribute("aria-expanded", String(value));
+    }
+    grip.onclick = () => {
+      if (!moved) setSheet(!expanded);
+      moved = false;
+    };
+    showDirections.onclick = () => {
+      setSheet(!expanded);
+      startFitKey = null;
+      startRenderKey = null;
+      renderStartSuggestion();
+    };
+    grip.onpointerdown = (event) => {
+      if (event.button !== 0) return;
+      drag = {
+        y: event.clientY,
+        height: ui.controls.offsetHeight,
+        scale:
+          ui.controls.getBoundingClientRect().width /
+          Math.max(1, ui.controls.offsetWidth),
+      };
+      moved = false;
+      grip.setPointerCapture(event.pointerId);
+    };
+    grip.onpointermove = (event) => {
+      if (!drag) return;
+      const delta = (drag.y - event.clientY) / (drag.scale || 1);
+      if (Math.abs(delta) > 5) moved = true;
+      const height = Math.min(
+        expandedHeight(),
+        Math.max(collapsedHeight(), drag.height + delta),
+      );
+      root.style.setProperty("--floor-sheet-height", `${height}px`);
+      root.dataset.sheetExpanded = String(height > collapsedHeight() + 40);
+    };
+    function endDrag() {
+      if (!drag) return;
+      if (moved)
+        setSheet(
+          ui.controls.offsetHeight > (collapsedHeight() + expandedHeight()) / 2,
+        );
+      drag = null;
+    }
+    grip.onpointerup = endDrag;
+    grip.onpointercancel = endDrag;
+    Object.assign(ui, {
+      routeCard: card,
+      startField: origin.row,
+      destinationField: destination.row,
+      startMode: origin.mode,
+      destinationMode: destination.mode,
+      pinHint,
+      swap,
+      routeMetric: metric,
+      routeCaption: caption,
+      showDirections,
+      closeOptions,
+      refreshLayout: () => {
+        setSheet(expanded);
+        if (root.hidden) closeOptions(false);
+      },
+    });
+    const resize = new ResizeObserver(() => {
+      if (root.hidden) return;
+      if (startMapProvider === "leaflet")
+        startMap?.invalidateSize({ pan: false });
+      else if (startMap)
+        window.google?.maps?.event?.trigger(startMap, "resize");
+    });
+    resize.observe(ui.startMap);
+    const viewportResize = new ResizeObserver(() => ui.refreshLayout());
+    viewportResize.observe(root);
+    setSheet(false);
+    setMapPinTarget("start");
+    updateFloorMapSummary();
   }
   function selectFloorPin(id) {
     selectedID = id || null;
@@ -1007,6 +1970,9 @@
         : `Saved overlay: ${pending?.name || "Floor plan"} · ${pending?.floor || "2F"}. Choose a destination by name above; tap map pins to choose your starting point.`;
     }
     updateFloorAR();
+    updateLandmarkDirections();
+    startRenderKey = null;
+    renderStartSuggestion();
     if (pin && pending) {
       const ll = coordinate(pending, pin);
       window.dispatchEvent(
@@ -1029,6 +1995,9 @@
     }
     const ui = floorUI;
     if (ui.root.hidden) {
+      ui.closeOptions?.(false);
+      setMapPinTarget("start");
+      clearLandmarkDirections();
       if (confirmedStart) window.ContourBridge?.pauseIndoorTracking?.();
       stopStartLocation();
       ui.startSection.hidden = true;
@@ -1055,6 +2024,9 @@
       ui.originals.set(floor, { src, alt: ui.image.alt });
     }
     const active = pending && floor === (pending.floor || "2F");
+    ui.root.classList.toggle("contour-floor-active", !!active);
+    if (ui.routeCard) ui.routeCard.hidden = !active;
+    ui.refreshLayout?.();
     ui.startSection.hidden = !active;
     ui.canvas.parentElement.hidden = !!active;
     if (active) {
@@ -1103,6 +2075,7 @@
       }
     }
     if (!active) {
+      clearLandmarkDirections();
       const original = ui.originals.get(floor);
       if (ui.image.getAttribute("src") === ui.ownedURL && original) {
         ui.image.src = original.src;
@@ -1167,10 +2140,10 @@
     }
   }
   document.addEventListener("visibilitychange", () => {
-    if (document.hidden) stopStartLocation();
+    if (document.hidden) stopStartLocation(true);
     else syncFloorMap();
   });
-  window.addEventListener("pagehide", stopStartLocation);
+  window.addEventListener("pagehide", () => stopStartLocation(true));
   document.addEventListener("DOMContentLoaded", observeFloorMap);
   if (document.readyState !== "loading") observeFloorMap();
 

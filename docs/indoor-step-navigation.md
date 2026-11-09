@@ -4,7 +4,8 @@ Floor Maps and its **Open AR navigation** action use one foreground native
 `IndoorStepTracker`, replacing GPS-offset movement after confirmation. This is a
 basic pedestrian dead-reckoning implementation inspired by the papers' motion
 estimation approach. It is not a reproduction of either paper, and does not yet
-implement particle filtering, adaptive step-length learning or map matching.
+implement particle filtering or adaptive step-length learning. Reviewed floor-wall
+geometry can reject steps that would cross a wall; see [automatic-floor-walls.md](automatic-floor-walls.md).
 
 ## Use
 
@@ -51,9 +52,10 @@ Holding the phone sideways while walking straight, swinging it, walking backward
 side-stepping, stairs and large step-length variation are not modeled correctly.
 iOS batches step reports, so motion updates may lag; turn placement within a batch
 is approximate. Gyroscope and stride errors accumulate. The printed pin may not
-be a walkable standing point. The floor is selected manually. There is no wall or
-corridor constraint, global obstacle rerouting, verified room entrance or precise
-arrival guarantee. Camera-only obstacle checks can miss hazards.
+be a walkable standing point. The floor is selected manually. Reviewed walls provide
+crossing constraints, but cannot correct drift along a corridor or identify the
+right room by themselves. There is no global obstacle rerouting, verified room
+entrance or precise arrival guarantee. Camera-only obstacle checks can miss hazards.
 
 Native tests cover straight steps, a turn in place, step-length scaling, duplicate/
 old counters, invalid motion and sensor gaps, and shared-pose AR geometry. Browser

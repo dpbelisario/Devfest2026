@@ -105,10 +105,13 @@ final class ContourViewController: UIViewController, WKNavigationDelegate, WKUID
     }
 
     @objc private func openFloorOverlay() {
+        presentFloorOverlay()
+    }
+    private func presentFloorOverlay(showWalkingConnections: Bool = false) {
         guard presentedViewController == nil else { return }
         if #available(iOS 17.0, *) {
             returningFromOverlay = true
-            let editor = UIHostingController(rootView: NativeFloorOverlay())
+            let editor = UIHostingController(rootView: NativeFloorOverlay(showWalkingConnections: showWalkingConnections))
             editor.modalPresentationStyle = .fullScreen
             present(editor, animated: true)
         } else {
@@ -287,6 +290,29 @@ final class ContourViewController: UIViewController, WKNavigationDelegate, WKUID
               let body = message.body as? [String: Any], let action = body["action"] as? String else { return }
         switch action {
         case "openFloorOverlay": openFloorOverlay()
+        case "openWalkingConnections": presentFloorOverlay(showWalkingConnections: true)
+        case "planLandmarkRoute":
+            guard let request = body["request"] as? [String: Any],
+                  let requestID = request["requestID"] as? String, !requestID.isEmpty, requestID.count <= 80,
+                  let startID = request["startID"] as? String, let start = UUID(uuidString: startID),
+                  let destinationID = request["destinationID"] as? String, let destination = UUID(uuidString: destinationID),
+                  let floor = request["floor"] as? String, ["B1", "1F", "2F", "3F", "4F"].contains(floor),
+                  let revision = request["routingRevision"] as? String, revision.count == 64 else { return }
+            let generation = sessionGeneration
+            Task { [weak self] in
+                do {
+                    let route = try await OverlayDisk.shared.landmarkRoute(start: start, destination: destination, floor: floor, revision: revision)
+                    guard let self, self.pageReady, generation == self.sessionGeneration else { return }
+                    let data = try JSONEncoder().encode(route)
+                    guard var object = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { return }
+                    object["requestID"] = requestID
+                    self.call("contourIOSLandmarkRoute", [object])
+                } catch {
+                    guard let self, self.pageReady, generation == self.sessionGeneration else { return }
+                    self.call("contourIOSLandmarkRoute", [["requestID": requestID, "status": "error", "floor": floor,
+                        "routingRevision": revision, "message": "The saved floor map could not be read. Reopen Floor Maps and try again."]])
+                }
+            }
         case "startLibraryExitAR": startObstacleScan(exitDemo: true)
         case "startObstacleScan": startObstacleScan()
         case "startIndoorTracking":
