@@ -1,9 +1,11 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Library Location Markers</title>
 <style>
-:root{--bg:#fff;--fg:#111;--muted:#555}
+:root{--bg:#fff;--fg:#111;--muted:#555;--card:#fff;--cardfg:#111}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#111;--fg:#eee;--muted:#aaa}}
+:root[data-theme=dark]{--bg:#111;--fg:#eee;--muted:#aaa}
 body{margin:0;padding:16px;background:var(--bg);color:var(--fg);font:16px/1.4 system-ui,sans-serif}
-h1{font-size:20px} .card{break-after:page;page-break-after:always;max-width:640px;margin:0 auto 32px}
+h1{font-size:20px} .card{break-after:page;page-break-after:always;max-width:640px;margin:0 auto 32px;background:var(--card);color:var(--cardfg);padding:16px;border-radius:8px} .card .meta{color:#555}
 .qr svg{width:100%;max-width:520px;height:auto;display:block;margin:0 auto}
 .where{font-size:18px} .meta{color:var(--muted);font-size:12px;word-break:break-all}
 @media print{.intro{display:none}}
