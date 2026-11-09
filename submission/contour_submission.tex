@@ -231,18 +231,19 @@ nothing shows which exit, which way, or which classroom to head for.
 \toprule
 \textbf{Technology} & \textbf{Use} & \textbf{Reasons / Benefits} & \textbf{Drawbacks} \\
 \midrule
-Cloud Run & Hosts the backend API and the app interface. A second, private service runs the data-import jobs. & One container image for both services. Scales down to zero when idle. & Cold starts can delay the first request. Container disk is not permanent storage. \\
-Firebase Hosting & Public web address that forwards every request to Cloud Run. & One HTTPS address for the Android app, iOS app and browsers. & Adds a forwarding step that has to be configured. \\
-Gemini (Vertex AI) & ``Ask Contour'' assistant with function calling: finds sites, reads warnings, shows sites on the map or starts AR. Also reads sign text in a photo taken inside the Central Library to suggest nearby landmarks. & Natural replies in four languages, grounded in our own data. Usually well under a cent per question. & Needs rate limits (8 per minute per user) and strict instructions so it does not invent sites or warnings. \\
-Cloud Firestore & Stores the imported evacuation sites, JMA bulletins and a warning outbox. & Serverless. The API keeps a short in-memory copy, so most requests cost no reads. & Charged per read and write, which is why caching was needed. \\
-Cloud Scheduler + Cloud Workflows & Run the imports: sites every hour, JMA warnings every minute. & Retries and a visual step graph without running our own server. & Workflow definitions can drift from the repository if edited in the console. \\
-Google Maps JavaScript API & Online basemap behind the evacuation sites and campus buildings. & Detailed, familiar map. The browser key is restricted to our own site. & Needs the internet and only loads from the hosted page. Paid beyond the free tier. \\
-ARCore & Camera tracking and depth for the Central Library exit AR on Android, used to warn about possible obstacles. The iPhone app does the same with Apple ARKit (LiDAR depth on supported models). & Works with the phone's camera, no extra hardware. & Needs a supported Android phone. Depth detection is incomplete, so warnings stay cautious. \\
-ML Kit Translation + speech input & Offline translation and voice input on the phone. & Works without the internet. & Each language model must be downloaded once before it works offline. \\
-Cloud Build + Firebase App Distribution & Build the Android app on each push and send it to testers. & Teammates update the app with one tap. & iOS builds still need Apple signing. \\
+Cloud Run & Backend API, app interface and data-import jobs. & One container, scales to zero when idle. & Cold starts can delay the first request. \\
+Firebase Hosting & Public HTTPS address in front of Cloud Run. & One address for Android, iOS and browsers. & One more layer to configure. \\
+Gemini (Vertex AI) & Ask Contour assistant with function calling. Reads library sign photos. & Replies in four languages, grounded in our data. & Needs rate limits and strict rules so it does not invent sites. \\
+Cloud Firestore & Stores evacuation sites and JMA warnings. & Serverless. Cached, so most requests cost no reads. & Charged per read and write. \\
+Cloud Scheduler + Workflows & Import sites hourly and warnings every minute. & Retries and step graphs with no server to run. & Console edits can drift from the repository. \\
+Google Maps JavaScript API & Basemap for sites and campus buildings. & Detailed, familiar map. & Needs the internet. Paid beyond the free tier. \\
+ARCore & Library exit AR with depth-based obstacle checks (Apple ARKit on iPhone). & Uses the phone camera, no extra hardware. & Supported phones only. Depth detection is incomplete. \\
+ML Kit Translation + speech input & Offline translation and voice input. & Works without the internet. & Language models download once first. \\
+Cloud Build + App Distribution & Build the Android app on each push and send it to testers. & One-tap updates for teammates. & iOS builds still need Apple signing. \\
 \bottomrule
 \end{tabularx}
 
+\vspace{14pt}
 \subsection{Why We Chose Google Technologies}
 
 \begin{answerbox}
