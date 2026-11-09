@@ -127,7 +127,7 @@ final class ObstacleScanViewController: UIViewController, ARSessionDelegate, ARS
         scene.delegate = self
         view.addSubview(scene)
         let heading = UILabel()
-        heading.text = usesDepth ? "Library exit AR · LiDAR" : "Library exit AR · Camera"
+        heading.text = "SEA · Library exit"
         heading.textColor = .white
         heading.font = .preferredFont(forTextStyle: .headline)
         status.textColor = .white

@@ -16,7 +16,7 @@ import com.contour.app.ui.components.DestinationCard
 fun DestinationScreen(onSelect: (Destination) -> Unit, model: DestinationViewModel = viewModel()) {
     val state by model.state.collectAsStateWithLifecycle()
     LazyColumn(Modifier.fillMaxSize().safeDrawingPadding().padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        item { Text("Evacuation-AR", style = MaterialTheme.typography.headlineLarge) }
+        item { Text("SEA", style = MaterialTheme.typography.headlineLarge) }
         item { Text("Scaffold preview · fixed demo origin · earthquake scenario") }
         when (val current = state) {
             DestinationState.Loading -> item { CircularProgressIndicator() }
