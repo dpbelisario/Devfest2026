@@ -9,7 +9,9 @@
 # environment variable JOBS_BASE_URL (set by infra/deploy-workflows.sh).
 # Optional argument {"mode": "recent" | "recovery"} overrides the schedule rule.
 # Trigger: Cloud Scheduler job jma-warnings-every-minute (created paused).
-# Docs: docs/cloud-jobs.md. Outbox delivery stays disabled in the backend.
+# Docs: docs/cloud-jobs.md. Outbox delivery to the FCM topic (Android warning
+# push) is off unless contour-jobs has FCM_DELIVERY_ENABLED=true; see
+# docs/push-notifications.md. Each deliver call sends at most 3 messages.
 
 main:
   params: [args]
@@ -177,7 +179,7 @@ main:
                                         - eqvolResults: ${list.concat(eqvolResults, eqvolProcess.body)}
 
                     # n8n: Cloud Run delivery configuration -> Read pending warning handoffs
-                    #   -> Deliver each warning handoff (delivery is disabled in the backend)
+                    #   -> Deliver each warning handoff (FCM topic; off unless FCM_DELIVERY_ENABLED=true)
                     - deliver_warning_handoffs:
                         steps:
                           - send_warning_to_cloud_run:

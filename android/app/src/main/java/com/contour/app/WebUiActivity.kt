@@ -221,6 +221,42 @@ class WebUiActivity : ComponentActivity() {
     val askNotifications =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { _ -> notifyAlertSetup() }
 
+    // ----- JMA warning notifications (FCM topic, alert/WarningPush.kt). The notification permission is
+    // asked only when the user turns them on.
+    private var pushEnableAfterSettings = false
+    private val askPushNotifications =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            if (granted) enableWarningPush() else warningPushChanged("denied")
+        }
+
+    fun setWarningPush(on: Boolean) {
+        if (!com.contour.app.alert.WarningPush.isAvailable(this)) { warningPushChanged("unavailable"); return }
+        if (!on) {
+            com.contour.app.alert.WarningPush.disable(this) { ok -> warningPushChanged(if (ok) "off" else "error") }
+            return
+        }
+        if (androidx.core.app.NotificationManagerCompat.from(this).areNotificationsEnabled()) { enableWarningPush(); return }
+        // First time: the normal permission dialog. After that (or if refused): the notification settings.
+        val prefs = getSharedPreferences("contour", MODE_PRIVATE)
+        if (android.os.Build.VERSION.SDK_INT >= 33 && !prefs.getBoolean("askedNotifications", false) &&
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            prefs.edit().putBoolean("askedNotifications", true).apply()
+            askPushNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
+            return
+        }
+        pushEnableAfterSettings = true
+        openAlertSetting("notifications")
+    }
+
+    private fun enableWarningPush() =
+        com.contour.app.alert.WarningPush.enable(this) { ok -> warningPushChanged(if (ok) "on" else "error") }
+
+    private fun warningPushChanged(state: String) {
+        if (isDestroyed || !::web.isInitialized) return
+        web.evaluateJavascript("window.onWarningPushChanged && window.onWarningPushChanged(${org.json.JSONObject.quote(state)})", null)
+        notifyAlertSetup()
+    }
+
     fun notifyAlertSetup() {
         if (::web.isInitialized) web.evaluateJavascript("window.onAlertSetupChanged && window.onAlertSetupChanged()", null)
     }
@@ -256,6 +292,7 @@ class WebUiActivity : ComponentActivity() {
 
     /** Reads an emergency alert from the intent (from the listener, or the test button) for the page. */
     private fun takeAlert(intent: Intent?) {
+        com.contour.app.alert.WarningPush.adoptTapExtras(intent)   // tapped JMA warning push
         val kind = intent?.getStringExtra(com.contour.app.alert.EmergencyPopup.EXTRA_KIND) ?: return
         intent.removeExtra(com.contour.app.alert.EmergencyPopup.EXTRA_KIND)
         // Show over the lock screen and wake the display for the alert.
@@ -346,6 +383,16 @@ class WebUiActivity : ComponentActivity() {
         @android.webkit.JavascriptInterface
         fun openAlertSetting(which: String) {
             activity.runOnUiThread { activity.openAlertSetting(which) }
+        }
+
+        /** JSON: JMA warning notifications ({available, enabled, notifications}). */
+        @android.webkit.JavascriptInterface
+        fun warningPushStatus(): String = com.contour.app.alert.WarningPush.status(activity).toString()
+
+        /** Turn JMA warning notifications on or off; the page hears back via window.onWarningPushChanged. */
+        @android.webkit.JavascriptInterface
+        fun setWarningPush(on: Boolean) {
+            activity.runOnUiThread { activity.setWarningPush(on) }
         }
 
         /** Simulates an official alert after [delayMs], so the user can leave the app and watch it pop up. */
@@ -634,6 +681,7 @@ class WebUiActivity : ComponentActivity() {
             web.restoreState(savedInstanceState)
         }
         takeAlert(intent)   // opened by an emergency alert
+        com.contour.app.alert.WarningPush.refresh(this)
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -646,6 +694,11 @@ class WebUiActivity : ComponentActivity() {
         web.onResume()
         demoSensorsRequest?.takeIf { it.generation == pageGeneration }?.let { indoorDemoSensors.start() }
         notifyAlertSetup()   // back from a settings screen: refresh the setup page
+        if (pushEnableAfterSettings) {
+            pushEnableAfterSettings = false
+            if (androidx.core.app.NotificationManagerCompat.from(this).areNotificationsEnabled()) enableWarningPush()
+            else warningPushChanged("denied")
+        }
         indoorRequest?.takeIf { it.generation == pageGeneration && pendingIndoorPermission == null }?.let { indoor.start(it.id) }
         nativeCameraRequest?.let { continueNativeCamera(it) }
     }

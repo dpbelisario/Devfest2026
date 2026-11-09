@@ -1,7 +1,9 @@
+import { randomBytes } from "node:crypto";
 import type { OutboxEntry } from "../../repositories/jobsRepository.js";
 import type { JobsContext } from "./context.js";
 import { invalidUpstream } from "./errors.js";
 import { encodePayload } from "./payloadCodec.js";
+import { decideWarningPush, warningPushMaxAgeMs } from "./warningPush.js";
 
 /** Bulletin URLs accepted into the outbox (n8n "Prepare … handoff"). */
 export const handoffSourcePattern =
@@ -67,11 +69,136 @@ export function prepareHandoff(
   };
 }
 
+/** Most messages sent per deliver call (the workflow calls every minute). */
+export const maxSendsPerDelivery = 3;
+/** Most fresh pending rows examined per call (skips do not count as sends). */
+const maxExaminedPerDelivery = 20;
+/** Most stale rows marked skipped per call (drains an old backlog quickly). */
+const maxStaleSkipsPerDelivery = 400;
+/** A claim older than this belongs to an abandoned attempt and may be retaken. */
+export const deliveryClaimLeaseMs = 5 * 60 * 1000;
+
+export interface DeliverySummary {
+  deliveryEnabled: boolean;
+  /** Pending rows left after this call. */
+  pending: number;
+  /** Send attempts made by this call (≤ maxSendsPerDelivery). */
+  attempted: number;
+  sent: number;
+  /** Rows this call marked skipped (stale, cancelled, not relevant, …). */
+  skipped: number;
+  /** Send attempts that failed; those rows stay pending for a later call. */
+  failed: number;
+}
+
 /**
- * Delivery is disabled until the FCM ingestion endpoint exists: this only
- * counts pending handoffs so the scheduler can observe the backlog.
+ * Deliver pending warning handoffs to the FCM topic.
+ *
+ * Disabled (no sender): only counts the backlog, as before.
+ * Enabled: rows created more than 30 minutes ago are marked `skipped:stale`;
+ * then fresh rows are handled oldest first. Each row is claimed in a
+ * Firestore transaction before anything is sent, so overlapping or retried
+ * calls never send the same row twice (a crash between send and the final
+ * write can resend once after the claim lease expires, still within the
+ * 30-minute window). Rows that are not meaningful are marked `skipped` with a
+ * reason; at most `maxSendsPerDelivery` messages are sent per call. A failed
+ * send releases the claim and leaves the row pending.
  */
-export async function deliverOutbox(context: JobsContext) {
-  const pending = await context.repository.countPendingOutbox();
-  return { deliveryEnabled: false as const, pending, attempted: 0 as const };
+export async function deliverOutbox(
+  context: JobsContext,
+): Promise<DeliverySummary> {
+  const { repository, delivery } = context;
+  const summary: DeliverySummary = {
+    deliveryEnabled: delivery.sender !== null,
+    pending: 0,
+    attempted: 0,
+    sent: 0,
+    skipped: 0,
+    failed: 0,
+  };
+  const sender = delivery.sender;
+  if (!sender) {
+    summary.pending = await repository.countPendingOutbox();
+    return summary;
+  }
+  const now = context.now();
+  const nowIso = now.toISOString();
+  const cutoff = new Date(now.getTime() - warningPushMaxAgeMs).toISOString();
+  const liveClaimAfter = new Date(
+    now.getTime() - deliveryClaimLeaseMs,
+  ).toISOString();
+  summary.skipped += await repository.skipStalePendingOutbox({
+    createdBefore: cutoff,
+    liveClaimAfter,
+    acknowledgedAt: nowIso,
+    limit: maxStaleSkipsPerDelivery,
+  });
+  const entries = await repository.listPendingOutbox({
+    createdFrom: cutoff,
+    limit: maxExaminedPerDelivery,
+  });
+  for (const entry of entries) {
+    if (summary.attempted >= maxSendsPerDelivery) break;
+    const decision = decideWarningPush(entry, now, delivery.topic);
+    const claimId = randomBytes(8).toString("hex");
+    const claimed = await repository.claimOutboxEntry({
+      deliveryKey: entry.deliveryKey,
+      claimId,
+      claimedAt: nowIso,
+      liveClaimAfter,
+    });
+    if (!claimed) continue;
+    if (decision.action === "skip") {
+      if (
+        await repository.completeOutboxEntry({
+          deliveryKey: entry.deliveryKey,
+          claimId,
+          deliveryStatus: "skipped",
+          acknowledgedAt: nowIso,
+          deliveryNote: `skipped:${decision.reason}`,
+        })
+      )
+        summary.skipped += 1;
+      continue;
+    }
+    summary.attempted += 1;
+    let messageId: string;
+    try {
+      messageId = await sender.send(decision.message);
+    } catch (error) {
+      summary.failed += 1;
+      console.warn("Warning push failed; entry stays pending", {
+        deliveryKey: entry.deliveryKey,
+        error: error instanceof Error ? error.message : "unknown",
+      });
+      await repository
+        .releaseOutboxClaim({ deliveryKey: entry.deliveryKey, claimId })
+        .catch((releaseError: unknown) =>
+          console.error("Could not release outbox claim", releaseError),
+        );
+      continue;
+    }
+    summary.sent += 1;
+    // Sent: never throw from here, or a workflow retry could not tell.
+    try {
+      const recorded = await repository.completeOutboxEntry({
+        deliveryKey: entry.deliveryKey,
+        claimId,
+        deliveryStatus: "sent",
+        acknowledgedAt: context.now().toISOString(),
+        deliveryNote: `fcm:${messageId.slice(0, 200)}`,
+      });
+      if (!recorded)
+        console.error("Sent warning push but lost the claim", {
+          deliveryKey: entry.deliveryKey,
+        });
+    } catch (error) {
+      console.error("Sent warning push but could not record it", {
+        deliveryKey: entry.deliveryKey,
+        error,
+      });
+    }
+  }
+  summary.pending = await repository.countPendingOutbox();
+  return summary;
 }

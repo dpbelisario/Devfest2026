@@ -1010,6 +1010,10 @@ html.native .ar-near { background: var(--accent-wash); color: var(--accent-deep)
         <h3 data-i18n="al.test">Test the pop-up</h3>
         <p class="al-small" id="alTestNote" data-i18n="al.test.d"></p>
         <button type="button" class="btn primary al-wide" id="alTest" data-i18n="al.test">Test the pop-up</button>
+        <div id="alPushSec" hidden>
+          <h3 data-i18n="al.push.h">Warning notifications</h3>
+          <ol class="al-steps"><li id="alPush"><div><b data-i18n="al.push"></b><span id="alPushNote"></span></div><button type="button" id="alPushBtn"></button></li></ol>
+        </div>
       </div>
     </section>
 
@@ -1834,6 +1838,16 @@ window.contourIndoorGuidance = data => {
     "ta.lock": ["Lock your phone now. Test alert in 8 seconds.", "今すぐ画面をロックしてください。8秒後にテスト警報が届きます。", "请立即锁屏，8 秒后收到测试警报。", "지금 화면을 잠그세요. 8초 후 테스트 경보가 옵니다."],
     "al.browser": ["The automatic pop-up works in the Android app. Here, the test shows the alert screen right away.", "自動表示はAndroidアプリで動作します。ここではテストで警報画面をすぐに表示します。", "自动弹出仅在 Android 应用中可用。此处测试会立即显示警报画面。", "자동 표시는 Android 앱에서 작동합니다. 여기서는 테스트로 경보 화면을 바로 표시합니다."],
     "al.allon": ["All set. SEAR will open when an official emergency alert arrives.", "設定完了。公式の緊急速報が届くとSEARが開きます。", "设置完成。收到官方紧急警报时 SEAR 会自动打开。", "설정 완료. 공식 긴급 경보가 오면 SEAR가 열립니다."],
+    "al.push.h": ["Warning notifications", "警報の通知", "警报通知", "경보 알림"],
+    "al.push": ["JMA warnings for Nagoya and Aichi", "名古屋・愛知の警報（気象庁）", "名古屋和爱知的气象厅警报", "나고야·아이치 기상청 경보"],
+    "al.push.d": ["A notification when the Japan Meteorological Agency issues a weather warning or advisory for Nagoya, or an earthquake, tsunami or volcano bulletin that mentions Aichi. It can arrive late or not at all and does not replace official alerts.", "名古屋市に気象警報・注意報が出たときや、愛知県を含む地震・津波・火山の情報を気象庁が発表したときに通知します。遅れたり届かなかったりすることがあり、公式の緊急速報の代わりにはなりません。", "当日本气象厅对名古屋发布气象警报或注意报，或发布涉及爱知县的地震、海啸、火山信息时通知您。通知可能延迟或无法送达，不能代替官方警报。", "일본 기상청이 나고야에 기상 경보·주의보를 발표하거나 아이치현이 포함된 지진·쓰나미·화산 정보를 발표하면 알려 드립니다. 늦거나 오지 않을 수 있으며 공식 경보를 대신하지 않습니다."],
+    "al.push.off": ["Turn off", "オフにする", "关闭", "끄기"],
+    "al.push.na": ["Not available in this build (Firebase is not configured).", "このビルドでは使えません（Firebase未設定）。", "此版本不可用（未配置 Firebase）。", "이 빌드에서는 사용할 수 없습니다 (Firebase 미설정)."],
+    "al.push.blocked": ["On, but notifications for SEAR are off in Android settings.", "オンですが、Androidの設定でSEARの通知がオフです。", "已开启，但 Android 设置中 SEAR 的通知已关闭。", "켜져 있지만 Android 설정에서 SEAR 알림이 꺼져 있습니다."],
+    "al.push.onmsg": ["Warning notifications are on.", "警報の通知をオンにしました。", "已开启警报通知。", "경보 알림을 켰습니다."],
+    "al.push.offmsg": ["Warning notifications are off.", "警報の通知をオフにしました。", "已关闭警报通知。", "경보 알림을 껐습니다."],
+    "al.push.denied": ["Allow notifications for SEAR to get warnings.", "警報を受け取るにはSEARの通知を許可してください。", "请允许 SEAR 发送通知以接收警报。", "경보를 받으려면 SEAR 알림을 허용하세요."],
+    "al.push.error": ["Could not change it. Check the connection and try again.", "変更できませんでした。接続を確認して再度お試しください。", "无法更改。请检查网络后重试。", "변경하지 못했습니다. 연결을 확인하고 다시 시도하세요."],
     "pg.info": ["Emergency information", "緊急時の情報", "紧急信息", "긴급 정보"],
     "pg.credits": ["Credits", "クレジット", "致谢", "출처"],
     "pg.mapcredit": ["Online map: Google Maps. Walking route data: OpenStreetMap / FOSSGIS.", "オンライン地図: Google Maps。徒歩経路データ: OpenStreetMap / FOSSGIS。", "在线地图：Google Maps。步行路线数据：OpenStreetMap / FOSSGIS。", "온라인 지도: Google Maps. 도보 경로 데이터: OpenStreetMap / FOSSGIS."],
@@ -4157,8 +4171,33 @@ window.contourIndoorGuidance = data => {
     $("alAllOn").hidden = ios || !(st && Object.values(st).every(Boolean));
     $("alAppInfo").hidden = !st;
     $("alTestNote").hidden = !st;
+    renderWarningPush();
   }
   window.onAlertSetupChanged = renderAlertSetup;
+  // ----- JMA warning notifications (Android app only: FCM topic, see alert/WarningPush.kt and
+  // docs/push-notifications.md). Hidden in browsers, on iOS and in older app builds.
+  const hasPushBridge = () => !!(window.ContourBridge && typeof ContourBridge.warningPushStatus === "function");
+  function pushStatus() { if (!hasPushBridge()) return null; try { return JSON.parse(ContourBridge.warningPushStatus()); } catch (_) { return null; } }
+  function renderWarningPush() {
+    const st = pushStatus(), b = $("alPushBtn");
+    $("alPushSec").hidden = !st;
+    if (!st) return;
+    const on = !!(st.available && st.enabled);
+    $("alPush").classList.toggle("on", on);
+    b.textContent = t(on ? "al.push.off" : "al.turnon");
+    b.disabled = !st.available;
+    $("alPushNote").textContent = t(!st.available ? "al.push.na" : on && !st.notifications ? "al.push.blocked" : "al.push.d");
+  }
+  window.onWarningPushChanged = state => {
+    renderWarningPush();
+    const msg = { on: "al.push.onmsg", off: "al.push.offmsg", denied: "al.push.denied", error: "al.push.error", unavailable: "al.push.na" }[state];
+    if (msg) say(t(msg), 3000);
+  };
+  $("alPushBtn").addEventListener("click", () => {
+    const st = pushStatus(); if (!st || !st.available) return;
+    $("alPushBtn").disabled = true;   // re-enabled when the app reports back
+    ContourBridge.setWarningPush(!st.enabled);
+  });
   document.querySelector(".al-steps").addEventListener("click", e => {
     const row = e.target.closest("[data-setting]"); if (!row || !e.target.closest("button") || !hasAlertBridge()) return;
     ContourBridge.openAlertSetting(row.dataset.setting);

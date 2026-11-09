@@ -10,6 +10,10 @@
 #   _FIREBASE_APP_ID  Firebase Android app ID, e.g. 1:1234567890:android:abc123
 #   _TESTER_GROUPS    Comma-separated App Distribution group aliases
 #   _API_BASE_URL     HTTPS base URL of the deployed backend, ending in "/"
+#   _GOOGLE_SERVICES_JSON_B64  Optional. base64 of android/app/google-services.json (public
+#                     Firebase client config) for warning push; used only when the
+#                     checkout has no such file. Empty: build without Firebase
+#                     (docs/push-notifications.md).
 #   _INDOORATLAS_VENUE_ID        IndoorAtlas venue ID (public; default Engineering II)
 #   _INDOORATLAS_ROOM221_POI_ID  Room 221 POI in that venue (public)
 # Secret Manager:
@@ -24,6 +28,7 @@ substitutions:
   _TESTER_GROUPS: 'team'
   _API_BASE_URL: ''
   _CMDLINE_TOOLS: '13114758'
+  _GOOGLE_SERVICES_JSON_B64: ''
   _INDOORATLAS_VENUE_ID: '0d3ece20-da98-11f1-95cb-e11cd22c6739'
   _INDOORATLAS_ROOM221_POI_ID: 'e8679fc0-da9a-11f1-b91e-6591398611dd'
 
@@ -110,6 +115,11 @@ steps:
         # Shared debug signing key, so testers can update without uninstalling.
         mkdir -p "$$ANDROID_USER_HOME"
         printf '%s' "$$DEBUG_KEYSTORE_B64" | base64 -d > "$$ANDROID_USER_HOME/debug.keystore"
+
+        # Optional Firebase client config for warning push; a committed file wins.
+        if [ -n "${_GOOGLE_SERVICES_JSON_B64}" ] && [ ! -f app/google-services.json ]; then
+          printf '%s' "${_GOOGLE_SERVICES_JSON_B64}" | base64 -d > app/google-services.json
+        fi
 
         # API base URL for the native screens (the WebView UI gets -PcontourUiUrl below).
         printf 'EVACUATION_AR_API_BASE_URL=%s\n' "${_API_BASE_URL}" > local.properties

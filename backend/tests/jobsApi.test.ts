@@ -47,6 +47,9 @@ test("/jobs routes are not mounted unless JOBS_ENABLED=true", async () => {
     deliveryEnabled: false,
     pending: 0,
     attempted: 0,
+    sent: 0,
+    skipped: 0,
+    failed: 0,
   });
   assert.throws(() => parseConfig({ JOBS_ENABLED: "yes" }));
 });
@@ -251,6 +254,9 @@ test("weather check returns the latest unseen bulletin; process queues before st
     deliveryEnabled: false,
     pending: 1,
     attempted: 0,
+    sent: 0,
+    skipped: 0,
+    failed: 0,
   });
 });
 
