@@ -135,7 +135,7 @@ object EmergencyPopup {
         val pi = PendingIntent.getActivity(context, NOTIFICATION_ID, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         val n = NotificationCompat.Builder(context, CHANNEL)
             .setSmallIcon(R.mipmap.ic_launcher)
-            .setContentTitle(title.ifBlank { "SEA" })
+            .setContentTitle(title.ifBlank { "SEAR" })
             .setContentText(text.ifBlank { "Open Contour for the nearest evacuation site" })
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
