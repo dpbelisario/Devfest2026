@@ -1,5 +1,4 @@
 import ARKit
-import Vision
 import SceneKit
 import UIKit
 import CoreLocation
@@ -456,39 +455,6 @@ final class IndoorDestinationScanViewController: UIViewController, ARSessionDele
         guard frame.timestamp - lastUpdate >= 0.2 else { return }
         lastUpdate = frame.timestamp
         inspect(frame)
-        scanMarker(frame)
-    }
-
-    private let markerQueue = DispatchQueue(label: "contour.indoor-marker")
-    private var markerBusy = false
-    private var lastMarkerScan: TimeInterval = 0
-    private var lastMarkerID: String?
-
-    /// A centred location QR marker resets the confirmed step pose to the marker's plan point and facing.
-    private func scanMarker(_ frame: ARFrame) {
-        guard let goal = floorGoal, indoorTracker?.pose != nil, frame.timestamp - lastMarkerScan >= 0.33, !markerBusy else { return }
-        lastMarkerScan = frame.timestamp; markerBusy = true
-        let buffer = frame.capturedImage
-        markerQueue.async { [weak self] in
-            let sighting = LibraryMarkerDetector.detect(in: buffer)
-            DispatchQueue.main.async {
-                guard let self else { return }
-                self.markerBusy = false
-                guard let marker = sighting?.marker, marker.floor == goal.floor, self.view.window != nil else { return }
-                let geometry = LibraryExitGeometry.shared
-                // shortcut: uses the saved 2F alignment constants, matching the bundled default overlay.
-                let offset = geometry.planOffset(imageX: marker.imageX, imageY: marker.imageY, width: geometry.defaultWidth,
-                    aspect: geometry.defaultAspect, angle: geometry.defaultAngle)
-                let latitude = geometry.defaultLatitude + offset.north / 6378137 * 180 / .pi
-                let longitude = geometry.defaultLongitude + offset.east / (6378137 * cos(geometry.defaultLatitude * .pi / 180)) * 180 / .pi
-                guard self.indoorTracker?.relocate(latitude: latitude, longitude: longitude, heading: geometry.defaultAngle + marker.facing) == true else { return }
-                if self.lastMarkerID != marker.id {
-                    UINotificationFeedbackGenerator().notificationOccurred(.success)
-                    self.status.text = "Position fixed at \(marker.label) (QR)."
-                }
-                self.lastMarkerID = marker.id
-            }
-        }
     }
 
     private func inspect(_ frame: ARFrame) {

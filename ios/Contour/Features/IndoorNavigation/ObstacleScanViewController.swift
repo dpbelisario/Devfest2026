@@ -4,7 +4,6 @@ import UIKit
 import CoreLocation
 import CryptoKit
 import ContourShared
-import Vision
 
 /// Close-object evidence only. Missing depth never establishes a clear passage.
 enum ObstacleProbe {
@@ -88,7 +87,6 @@ final class ObstacleScanViewController: UIViewController, ARSessionDelegate, ARS
     /// Shared Floor Maps step tracker; when it is tracking, its position beats raw GPS for the exit bearing.
     weak var indoorTracker: IndoorStepTracker?
     private var lastLocation: CLLocation?
-    private var markerLocated = false
     private let scene = ARSCNView()
     private let usesDepth = ARWorldTrackingConfiguration.supportsFrameSemantics(.sceneDepth)
     private let status = UILabel()
@@ -116,11 +114,6 @@ final class ObstacleScanViewController: UIViewController, ARSessionDelegate, ARS
     private var lastUpdate: TimeInterval = 0
     private var observers: [NSObjectProtocol] = []
     private var reason = "unknown"
-    private let markerQueue = DispatchQueue(label: "contour.library-marker")
-    private var markerBusy = false
-    private var lastMarkerScan: TimeInterval = 0
-    private var planAngle = LibraryExitGeometry.shared.defaultAngle
-    private var lastMarker: (id: String, time: Date)?
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -272,7 +265,6 @@ final class ObstacleScanViewController: UIViewController, ARSessionDelegate, ARS
                       SHA256.hash(data:overlay.image).map({String(format:"%02x",$0)}).joined() == LibraryExitGeometry.shared.imageSha256 else { return }
                 guard let self else { return }
                 self.planReady = self.waypointGuide.configure(width:overlay.width,aspect:overlay.aspect,angle:overlay.angle)
-                if self.planReady { self.planAngle = overlay.angle }
             }
             if location.authorizationStatus == .notDetermined { location.requestWhenInUseAuthorization() }
             startLocation()
@@ -282,7 +274,7 @@ final class ObstacleScanViewController: UIViewController, ARSessionDelegate, ARS
             config.frameSemantics.insert(.sceneDepth)
             if ARWorldTrackingConfiguration.supportsSceneReconstruction(.mesh) { config.sceneReconstruction = .mesh }
         }
-        waypointGuide.reset(); markerLocated = false
+        waypointGuide.reset()
         manualGoalHeading = nil; manualRouteHeading = false; currentHeading = .nan; headingBubble.isEnabled = false
         nearFrames = 0; review.isEnabled = false; cueFrames = 0; stableCue = "scan"
         directionArrow.isHidden = false; directionArrow.cue = "scan"
@@ -327,54 +319,6 @@ final class ObstacleScanViewController: UIViewController, ARSessionDelegate, ARS
         guard frame.timestamp - lastUpdate >= 0.2 else { return }
         lastUpdate = frame.timestamp
         DispatchQueue.main.async { [weak self] in self?.inspect(frame) }
-        scanMarker(frame)
-    }
-
-    /// Looks for a printed library location QR marker roughly 3 times per second. A marker is an absolute
-    /// fix: its plan position and the map direction a person faces when looking straight at it.
-    private func scanMarker(_ frame: ARFrame) {
-        guard exitDemo, case .normal = frame.camera.trackingState, frame.timestamp - lastMarkerScan >= 0.33, !markerBusy else { return }
-        lastMarkerScan = frame.timestamp; markerBusy = true
-        let buffer = frame.capturedImage
-        let transform = frame.camera.transform
-        markerQueue.async { [weak self] in
-            let sighting = LibraryMarkerDetector.detect(in: buffer)
-            DispatchQueue.main.async {
-                guard let self else { return }
-                self.markerBusy = false
-                guard let sighting else { return }
-                self.applyMarker(sighting, cameraTransform: transform)
-            }
-        }
-    }
-
-    private func applyMarker(_ sighting: LibraryMarkerSighting, cameraTransform: simd_float4x4) {
-        guard view.window != nil, exitDemo, sighting.marker.floor == "2F" else { return }
-        let heading = atan2(-cameraTransform.columns.2.x, cameraTransform.columns.2.z)
-        // A centred marker means the camera faces it; the marker's facing bearing then fixes AR-to-map rotation.
-        let bearing = (planAngle + sighting.marker.facing) * .pi / 180
-        let rotation = Double(heading) - bearing
-        let camera = cameraTransform.columns.3
-        guard waypointGuide.locate(imageX: sighting.marker.imageX, imageY: sighting.marker.imageY,
-            cameraX: Double(camera.x), cameraZ: Double(camera.z), mapRotation: atan2(sin(rotation), cos(rotation))) else {
-            status.isHidden = false
-            status.text = "Location marker \(sighting.marker.label) is not on the supported 2F exit path."
-            return
-        }
-        markerLocated = true
-        guessedFloor = "2F"; floorBubble.setTitle("Floor · 2F · QR", for: .normal); startBubble.isEnabled = true
-        manualGoalHeading = nil; manualRouteHeading = false; cueFrames = 0
-        startBubble.setTitle("Located · \(sighting.marker.label) · QR", for: .normal)
-        if lastMarker?.id != sighting.marker.id || lastMarker.map({ Date().timeIntervalSince($0.time) > 10 }) == true {
-            UINotificationFeedbackGenerator().notificationOccurred(.success)
-            status.isHidden = false
-            status.text = "Position fixed at \(sighting.marker.label). Turn toward the arrow."
-            let shown = sighting.marker.id
-            DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
-                if self?.lastMarker?.id == shown { self?.status.isHidden = true }
-            }
-        }
-        lastMarker = (sighting.marker.id, Date())
     }
 
     private func inspect(_ frame: ARFrame) {
@@ -403,7 +347,7 @@ final class ObstacleScanViewController: UIViewController, ARSessionDelegate, ARS
             }
         }
         // AR world is gravityAndHeading in the exit demo, so the camera heading is a compass bearing.
-        if exitDemo && !markerLocated, let toExit = exitRelative(cameraHeading: heading) { relative = toExit }
+        if exitDemo, let toExit = exitRelative(cameraHeading: heading) { relative = toExit }
         currentRelative = relative
         updateHeadingBubble()
 
@@ -514,41 +458,3 @@ final class ObstacleScanViewController: UIViewController, ARSessionDelegate, ARS
     }
 }
 
-/// Printed QR payload: `CONTOUR-LOC|1|2F|<x>|<y>|<facing>|<label>`. x/y are normalised on the
-/// 1178×817 saved 2F plan; facing is degrees clockwise from map-up when looking straight at the marker.
-struct LibraryMarker: Equatable {
-    let floor: String
-    let imageX: Double
-    let imageY: Double
-    let facing: Double
-    let label: String
-    var id: String { "\(floor)|\(imageX)|\(imageY)" }
-
-    init?(payload: String) {
-        let parts = payload.split(separator: "|", omittingEmptySubsequences: false).map(String.init)
-        guard parts.count >= 7, parts[0] == "CONTOUR-LOC", parts[1] == "1", ["B1", "1F", "2F", "3F", "4F"].contains(parts[2]),
-              let x = Double(parts[3]), let y = Double(parts[4]), let facing = Double(parts[5]),
-              x.isFinite, y.isFinite, facing.isFinite, (0...1).contains(x), (0...1).contains(y), (-360...360).contains(facing) else { return nil }
-        floor = parts[2]; imageX = x; imageY = y; self.facing = facing
-        label = String(parts[6...].joined(separator: "|").prefix(60))
-    }
-}
-
-struct LibraryMarkerSighting { let marker: LibraryMarker; let centre: CGPoint; let size: CGFloat }
-
-enum LibraryMarkerDetector {
-    /// Returns a marker only when it is near the image centre and large enough that the person is close and facing it.
-    static func detect(in buffer: CVPixelBuffer) -> LibraryMarkerSighting? {
-        let request = VNDetectBarcodesRequest()
-        request.symbologies = [.qr]
-        let handler = VNImageRequestHandler(cvPixelBuffer: buffer, orientation: .right, options: [:])
-        guard (try? handler.perform([request])) != nil, let results = request.results else { return nil }
-        return results.compactMap { observation -> LibraryMarkerSighting? in
-            guard let payload = observation.payloadStringValue, let marker = LibraryMarker(payload: payload) else { return nil }
-            let box = observation.boundingBox
-            return LibraryMarkerSighting(marker: marker, centre: CGPoint(x: box.midX, y: box.midY), size: max(box.width, box.height))
-        }
-        .filter { abs($0.centre.x - 0.5) < 0.3 && abs($0.centre.y - 0.5) < 0.3 && $0.size > 0.06 }
-        .max { $0.size < $1.size }
-    }
-}
