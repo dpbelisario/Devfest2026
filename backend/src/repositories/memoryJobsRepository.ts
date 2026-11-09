@@ -1,11 +1,12 @@
-import type {
-  ConditionalWriteResult,
-  EqvolBulletinRecord,
-  JobsRepository,
-  NagoyaDatasetRecord,
-  NagoyaJobRun,
-  OutboxEntry,
-  WeatherBulletinRecord,
+import {
+  isClaimable,
+  type ConditionalWriteResult,
+  type EqvolBulletinRecord,
+  type JobsRepository,
+  type NagoyaDatasetRecord,
+  type NagoyaJobRun,
+  type OutboxEntry,
+  type WeatherBulletinRecord,
 } from "./jobsRepository.js";
 
 /**
@@ -121,6 +122,97 @@ export class MemoryJobsRepository implements JobsRepository {
     return [...this.outbox.values()].filter(
       (entry) => entry.deliveryStatus === "pending",
     ).length;
+  }
+
+  async listPendingOutbox(input: { createdFrom: string; limit: number }) {
+    return [...this.outbox.values()]
+      .filter(
+        (entry) =>
+          entry.deliveryStatus === "pending" &&
+          entry.createdAt >= input.createdFrom,
+      )
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+      .slice(0, input.limit)
+      .map((entry) => clone(entry));
+  }
+
+  async skipStalePendingOutbox(input: {
+    createdBefore: string;
+    liveClaimAfter: string;
+    acknowledgedAt: string;
+    limit: number;
+  }) {
+    const stale = [...this.outbox.values()]
+      .filter(
+        (entry) =>
+          entry.deliveryStatus === "pending" &&
+          entry.createdAt < input.createdBefore,
+      )
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+      .slice(0, input.limit)
+      .filter((entry) => isClaimable(entry, input.liveClaimAfter));
+    for (const entry of stale) {
+      this.operations.push(`outbox-skip:${entry.deliveryKey}`);
+      this.outbox.set(entry.deliveryKey, {
+        ...entry,
+        deliveryStatus: "skipped",
+        acknowledgedAt: input.acknowledgedAt,
+        deliveryNote: "skipped:stale",
+        claimId: "",
+        claimedAt: "",
+      });
+    }
+    return stale.length;
+  }
+
+  async claimOutboxEntry(input: {
+    deliveryKey: string;
+    claimId: string;
+    claimedAt: string;
+    liveClaimAfter: string;
+  }) {
+    const entry = this.outbox.get(input.deliveryKey);
+    if (!entry || !isClaimable(entry, input.liveClaimAfter)) return false;
+    this.outbox.set(input.deliveryKey, {
+      ...entry,
+      claimId: input.claimId,
+      claimedAt: input.claimedAt,
+    });
+    return true;
+  }
+
+  async completeOutboxEntry(input: {
+    deliveryKey: string;
+    claimId: string;
+    deliveryStatus: "sent" | "skipped";
+    acknowledgedAt: string;
+    deliveryNote: string;
+  }) {
+    const entry = this.outbox.get(input.deliveryKey);
+    if (
+      !entry ||
+      entry.deliveryStatus !== "pending" ||
+      entry.claimId !== input.claimId
+    )
+      return false;
+    this.operations.push(`outbox-${input.deliveryStatus}:${entry.deliveryKey}`);
+    this.outbox.set(input.deliveryKey, {
+      ...entry,
+      deliveryStatus: input.deliveryStatus,
+      acknowledgedAt: input.acknowledgedAt,
+      deliveryNote: input.deliveryNote,
+    });
+    return true;
+  }
+
+  async releaseOutboxClaim(input: { deliveryKey: string; claimId: string }) {
+    const entry = this.outbox.get(input.deliveryKey);
+    if (!entry || entry.claimId !== input.claimId) return;
+    this.outbox.set(input.deliveryKey, {
+      ...entry,
+      claimId: "",
+      claimedAt: "",
+    });
   }
 }
 

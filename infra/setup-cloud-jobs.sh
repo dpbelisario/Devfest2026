@@ -2,7 +2,8 @@
 # One-time setup for the scheduled data jobs that replace the n8n workflows:
 # Firestore, service accounts, the private contour-jobs Cloud Run service, two
 # Cloud Workflows (the node graphs), paused Cloud Scheduler jobs and the Cloud
-# Build trigger that keeps them in sync with main. Run it in Cloud Shell from the
+# Build trigger that keeps them in sync with main. It also prepares warning push
+# (FCM API, sender role, outbox index) but leaves FCM_DELIVERY_ENABLED off. Run it in Cloud Shell from the
 # repository root with the project selected:
 #
 #   gcloud config set project gen-lang-client-0467526025
@@ -12,9 +13,11 @@
 # JOBS_SERVICE (contour-jobs), REDEPLOY_JOBS=1 to redeploy contour-jobs from the
 # current api image even if it already exists.
 #
-# Safe to rerun: existing database, accounts, service, schedules (including their
-# paused/resumed state) and trigger are kept; IAM bindings are re-applied and the
-# workflows are redeployed from this checkout. Docs: docs/cloud-jobs.md.
+# Safe to rerun: existing database, index, accounts, service (including its
+# FCM_DELIVERY_ENABLED value), schedules (including their paused/resumed state)
+# and trigger are kept; IAM bindings are re-applied and the workflows are
+# redeployed from this checkout. Docs: docs/cloud-jobs.md and
+# docs/push-notifications.md.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -36,6 +39,7 @@ echo "1/9 Enabling APIs"
 gcloud services enable workflows.googleapis.com workflowexecutions.googleapis.com \
   cloudscheduler.googleapis.com firestore.googleapis.com run.googleapis.com \
   cloudbuild.googleapis.com artifactregistry.googleapis.com iam.googleapis.com \
+  fcm.googleapis.com fcmregistrations.googleapis.com firebaseinstallations.googleapis.com \
   --project "$PROJECT"
 
 echo "2/9 Firestore database (default)"
@@ -45,6 +49,17 @@ if gcloud firestore databases describe --database='(default)' --project "$PROJEC
 else
   gcloud firestore databases create --database='(default)' --location="$REGION" \
     --type=firestore-native --project "$PROJECT"
+fi
+# Warning push reads pending outbox rows oldest first (deliveryStatus ==, createdAt order).
+if index_out="$(gcloud firestore indexes composite create --project "$PROJECT" \
+  --database='(default)' --collection-group=warningOutbox --query-scope=COLLECTION \
+  --field-config=field-path=deliveryStatus,order=ascending \
+  --field-config=field-path=createdAt,order=ascending --async 2>&1)"; then
+  echo "    warningOutbox index (deliveryStatus, createdAt): building in the background"
+elif grep -qi "already exists" <<<"$index_out"; then
+  echo "    warningOutbox index (deliveryStatus, createdAt): exists"
+else
+  echo "$index_out" >&2; exit 1
 fi
 
 echo "3/9 Service accounts"
@@ -68,6 +83,8 @@ project_role() {
 }
 echo "4/9 Project roles"
 project_role "$RUNTIME_SA" roles/datastore.user
+# Sends warning pushes to the FCM topic (only used when FCM_DELIVERY_ENABLED=true).
+project_role "$RUNTIME_SA" roles/firebasecloudmessaging.admin
 project_role "$WORKFLOWS_SA" roles/logging.logWriter
 project_role "$WORKFLOWS_SA" roles/workflows.invoker
 project_role "$DEPLOYER_SA" roles/run.developer
@@ -177,4 +194,10 @@ Publish (start the schedules):
 Unpublish (stop them again):
   gcloud scheduler jobs pause nagoya-import-hourly --location $REGION
   gcloud scheduler jobs pause jma-warnings-every-minute --location $REGION
+
+Warning push to Android (docs/push-notifications.md) is OFF. After the outbox
+index shows READY (gcloud firestore indexes composite list) and the app build
+has google-services.json, turn it on with:
+  gcloud run services update $JOBS_SERVICE --region $REGION --update-env-vars FCM_DELIVERY_ENABLED=true
+Turn it off again with FCM_DELIVERY_ENABLED=false.
 EOF

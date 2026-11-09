@@ -99,6 +99,7 @@ export function testContext(responses: Record<string, string> = {}) {
     repository,
     now: () => new Date("2026-11-05T02:00:00.000Z"),
     newRunId: () => `run-${++runCounter}`,
+    delivery: { topic: "contour-test-warnings", sender: null },
     fetchText: async (url) => {
       fetched.push(url);
       const body = responses[url];

@@ -13,7 +13,8 @@ The two n8n workflows on `feat/automation` (`automation/n8n/workflow-1.json` and
 
 These are scaffold jobs. Imported destinations and warnings are not verified
 evacuation guidance. Unknown opening status stays unknown. Warning delivery to
-phones (outbox → FCM) is still disabled.
+Android phones (outbox → FCM topic) is implemented but off until
+`FCM_DELIVERY_ENABLED=true`; see [push-notifications.md](push-notifications.md).
 
 | File                                 | Purpose                                                     |
 | ------------------------------------ | ----------------------------------------------------------- |
@@ -92,6 +93,13 @@ workflow files. The workflows also expect the following:
 - **Idempotency.** `publish` and `record-unchanged` must be safe to repeat for the
   same `runId`. `weather/process` and `eqvol/process` must be safe to repeat for
   the same candidate. Overlapping per-minute runs can call them twice.
+  `outbox/deliver` claims each outbox row in a transaction before sending, so a
+  retried or overlapping call never sends the same row again.
+- **Outbox delivery.** `outbox/deliver` takes `{}` and returns
+  `{deliveryEnabled, pending, attempted, sent, skipped, failed}`. With
+  `FCM_DELIVERY_ENABLED=false` (default) it only counts `pending`. With it on, it
+  sends at most 3 FCM messages per call and marks rows `sent` or `skipped`; see
+  [push-notifications.md](push-notifications.md) for the rules.
 - **Errors.** HTTP 409 with `{"error":"DATASET_SHRANK"}` is only for the shrink
   guard. Other 4xx responses are not retried. Responses must not contain
   internal error details.
@@ -156,11 +164,13 @@ bash infra/setup-cloud-jobs.sh
 The script does the following:
 
 1. Enables the Workflows, Workflow Executions, Cloud Scheduler, Firestore, Cloud
-   Run, Cloud Build, Artifact Registry and IAM APIs.
+   Run, Cloud Build, Artifact Registry, IAM and Firebase Cloud Messaging APIs.
 2. Creates the Firestore Native database `(default)` in `asia-northeast1`, but
-   only if no database exists.
+   only if no database exists, and the composite index
+   `warningOutbox (deliveryStatus, createdAt)` used by warning push.
 3. Creates three service accounts:
-   - `contour-jobs-runtime` gets `roles/datastore.user` and runs the Cloud Run
+   - `contour-jobs-runtime` gets `roles/datastore.user` and
+     `roles/firebasecloudmessaging.admin` (warning push) and runs the Cloud Run
      service.
    - `contour-workflows` gets `roles/run.invoker` on `contour-jobs` only,
      `roles/logging.logWriter`, and `roles/workflows.invoker`. Workflows run as
@@ -255,5 +265,7 @@ Pausing the JMA Scheduler job stops nearly all of these costs.
   schema, and gcloud flag checks.
 - The `/jobs/*` backend endpoints are developed separately and must be deployed
   before the workflows can succeed.
-- Outbox delivery is disabled (`deliveryEnabled: false`). Firebase sending and
-  Android reception are not implemented.
+- Outbox delivery to the FCM topic is implemented but off
+  (`FCM_DELIVERY_ENABLED=false`). It has not been run against real FCM or a
+  device yet. iOS push is not implemented. See
+  [push-notifications.md](push-notifications.md) for how to turn it on.
