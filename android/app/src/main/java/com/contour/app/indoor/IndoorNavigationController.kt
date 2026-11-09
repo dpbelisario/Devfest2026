@@ -29,9 +29,14 @@ import org.json.JSONObject
 import kotlin.math.atan2
 import kotlin.math.hypot
 
-/** Foreground-only native positioning and continuous CMS wayfinding. Never seeds a fictional indoor start. */
+/**
+ * Foreground-only native positioning and continuous CMS wayfinding. Never seeds a fictional indoor start.
+ * Supported venues come from [venues] (server list, device cache or build-time default); a venue the
+ * SDK detects that is not in the list is treated as not mapped.
+ */
 class IndoorNavigationController(
     private val activity: ComponentActivity,
+    private val venues: () -> IndoorVenueCatalog,
     private val publish: (JSONObject) -> Unit,
 ) : SensorEventListener, LocationListener {
     private val sensors = activity.getSystemService(SensorManager::class.java)
@@ -45,6 +50,8 @@ class IndoorNavigationController(
     private var running = false
     private var status = "locating"
     private var venue: IAVenue? = null
+    /** Runtime configuration of the detected [venue], when the venue is supported. */
+    private var venueConfig: IndoorVenueConfig? = null
     private var route: IARoute? = null
     private var routeAt = 0L
     private var position: IALocation? = null
@@ -68,7 +75,7 @@ class IndoorNavigationController(
     private val locationCallbacks = object : IALocationListenerSupport() {
         override fun onLocationChanged(location: IALocation) {
             if (!running) return
-            if (!EngineeringLocationPolicy.contains(location.latitude, location.longitude)) {
+            if (!insideSupportedVenue(location.latitude, location.longitude)) {
                 position = null; route = null; routeRequested = false
                 manager?.removeWayfindingUpdates()
                 status = "outsideBuilding"
@@ -97,7 +104,7 @@ class IndoorNavigationController(
         }
         override fun onExitRegion(region: IARegion) {
             if (!running || region.type != IARegion.TYPE_VENUE) return
-            venue = null; route = null; position = null; routeRequested = false
+            venue = null; venueConfig = null; route = null; position = null; routeRequested = false
             manager?.removeWayfindingUpdates()
             status = "locating"
             emit(true)
@@ -190,7 +197,7 @@ class IndoorNavigationController(
             it.destroy()
         }
         locationListener = null; regionListener = null
-        manager = null; venue = null; route = null; position = null; heading = null
+        manager = null; venue = null; venueConfig = null; route = null; position = null; heading = null
         routeRequested = false; declination = null
         sdkStatus = IALocationManager.STATUS_TEMPORARILY_UNAVAILABLE
         cameraTracking = null
@@ -204,17 +211,24 @@ class IndoorNavigationController(
         lastEmission = 0L
     }
 
+    /** Coarse gate: the detected venue's area once known, otherwise any supported venue's area. */
+    private fun insideSupportedVenue(latitude: Double, longitude: Double): Boolean =
+        venueConfig?.contains(latitude, longitude) ?: venues().containing(latitude, longitude).isNotEmpty()
+
     private fun enterVenue(value: IAVenue) {
-        if (value.id != BuildConfig.INDOORATLAS_VENUE_ID) {
-            venue = null; route = null; status = "wrongVenue"; routeRequested = false
+        val config = venues().venueFor(value.id)
+        if (config == null) {
+            venue = null; venueConfig = null; route = null; status = "wrongVenue"; routeRequested = false
             manager?.removeWayfindingUpdates()
             return
         }
         venue = value
+        venueConfig = config
         if (routeRequested) return
+        val poiId = config.room221()?.indoorAtlasPoiId
         val matches = value.poIs.filter {
-            if (BuildConfig.INDOORATLAS_ROOM221_POI_ID.isNotBlank()) it.id == BuildConfig.INDOORATLAS_ROOM221_POI_ID
-            else it.name.trim().matches(Regex("(?i)(room\\s*)?221"))
+            if (poiId != null) it.id.equals(poiId, ignoreCase = true)
+            else IndoorVenueConfig.ROOM_221.matches(it.name.trim())
         }
         if (matches.size != 1) { status = "missingRoom"; return }
         routeRequested = true
@@ -299,9 +313,14 @@ class IndoorNavigationController(
         if (!force && now - lastEmission < 200) return
         lastEmission = now
         val p = position
-        val trusted = p != null && EngineeringLocationPolicy.contains(p.latitude, p.longitude) && now - positionAt <= 6000 && p.accuracy.isFinite() && p.accuracy <= 8f &&
-            p.hasFloorLevel() && p.floorLevel in 1..4 && (lockedFloor != null || (p.hasFloorCertainty() && p.floorCertainty >= 0.7f)) &&
-            sdkStatus == IALocationManager.STATUS_AVAILABLE && venue?.id == BuildConfig.INDOORATLAS_VENUE_ID
+        val config = venueConfig
+        // A floor plan listed in the venue configuration must agree with the SDK's floor level.
+        val floorPlanAgrees = p?.region?.takeIf { it.type == IARegion.TYPE_FLOOR_PLAN }?.let { region ->
+            config?.floorLevelOf(region.id)?.let { it == p.floorLevel }
+        } ?: true
+        val trusted = p != null && config != null && config.contains(p.latitude, p.longitude) && now - positionAt <= 6000 && p.accuracy.isFinite() && p.accuracy <= 8f &&
+            p.hasFloorLevel() && p.floorLevel in 1..4 && floorPlanAgrees && (lockedFloor != null || (p.hasFloorCertainty() && p.floorCertainty >= 0.7f)) &&
+            sdkStatus == IALocationManager.STATUS_AVAILABLE && venue?.id.equals(config.indoorAtlasVenueId, ignoreCase = true)
         if (trusted && lockedFloor == null) estimator.observeIndoorFloor(p!!.floorLevel)
         val estimate = estimator.estimate()
         val liveFloor = if (trusted && lockedFloor == null) p!!.floorLevel else estimate.floor
@@ -311,9 +330,10 @@ class IndoorNavigationController(
             .put("uncertaintyFloors", if (source == "indooratlas") 0 else estimate.uncertaintyFloors ?: JSONObject.NULL)
             .put("heading", if (now - headingAt <= 2000 && now - declinationAt < 60000) heading ?: JSONObject.NULL else JSONObject.NULL)
             .put("cameraTracking", cameraTracking ?: JSONObject.NULL)
+        config?.let { payload.put("venue", JSONObject().put("id", it.id).put("name", JSONObject().put("en", it.name.en).put("ja", it.name.ja))) }
         if (trusted && now - routeAt <= 6000 && route?.isSuccessful == true) {
             val legs = route!!.legs
-            if (legs.size in 1..256 && legs.first().begin.floor == liveFloor && legs.all { it.length.isFinite() && it.length >= 0 && it.begin.latitude.isFinite() && it.begin.longitude.isFinite() && it.end.latitude.isFinite() && it.end.longitude.isFinite() && it.begin.floor in 1..4 && it.end.floor in 1..4 && EngineeringLocationPolicy.contains(it.begin.latitude, it.begin.longitude) && EngineeringLocationPolicy.contains(it.end.latitude, it.end.longitude) }) {
+            if (legs.size in 1..256 && legs.first().begin.floor == liveFloor && legs.all { it.length.isFinite() && it.length >= 0 && it.begin.latitude.isFinite() && it.begin.longitude.isFinite() && it.end.latitude.isFinite() && it.end.longitude.isFinite() && it.begin.floor in 1..4 && it.end.floor in 1..4 && config!!.contains(it.begin.latitude, it.begin.longitude) && config.contains(it.end.latitude, it.end.longitude) }) {
                 payload.put("status", "navigating")
                 payload.put("legs", JSONArray().apply {
                     legs.forEach { leg ->

@@ -7,14 +7,21 @@ rear-camera-facing compass direction for forward/back/left/right arrows. The SDK
 recomputes the route as location changes. Cross-floor segments show up/down arrows.
 There are no building, checkpoint or alignment forms in this flow.
 
-**Activation:** IndoorAtlas positioning and wayfinding are active only when
-`INDOORATLAS_API_KEY`, `INDOORATLAS_API_SECRET` and `INDOORATLAS_VENUE_ID` are all
-configured at build time (`android/local.properties` or build environment) for a
-venue that has been surveyed with MapCreator. Without all three the SDK is never
-started (`BuildConfig.INDOORATLAS_CONFIGURED` is false): the app still builds and
-runs, the room 221 Ask answer reports that corridor mapping is needed, and only
-the experimental floor estimate with manual − / + correction is shown. No live
-route arrows appear without a configured, surveyed venue.
+**Activation:** IndoorAtlas positioning and wayfinding need `INDOORATLAS_API_KEY`
+and `INDOORATLAS_API_SECRET` at build time (`android/local.properties` or build
+environment) and a venue surveyed with MapCreator. Without the key and secret the
+SDK is never started (`BuildConfig.INDOORATLAS_CONFIGURED` is false): the app still
+builds and runs, the room 221 Ask answer reports that corridor mapping is needed,
+and only the experimental floor estimate with manual − / + correction is shown.
+
+**Venues are runtime data.** The app fetches `GET /api/indoor/venues` on start,
+caches the last good list on the device and accepts only venues in that list; a
+venue the SDK detects that is not listed is treated as not mapped. Venues are added,
+changed or disabled on the server (Firestore `indoorVenues`) without a push, APK
+rebuild or redeploy; see [indoor-venues.md](indoor-venues.md). `INDOORATLAS_VENUE_ID`
+/ `INDOORATLAS_ROOM221_POI_ID` remain only as a build-time fallback when neither the
+server nor the cache is available. No live route arrows appear without a listed,
+surveyed venue.
 
 The venue was created on the separate account as
 `0d3ece20-da98-11f1-95cb-e11cd22c6739`. Floor-plan uploads and setup are recorded

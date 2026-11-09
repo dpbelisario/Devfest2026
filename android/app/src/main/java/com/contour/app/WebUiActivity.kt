@@ -28,6 +28,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.webkit.WebViewAssetLoader
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
+import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 
 /**
@@ -42,8 +43,10 @@ import kotlinx.coroutines.launch
 class WebUiActivity : ComponentActivity() {
 
     lateinit var web: WebView
+    /** Supported IndoorAtlas venues, refreshed from the backend on start (docs/indoor-venues.md). */
+    private val indoorVenues by lazy { com.contour.app.indoor.IndoorVenueRepository(this) }
     private val indoor by lazy {
-        com.contour.app.indoor.IndoorNavigationController(this) { data ->
+        com.contour.app.indoor.IndoorNavigationController(this, { indoorVenues.current }) { data ->
             web.evaluateJavascript("window.dispatchEvent(new CustomEvent('contour-indoor',{detail:$data}))", null)
         }
     }
@@ -412,6 +415,10 @@ class WebUiActivity : ComponentActivity() {
         @android.webkit.JavascriptInterface
         fun startIndoor(): String = "none"
 
+        /** JSON of the supported IndoorAtlas venues (public configuration: names, floors, POIs, exits with provenance). */
+        @android.webkit.JavascriptInterface
+        fun indoorVenues(): String = activity.indoorVenues.current.toJson().toString()
+
         @android.webkit.JavascriptInterface
         fun stopIndoor() = Unit
 
@@ -473,6 +480,12 @@ class WebUiActivity : ComponentActivity() {
         WindowCompat.getInsetsController(window, window.decorView).apply {
             isAppearanceLightStatusBars = true
             isAppearanceLightNavigationBars = true
+        }
+
+        // Venue list for IndoorAtlas: cached copy first, then the server; cancelled with the activity.
+        lifecycleScope.launch {
+            if (indoorVenues.refresh() && ::web.isInitialized && pageReady)
+                web.evaluateJavascript("window.dispatchEvent(new CustomEvent('contour-indoor-venues'))", null)
         }
 
         // Pre-download supported translation language models in the background

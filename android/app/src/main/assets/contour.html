@@ -3968,6 +3968,12 @@ window.contourIndoorGuidance = data => {
     cards.forEach(c => { c.style.visibility = ""; c.classList.remove("lifted"); });
     sheetState = "closed";
   }
+  // IndoorAtlas venue label from the app's runtime venue list (docs/indoor-venues.md); falls back to the pilot building.
+  function atlasVenueName() {
+    try { const vs = JSON.parse(window.ContourBridge?.indoorVenues?.() || "{}").venues || [], v = vs.find(x => (x.pois || []).some(p => p.id === "room-221")) || vs[0]; if (v?.name?.en) return lang === "ja" ? v.name.ja : v.name.en; } catch (_) {}
+    return "Engineering Building II";
+  }
+  window.addEventListener("contour-indoor-venues", () => { const an = document.querySelector(".ask-note"); if (an && an.textContent.startsWith("IndoorAtlas · ")) an.textContent = "IndoorAtlas · " + atlasVenueName(); });
   function setMode(m, { fit = true } = {}) {
     closeAR();clearIndoorNavigation();indoorContext={};
     mode = m === "student" ? "student" : "evac";
@@ -3983,7 +3989,7 @@ window.contourIndoorGuidance = data => {
     q.placeholder = t(q.dataset.i18nPh); q.setAttribute("aria-label", t(q.dataset.i18nPh));
     const ai = $("askInput"), an = document.querySelector(".ask-note");
     ai.dataset.i18nPh = ai.dataset.i18nAria = mode === "student" ? "ask.s.ph" : "ask.ph"; ai.placeholder = t(ai.dataset.i18nPh);
-    an.dataset.i18n = mode === "student" ? "ask.s.note" : "ask.note"; an.textContent = mode === "student" && window.ContourIndoor ? 'IndoorAtlas · Engineering Building II' : t(an.dataset.i18n);
+    an.dataset.i18n = mode === "student" ? "ask.s.note" : "ask.note"; an.textContent = mode === "student" && window.ContourIndoor ? 'IndoorAtlas · ' + atlasVenueName() : t(an.dataset.i18n);
     route.setStyle({ color: mode === "student" ? "#1f5fd1" : "#178049" });   // blue for campus, green for evacuation
     if (mode === "student") map.removeLayer(gatherLayer);
     else if (!live && $("tGather").checked) gatherLayer.addTo(map);

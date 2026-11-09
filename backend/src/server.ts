@@ -2,10 +2,12 @@ import { createApp } from "./app.js";
 import { config } from "./config.js";
 import { createJobsContext } from "./services/jobs/createJobsContext.js";
 import { createLiveContext } from "./services/createLiveContext.js";
+import { createIndoorVenueService } from "./services/createIndoorVenueService.js";
 
 const jobs = createJobsContext(config);
 const live = createLiveContext(config);
-const app = createApp({ jobs, live });
+const indoorVenues = createIndoorVenueService(config);
+const app = createApp({ jobs, live, indoorVenues });
 const server = app.listen(config.PORT, config.HOST, () =>
   console.info(
     `Contour API listening on port ${config.PORT}${jobs ? ` (jobs enabled, store=${config.JOBS_STORE})` : ""}${live ? ` (live data: ${config.LIVE_DATA_STORE}, assistant: ${live.assistant ? config.ASSISTANT_MODEL : "off"})` : ""}`,

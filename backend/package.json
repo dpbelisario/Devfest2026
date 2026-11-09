@@ -9,7 +9,8 @@
     "start": "node dist/src/server.js",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test tests/*.test.ts",
-    "import:gsi": "tsx scripts/import-gsi.ts"
+    "import:gsi": "tsx scripts/import-gsi.ts",
+    "indoor-venues": "tsx scripts/indoor-venues.ts"
   },
   "dependencies": {
     "@google-cloud/firestore": "^9.4.0",

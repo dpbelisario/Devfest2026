@@ -11,6 +11,8 @@ EVACUATION_AR_API_BASE_URL=http://10.0.2.2:8080/
 # Also accepted as build environment variables; never place them in HTML.
 # INDOORATLAS_API_KEY=
 # INDOORATLAS_API_SECRET=
+# Optional fallback venue/POI, used only when neither the backend venue list
+# (GET api/indoor/venues, docs/indoor-venues.md) nor the on-device cache is available.
 # INDOORATLAS_VENUE_ID=
-# Optional: room 221 POI ID. Otherwise the SDK requires one unique POI named 221 / Room 221.
+# Without a POI ID the SDK requires one unique POI named 221 / Room 221.
 # INDOORATLAS_ROOM221_POI_ID=
