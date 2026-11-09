@@ -1324,6 +1324,703 @@
           "surveyed": false
         }
       ]
+    },
+    {
+      "id": "nu-library",
+      "name": "Central Library",
+      "nameJa": "中央図書館",
+      "aliases": ["Nagoya University Library"],
+      "campus": "Nagoya University · Higashiyama",
+      "source": {
+        "url": "https://www.nul.nagoya-u.ac.jp/central/floormap_e.html",
+        "title": "Central Library official schematic floor maps; inferred aisle links, not surveyed",
+        "reviewedAt": "2026-11-08"
+      },
+      "floors": [-1, 1, 2, 3, 4],
+      "nodes": [
+        {
+          "id": "lib--1-nw",
+          "label": "North aisle · west of central toilets",
+          "floor": -1,
+          "kind": "landmark",
+          "x": 40,
+          "y": 42
+        },
+        {
+          "id": "lib--1-ne",
+          "label": "North aisle · east of central toilets",
+          "floor": -1,
+          "kind": "landmark",
+          "x": 64,
+          "y": 42
+        },
+        {
+          "id": "lib--1-sw",
+          "label": "South aisle · west of central toilets",
+          "floor": -1,
+          "kind": "landmark",
+          "x": 40,
+          "y": 62
+        },
+        {
+          "id": "lib--1-se",
+          "label": "South aisle · east of central toilets",
+          "floor": -1,
+          "kind": "landmark",
+          "x": 64,
+          "y": 62
+        },
+        {
+          "id": "lib--1-ws",
+          "label": "West stairs · beside central toilets",
+          "floor": -1,
+          "kind": "stairs",
+          "x": 36,
+          "y": 50
+        },
+        {
+          "id": "lib--1-es",
+          "label": "East stairs · beside east lift",
+          "floor": -1,
+          "kind": "stairs",
+          "x": 76,
+          "y": 50
+        },
+        {
+          "id": "lib-1-nw",
+          "label": "North aisle · west of central toilets",
+          "floor": 1,
+          "kind": "landmark",
+          "x": 40,
+          "y": 41
+        },
+        {
+          "id": "lib-1-ne",
+          "label": "North aisle · east of central toilets",
+          "floor": 1,
+          "kind": "landmark",
+          "x": 65,
+          "y": 41
+        },
+        {
+          "id": "lib-1-sw",
+          "label": "South aisle · west of central toilets",
+          "floor": 1,
+          "kind": "landmark",
+          "x": 40,
+          "y": 62
+        },
+        {
+          "id": "lib-1-se",
+          "label": "South aisle · east of central toilets",
+          "floor": 1,
+          "kind": "landmark",
+          "x": 65,
+          "y": 62
+        },
+        {
+          "id": "lib-1-ws",
+          "label": "West stairs · beside central toilets",
+          "floor": 1,
+          "kind": "stairs",
+          "x": 36,
+          "y": 50
+        },
+        {
+          "id": "lib-1-es",
+          "label": "East stairs · beside east lift",
+          "floor": 1,
+          "kind": "stairs",
+          "x": 75,
+          "y": 48
+        },
+        {
+          "id": "lib-2-nw",
+          "label": "North aisle · west of central toilets",
+          "floor": 2,
+          "kind": "landmark",
+          "x": 41,
+          "y": 41
+        },
+        {
+          "id": "lib-2-ne",
+          "label": "North aisle · east of central toilets",
+          "floor": 2,
+          "kind": "landmark",
+          "x": 65,
+          "y": 41
+        },
+        {
+          "id": "lib-2-sw",
+          "label": "South aisle · west of central toilets",
+          "floor": 2,
+          "kind": "landmark",
+          "x": 41,
+          "y": 62
+        },
+        {
+          "id": "lib-2-se",
+          "label": "South aisle · east of central toilets",
+          "floor": 2,
+          "kind": "landmark",
+          "x": 65,
+          "y": 62
+        },
+        {
+          "id": "lib-2-ws",
+          "label": "West stairs · beside central toilets",
+          "floor": 2,
+          "kind": "stairs",
+          "x": 36,
+          "y": 50
+        },
+        {
+          "id": "lib-2-es",
+          "label": "East stairs · beside east lift",
+          "floor": 2,
+          "kind": "stairs",
+          "x": 74,
+          "y": 50
+        },
+        {
+          "id": "lib-2-discovery",
+          "label": "Discovery Square · south aisle",
+          "floor": 2,
+          "kind": "landmark",
+          "x": 25,
+          "y": 40
+        },
+        {
+          "id": "lib-2-group",
+          "label": "Group Learning Area · south aisle",
+          "floor": 2,
+          "kind": "landmark",
+          "x": 29,
+          "y": 69
+        },
+        {
+          "id": "lib-2-service",
+          "label": "Service Desk · public side",
+          "floor": 2,
+          "kind": "landmark",
+          "x": 61,
+          "y": 69
+        },
+        {
+          "id": "lib-2-hall",
+          "label": "Entrance Hall · by gates",
+          "floor": 2,
+          "kind": "landmark",
+          "x": 80,
+          "y": 66
+        },
+        {
+          "id": "lib-2-exit",
+          "label": "2F entrance / exit doors",
+          "floor": 2,
+          "kind": "landmark",
+          "x": 90,
+          "y": 66
+        },
+        {
+          "id": "lib-2-support",
+          "label": "Support Desk · south aisle",
+          "floor": 2,
+          "kind": "landmark",
+          "x": 65,
+          "y": 40
+        },
+        {
+          "id": "lib-3-nw",
+          "label": "North aisle · west of central toilets",
+          "floor": 3,
+          "kind": "landmark",
+          "x": 41,
+          "y": 41
+        },
+        {
+          "id": "lib-3-ne",
+          "label": "North aisle · east of central toilets",
+          "floor": 3,
+          "kind": "landmark",
+          "x": 65,
+          "y": 41
+        },
+        {
+          "id": "lib-3-sw",
+          "label": "South aisle · west of central toilets",
+          "floor": 3,
+          "kind": "landmark",
+          "x": 41,
+          "y": 62
+        },
+        {
+          "id": "lib-3-se",
+          "label": "South aisle · east of central toilets",
+          "floor": 3,
+          "kind": "landmark",
+          "x": 65,
+          "y": 62
+        },
+        {
+          "id": "lib-3-ws",
+          "label": "West stairs · beside central toilets",
+          "floor": 3,
+          "kind": "stairs",
+          "x": 36,
+          "y": 50
+        },
+        {
+          "id": "lib-3-es",
+          "label": "East stairs · beside east lift",
+          "floor": 3,
+          "kind": "stairs",
+          "x": 74,
+          "y": 50
+        },
+        {
+          "id": "lib-4-nw",
+          "label": "North aisle · west of central toilets",
+          "floor": 4,
+          "kind": "landmark",
+          "x": 41,
+          "y": 41
+        },
+        {
+          "id": "lib-4-ne",
+          "label": "North aisle · east of central toilets",
+          "floor": 4,
+          "kind": "landmark",
+          "x": 65,
+          "y": 41
+        },
+        {
+          "id": "lib-4-sw",
+          "label": "South aisle · west of central toilets",
+          "floor": 4,
+          "kind": "landmark",
+          "x": 41,
+          "y": 62
+        },
+        {
+          "id": "lib-4-se",
+          "label": "South aisle · east of central toilets",
+          "floor": 4,
+          "kind": "landmark",
+          "x": 65,
+          "y": 62
+        },
+        {
+          "id": "lib-4-ws",
+          "label": "West stairs · beside central toilets",
+          "floor": 4,
+          "kind": "stairs",
+          "x": 36,
+          "y": 50
+        },
+        {
+          "id": "lib-4-es",
+          "label": "East stairs · beside east lift",
+          "floor": 4,
+          "kind": "stairs",
+          "x": 74,
+          "y": 50
+        }
+      ],
+      "edges": [
+        {
+          "to": "lib--1-ne",
+          "kind": "corridor",
+          "cost": 24.0,
+          "surveyed": false,
+          "from": "lib--1-nw"
+        },
+        {
+          "to": "lib--1-sw",
+          "kind": "corridor",
+          "cost": 20.0,
+          "surveyed": false,
+          "from": "lib--1-nw"
+        },
+        {
+          "to": "lib--1-se",
+          "kind": "corridor",
+          "cost": 20.0,
+          "surveyed": false,
+          "from": "lib--1-ne"
+        },
+        {
+          "to": "lib--1-se",
+          "kind": "corridor",
+          "cost": 24.0,
+          "surveyed": false,
+          "from": "lib--1-sw"
+        },
+        {
+          "to": "lib--1-nw",
+          "kind": "corridor",
+          "cost": 8.94,
+          "surveyed": false,
+          "from": "lib--1-ws"
+        },
+        {
+          "to": "lib--1-sw",
+          "kind": "corridor",
+          "cost": 12.65,
+          "surveyed": false,
+          "from": "lib--1-ws"
+        },
+        {
+          "to": "lib--1-ne",
+          "kind": "corridor",
+          "cost": 14.42,
+          "surveyed": false,
+          "from": "lib--1-es"
+        },
+        {
+          "to": "lib--1-se",
+          "kind": "corridor",
+          "cost": 16.97,
+          "surveyed": false,
+          "from": "lib--1-es"
+        },
+        {
+          "to": "lib-1-ne",
+          "kind": "corridor",
+          "cost": 25.0,
+          "surveyed": false,
+          "from": "lib-1-nw"
+        },
+        {
+          "to": "lib-1-sw",
+          "kind": "corridor",
+          "cost": 21.0,
+          "surveyed": false,
+          "from": "lib-1-nw"
+        },
+        {
+          "to": "lib-1-se",
+          "kind": "corridor",
+          "cost": 21.0,
+          "surveyed": false,
+          "from": "lib-1-ne"
+        },
+        {
+          "to": "lib-1-se",
+          "kind": "corridor",
+          "cost": 25.0,
+          "surveyed": false,
+          "from": "lib-1-sw"
+        },
+        {
+          "to": "lib-1-nw",
+          "kind": "corridor",
+          "cost": 9.85,
+          "surveyed": false,
+          "from": "lib-1-ws"
+        },
+        {
+          "to": "lib-1-sw",
+          "kind": "corridor",
+          "cost": 12.65,
+          "surveyed": false,
+          "from": "lib-1-ws"
+        },
+        {
+          "to": "lib-1-ne",
+          "kind": "corridor",
+          "cost": 12.21,
+          "surveyed": false,
+          "from": "lib-1-es"
+        },
+        {
+          "to": "lib-1-se",
+          "kind": "corridor",
+          "cost": 17.2,
+          "surveyed": false,
+          "from": "lib-1-es"
+        },
+        {
+          "to": "lib-2-ne",
+          "kind": "corridor",
+          "cost": 24.0,
+          "surveyed": false,
+          "from": "lib-2-nw"
+        },
+        {
+          "to": "lib-2-sw",
+          "kind": "corridor",
+          "cost": 21.0,
+          "surveyed": false,
+          "from": "lib-2-nw"
+        },
+        {
+          "to": "lib-2-se",
+          "kind": "corridor",
+          "cost": 21.0,
+          "surveyed": false,
+          "from": "lib-2-ne"
+        },
+        {
+          "to": "lib-2-se",
+          "kind": "corridor",
+          "cost": 24.0,
+          "surveyed": false,
+          "from": "lib-2-sw"
+        },
+        {
+          "to": "lib-2-nw",
+          "kind": "corridor",
+          "cost": 10.3,
+          "surveyed": false,
+          "from": "lib-2-ws"
+        },
+        {
+          "to": "lib-2-sw",
+          "kind": "corridor",
+          "cost": 13.0,
+          "surveyed": false,
+          "from": "lib-2-ws"
+        },
+        {
+          "to": "lib-2-ne",
+          "kind": "corridor",
+          "cost": 12.73,
+          "surveyed": false,
+          "from": "lib-2-es"
+        },
+        {
+          "to": "lib-2-se",
+          "kind": "corridor",
+          "cost": 15.0,
+          "surveyed": false,
+          "from": "lib-2-es"
+        },
+        {
+          "to": "lib-2-nw",
+          "kind": "corridor",
+          "cost": 16.03,
+          "surveyed": false,
+          "from": "lib-2-discovery"
+        },
+        {
+          "to": "lib-2-sw",
+          "kind": "corridor",
+          "cost": 13.89,
+          "surveyed": false,
+          "from": "lib-2-group"
+        },
+        {
+          "to": "lib-2-service",
+          "kind": "corridor",
+          "cost": 32.0,
+          "surveyed": false,
+          "from": "lib-2-group"
+        },
+        {
+          "to": "lib-2-se",
+          "kind": "corridor",
+          "cost": 8.06,
+          "surveyed": false,
+          "from": "lib-2-service"
+        },
+        {
+          "to": "lib-2-hall",
+          "kind": "corridor",
+          "cost": 19.24,
+          "surveyed": false,
+          "from": "lib-2-service"
+        },
+        {
+          "to": "lib-2-hall",
+          "kind": "corridor",
+          "cost": 15.52,
+          "surveyed": false,
+          "from": "lib-2-se"
+        },
+        {
+          "to": "lib-2-exit",
+          "kind": "corridor",
+          "cost": 10.0,
+          "surveyed": false,
+          "from": "lib-2-hall"
+        },
+        {
+          "to": "lib-2-ne",
+          "kind": "corridor",
+          "cost": 1,
+          "surveyed": false,
+          "from": "lib-2-support"
+        },
+        {
+          "to": "lib-3-ne",
+          "kind": "corridor",
+          "cost": 24.0,
+          "surveyed": false,
+          "from": "lib-3-nw"
+        },
+        {
+          "to": "lib-3-sw",
+          "kind": "corridor",
+          "cost": 21.0,
+          "surveyed": false,
+          "from": "lib-3-nw"
+        },
+        {
+          "to": "lib-3-se",
+          "kind": "corridor",
+          "cost": 21.0,
+          "surveyed": false,
+          "from": "lib-3-ne"
+        },
+        {
+          "to": "lib-3-se",
+          "kind": "corridor",
+          "cost": 24.0,
+          "surveyed": false,
+          "from": "lib-3-sw"
+        },
+        {
+          "to": "lib-3-nw",
+          "kind": "corridor",
+          "cost": 10.3,
+          "surveyed": false,
+          "from": "lib-3-ws"
+        },
+        {
+          "to": "lib-3-sw",
+          "kind": "corridor",
+          "cost": 13.0,
+          "surveyed": false,
+          "from": "lib-3-ws"
+        },
+        {
+          "to": "lib-3-ne",
+          "kind": "corridor",
+          "cost": 12.73,
+          "surveyed": false,
+          "from": "lib-3-es"
+        },
+        {
+          "to": "lib-3-se",
+          "kind": "corridor",
+          "cost": 15.0,
+          "surveyed": false,
+          "from": "lib-3-es"
+        },
+        {
+          "to": "lib-4-ne",
+          "kind": "corridor",
+          "cost": 24.0,
+          "surveyed": false,
+          "from": "lib-4-nw"
+        },
+        {
+          "to": "lib-4-sw",
+          "kind": "corridor",
+          "cost": 21.0,
+          "surveyed": false,
+          "from": "lib-4-nw"
+        },
+        {
+          "to": "lib-4-se",
+          "kind": "corridor",
+          "cost": 21.0,
+          "surveyed": false,
+          "from": "lib-4-ne"
+        },
+        {
+          "to": "lib-4-se",
+          "kind": "corridor",
+          "cost": 24.0,
+          "surveyed": false,
+          "from": "lib-4-sw"
+        },
+        {
+          "to": "lib-4-nw",
+          "kind": "corridor",
+          "cost": 10.3,
+          "surveyed": false,
+          "from": "lib-4-ws"
+        },
+        {
+          "to": "lib-4-sw",
+          "kind": "corridor",
+          "cost": 13.0,
+          "surveyed": false,
+          "from": "lib-4-ws"
+        },
+        {
+          "to": "lib-4-ne",
+          "kind": "corridor",
+          "cost": 12.73,
+          "surveyed": false,
+          "from": "lib-4-es"
+        },
+        {
+          "to": "lib-4-se",
+          "kind": "corridor",
+          "cost": 15.0,
+          "surveyed": false,
+          "from": "lib-4-es"
+        },
+        {
+          "to": "lib-1-ws",
+          "kind": "stairs",
+          "cost": 100,
+          "surveyed": false,
+          "from": "lib--1-ws"
+        },
+        {
+          "to": "lib-1-es",
+          "kind": "stairs",
+          "cost": 100,
+          "surveyed": false,
+          "from": "lib--1-es"
+        },
+        {
+          "to": "lib-2-ws",
+          "kind": "stairs",
+          "cost": 100,
+          "surveyed": false,
+          "from": "lib-1-ws"
+        },
+        {
+          "to": "lib-2-es",
+          "kind": "stairs",
+          "cost": 100,
+          "surveyed": false,
+          "from": "lib-1-es"
+        },
+        {
+          "to": "lib-3-ws",
+          "kind": "stairs",
+          "cost": 100,
+          "surveyed": false,
+          "from": "lib-2-ws"
+        },
+        {
+          "to": "lib-3-es",
+          "kind": "stairs",
+          "cost": 100,
+          "surveyed": false,
+          "from": "lib-2-es"
+        },
+        {
+          "to": "lib-4-ws",
+          "kind": "stairs",
+          "cost": 100,
+          "surveyed": false,
+          "from": "lib-3-ws"
+        },
+        {
+          "to": "lib-4-es",
+          "kind": "stairs",
+          "cost": 100,
+          "surveyed": false,
+          "from": "lib-3-es"
+        }
+      ]
     }
   ]
 }

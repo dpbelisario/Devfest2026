@@ -23,6 +23,13 @@ Every push to `main` that changes `android/**` builds a debug APK with
 uploads it to Firebase App Distribution. Testers get an email and update through the
 Firebase App Tester app.
 
+Cloud Build preloads the official Gradle 8.11.1 release archive through GitHub's
+asset API because the normal browser-download redirect can return HTTP 504.
+The wrapper SHA-256 is checked before the archive enters its standard cache.
+When upgrading Gradle, update the wrapper URL/checksum and the asset ID in
+`android/cloudbuild.yaml` together. `.contour-gradle-cache/` is disposable and
+ignored by Git.
+
 The app shows fictional demo data and is not real evacuation guidance.
 
 ## One-time setup (about 15 minutes)

@@ -1,7 +1,82 @@
 import XCTest
+import UIKit
 @testable import Contour
 
 final class ContourTests: XCTestCase {
+    @MainActor func testExitCameraShowsEditableGuessesAndShortHoldState() {
+        let scan = ObstacleScanViewController()
+        scan.loadViewIfNeeded()
+        func descendants(_ view: UIView) -> [UIView] { [view]+view.subviews.flatMap(descendants) }
+        let controls = descendants(scan.view)
+        let floor = controls.first { $0.accessibilityIdentifier == "exitFloorGuess" } as? UIButton
+        let heading = controls.first { $0.accessibilityIdentifier == "exitHeadingGuess" } as? UIButton
+        XCTAssertEqual(floor?.title(for:.normal),"Floor guess · 2F · Edit")
+        XCTAssertNotNil(heading)
+        XCTAssertTrue(controls.contains { ($0 as? UILabel)?.text == "Hold" })
+    }
+
+    @MainActor func testArrowPreviewExistsBeforeLocationOrDepth() {
+        let scan = ObstacleScanViewController()
+        scan.loadViewIfNeeded()
+        func descendants(_ view:UIView)->[UIView] { [view]+view.subviews.flatMap(descendants) }
+        let preview=descendants(scan.view).first { $0.accessibilityIdentifier == "cameraArrows" } as? CameraArrowsView
+        XCTAssertNotNil(preview)
+        XCTAssertFalse(preview?.isHidden ?? true)
+        XCTAssertEqual(preview?.cue,"scan")
+        preview?.frame = CGRect(x:0,y:0,width:414,height:896)
+        let image=UIGraphicsImageRenderer(size:CGSize(width:414,height:896)).image { _ in preview?.draw(preview!.bounds) }
+        let pixels = image.cgImage?.dataProvider?.data
+        XCTAssertNotNil(pixels)
+        if let pixels { XCTAssertTrue((0..<CFDataGetLength(pixels)).contains { CFDataGetBytePtr(pixels)![$0] != 0 }) }
+    }
+
+    func testCameraFallbackRequiresActualFeaturesOrPlane() {
+        XCTAssertEqual(ObstacleProbe.cameraEvidence([]),.unknown)
+        XCTAssertEqual(ObstacleProbe.cameraEvidence(Array(repeating:0.8,count:6)),.near)
+        XCTAssertEqual(ObstacleProbe.cameraEvidence(Array(repeating:2.5,count:6)),.farther)
+        XCTAssertEqual(ObstacleProbe.cameraEvidence([0.8]+Array(repeating:2.5,count:6),planeDistance:3),.unknown)
+        XCTAssertEqual(ObstacleProbe.cameraEvidence([],planeDistance:0.8),.near)
+        XCTAssertEqual(ObstacleProbe.cameraEvidence([],planeDistance:3),.farther)
+        XCTAssertEqual(ObstacleProbe.cameraEvidence(Array(repeating:3,count:6),planeDistance:0.8),.near)
+        XCTAssertEqual(ObstacleProbe.cameraEvidence(Array(repeating:3,count:6),planeDistance:1.3),.unknown)
+        XCTAssertEqual(ObstacleProbe.cameraEvidence([.nan,0],planeDistance:.nan),.unknown)
+    }
+    func testContinuousDemoDirectionRequiresObservedSide() {
+        XCTAssertEqual(ObstacleProbe.guidance(center:.farther,left:.near,right:.near,relative:1),"forward")
+        XCTAssertEqual(ObstacleProbe.guidance(center:.farther,left:.near,right:.farther,relative:1),"right")
+        XCTAssertEqual(ObstacleProbe.guidance(center:.farther,left:.farther,right:.near,relative:-1),"left")
+        XCTAssertEqual(ObstacleProbe.guidance(center:.farther,left:.unknown,right:.unknown,relative:0),"forward")
+        XCTAssertEqual(ObstacleProbe.guidance(center:.farther,left:.farther,right:.near,relative:1),"forward")
+        XCTAssertEqual(ObstacleProbe.guidance(center:.unknown,left:.unknown,right:.unknown,relative:1),"scan")
+        XCTAssertEqual(ObstacleProbe.guidance(center:.unknown,left:.unknown,right:.unknown,relative:-1),"scan")
+        XCTAssertEqual(ObstacleProbe.guidance(center:.unknown,left:.unknown,right:.unknown,relative:3),"around")
+        XCTAssertEqual(ObstacleProbe.guidance(center:.unknown,left:.farther,right:.farther,relative:0),"scan")
+        XCTAssertEqual(ObstacleProbe.guidance(center:.near,left:.farther,right:.near,relative:.nan),"left")
+        XCTAssertEqual(ObstacleProbe.guidance(center:.near,left:.farther,right:.farther,relative:1),"right")
+        XCTAssertEqual(ObstacleProbe.guidance(center:.near,left:.farther,right:.farther,relative:-1),"left")
+        XCTAssertEqual(ObstacleProbe.guidance(center:.near,left:.near,right:.near,relative:0),"stop")
+        XCTAssertEqual(ObstacleProbe.guidance(center:.farther,left:.farther,right:.farther,relative:.nan),"scan")
+    }
+    func testRelativeObstacleDirectionsStopOnUnknownEvidence() {
+        XCTAssertEqual(ObstacleProbe.cue(center: .farther, left: .unknown, right: .unknown), "forward")
+        XCTAssertEqual(ObstacleProbe.cue(center: .near, left: .farther, right: .near), "left")
+        XCTAssertEqual(ObstacleProbe.cue(center: .near, left: .near, right: .farther), "right")
+        XCTAssertEqual(ObstacleProbe.cue(center: .near, left: .near, right: .near), "stop")
+        XCTAssertEqual(ObstacleProbe.cue(center: .near, left: .unknown, right: .unknown), "scan")
+        XCTAssertEqual(ObstacleProbe.cue(center: .unknown, left: .farther, right: .farther), "scan")
+    }
+    func testObstacleEvidenceNeverTreatsMissingDepthAsClear() {
+        XCTAssertEqual(ObstacleProbe.depthEvidence([0.8]+Array(repeating: 2.5,count:24)), .unknown)
+        XCTAssertFalse(ObstacleProbe.closeDepth([]))
+        XCTAssertFalse(ObstacleProbe.closeDepth(Array(repeating: .nan, count: 40)))
+        XCTAssertFalse(ObstacleProbe.closeDepth(Array(repeating: 0, count: 40)))
+        XCTAssertTrue(ObstacleProbe.closeDepth(Array(repeating: 0.8, count: 40)))
+        XCTAssertFalse(ObstacleProbe.closeDepth(Array(repeating: 2.5, count: 40)))
+        XCTAssertFalse(ObstacleProbe.closeFeatures([SIMD3<Float>(0, 0, -0.6)]))
+        XCTAssertTrue(ObstacleProbe.closeFeatures(Array(repeating: SIMD3<Float>(0.1, 0, -0.6), count: 6)))
+        XCTAssertFalse(ObstacleProbe.closeFeatures(Array(repeating: SIMD3<Float>(1.2, 0, -0.6), count: 20)))
+    }
+
     func testKnownKindsUseSharedKotlinAndUnknownKindIsRejected() {
         for kind in ["eew", "tsunami", "special", "evac", "alert"] {
             XCTAssertEqual(ContourAlert(payload: ["kind": kind])?.kind, kind)
@@ -21,9 +96,9 @@ final class ContourTests: XCTestCase {
 
     func testOriginTrustRejectsOtherHostsSchemesAndPorts() {
         let origin = URL(string: "https://example.com/app/")!
-        XCTAssertTrue(ContourViewController.sameOrigin(origin, URL(string: "https://example.com:443/other")!))
+        XCTAssertTrue(WebOrigin.sameOrigin(origin, URL(string: "https://example.com:443/other")!))
         for url in ["http://example.com", "https://example.com:444", "https://example.com.evil.test", "file:///app.html"] {
-            XCTAssertFalse(ContourViewController.sameOrigin(origin, URL(string: url)!))
+            XCTAssertFalse(WebOrigin.sameOrigin(origin, URL(string: url)!))
         }
     }
 
@@ -31,5 +106,17 @@ final class ContourTests: XCTestCase {
         XCTAssertEqual(AlertHaptics.pulseCount, 12)
         XCTAssertGreaterThan(AlertHaptics.pulseSpacing, AlertHaptics.pulseDuration)
         XCTAssertLessThan(Double(AlertHaptics.pulseCount) * AlertHaptics.pulseSpacing, 10)
+    }
+
+    func testSecurityOriginChecksWithoutReadingAFrameRequest() {
+        let origin = URL(string: "https://example.com/app/")!
+        for port in [0, 443] {
+            XCTAssertTrue(WebOrigin.sameOrigin(scheme: "https", host: "example.com", port: port, to: origin))
+        }
+        XCTAssertFalse(WebOrigin.sameOrigin(scheme: "https", host: "example.com", port: 444, to: origin))
+        XCTAssertFalse(WebOrigin.sameOrigin(scheme: "http", host: "example.com", port: 443, to: origin))
+        XCTAssertFalse(WebOrigin.sameOrigin(scheme: "https", host: "example.com.evil.test", port: 443, to: origin))
+        XCTAssertFalse(WebOrigin.sameOrigin(scheme: "file", host: "", port: 0, to: origin))
+        XCTAssertTrue(WebOrigin.sameOrigin(scheme: "https", host: "example.com", port: 444, to: URL(string: "https://example.com:444/app/")!))
     }
 }

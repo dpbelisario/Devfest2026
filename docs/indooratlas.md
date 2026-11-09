@@ -7,6 +7,15 @@ rear-camera-facing compass direction for forward/back/left/right arrows. The SDK
 recomputes the route as location changes. Cross-floor segments show up/down arrows.
 There are no building, checkpoint or alignment forms in this flow.
 
+**Activation:** IndoorAtlas positioning and wayfinding are active only when
+`INDOORATLAS_API_KEY`, `INDOORATLAS_API_SECRET` and `INDOORATLAS_VENUE_ID` are all
+configured at build time (`android/local.properties` or build environment) for a
+venue that has been surveyed with MapCreator. Without all three the SDK is never
+started (`BuildConfig.INDOORATLAS_CONFIGURED` is false): the app still builds and
+runs, the room 221 Ask answer reports that corridor mapping is needed, and only
+the experimental floor estimate with manual − / + correction is shown. No live
+route arrows appear without a configured, surveyed venue.
+
 The venue was created on the separate account as
 `0d3ece20-da98-11f1-95cb-e11cd22c6739`. Floor-plan uploads and setup are recorded
 below; positioning still requires MapCreator recordings and SDK credentials.

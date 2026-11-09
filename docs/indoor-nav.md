@@ -1,9 +1,11 @@
 # Indoor navigation (demo)
 
 The generic indoor navigation demo guides you through a **fictional** two-floor
-building ("Sample Hall"). Buildings without an indoor catalog use this sample
-plan, and the screen labels it as a demo. Engineering Building II and ILAS
-Building A use the separate catalog flows described below.
+building ("Sample Hall"). Central Library instead uses its official five floor
+maps with manually confirmed exit/stairs route previews; see
+[library-demo.md](library-demo.md). Engineering Building II and ILAS Building A
+use the separate catalog flows described below. Other buildings still use
+Sample Hall, which is explicitly labelled fictional.
 
 ## Where it opens
 
@@ -34,7 +36,7 @@ corridor routes still require those credentials and a mapped venue.
    simulation, the true position (hollow circle). **I'm here** + a tap on the plan resets the
    position; the floor button (top right) sets the floor by hand.
 
-All texts are in English, 日本語, 中文 and 한국어. Everything except the 3D library runs offline.
+All texts are in English, 日本語, 中文 and 한국어. The 3D library is bundled with the page and the sample map/3D view works offline.
 
 ## How the position is estimated
 
@@ -83,8 +85,7 @@ while running, and magnetic disturbance from steel, will do worse.
 - Page: the "Indoor navigation" block at the end of `android/app/src/main/assets/contour.html`
   (`window.ContourIndoorDemo`: `open(mode, { building, after })`, `close()`, `back()`, `relang()`; `after.run()`
   starts once the exit is reached). The entry points are `goAR()`, `checkNear()` and the `#indoorBtn`
-  handler in the main script. The 3D view uses three.js
-  r128 from cdnjs, loaded when first needed; without the internet the map view is shown instead.
+  handler in the main script. The 3D view uses bundled Three.js r128; its MIT notice is included in the shared HTML.
 - App: `android/app/src/main/java/com/contour/app/indoor/IndoorSensors.kt` (barometer)
   uses the guarded `ContourIndoor.postMessage` transport in `WebUiActivity.kt`.
   Commands are `{ type: "demoSensorsStart" | "demoSensorsStop", navigationId: "sample-<session>" }`.
@@ -106,7 +107,7 @@ replace it. They retain separate sensor callbacks and route state.
    `buildWalls()` (metres) and set `PLAN_NORTH` (the compass bearing of the plan's +y axis).
 3. Walk the building and compare the estimate with known points before showing routes as guidance.
 4. Optional improvements: snap to corners and stairs (landmarks), magnetic or Wi-Fi fingerprints,
-   bundle three.js for fully offline use.
+   survey and register camera/depth geometry to the floor plan.
 
 ## Check on a phone
 

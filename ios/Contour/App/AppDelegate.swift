@@ -4,14 +4,10 @@ import UserNotifications
 @main
 final class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterDelegate {
     var window: UIWindow?
-    private let controller = ContourViewController()
+    let controller = ContourViewController()
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         UNUserNotificationCenter.current().delegate = self
-        let window = UIWindow(frame: UIScreen.main.bounds)
-        window.rootViewController = controller
-        window.makeKeyAndVisible()
-        self.window = window
         return true
     }
 
@@ -28,5 +24,28 @@ final class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationC
                                 withCompletionHandler completionHandler: @escaping () -> Void) {
         if let alert = ContourAlert(payload: response.notification.request.content.userInfo) { controller.presentAlert(alert) }
         completionHandler()
+    }
+}
+
+/// A single-window scene keeps camera/location lifecycle handling compatible with iOS 27 SDK builds.
+final class ContourSceneDelegate: UIResponder, UIWindowSceneDelegate {
+    var window: UIWindow?
+    func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions) {
+        guard let scene = scene as? UIWindowScene,
+              let app = UIApplication.shared.delegate as? AppDelegate else { return }
+        let window = UIWindow(windowScene: scene)
+        window.rootViewController = app.controller
+        self.window = window
+        app.window = window
+        window.makeKeyAndVisible()
+    }
+    func sceneDidBecomeActive(_ scene: UIScene) {
+        (UIApplication.shared.delegate as? AppDelegate)?.controller.resumeDeviceActivity()
+    }
+    func sceneWillResignActive(_ scene: UIScene) {
+        (UIApplication.shared.delegate as? AppDelegate)?.controller.stopDeviceActivity()
+    }
+    func sceneDidDisconnect(_ scene: UIScene) {
+        (UIApplication.shared.delegate as? AppDelegate)?.controller.stopDeviceActivity()
     }
 }

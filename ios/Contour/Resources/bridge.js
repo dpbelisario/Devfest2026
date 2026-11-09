@@ -18,7 +18,11 @@
       ? Math.max(0, options.timeout)
       : 30000;
     const timer = setTimeout(() => {
-      remove(id);
+      if (!watch) remove(id);
+      else {
+        const entry = positions.get(id);
+        if (entry) entry.timer = null;
+      }
       if (typeof error === "function")
         error({ code: 3, message: "Location request timed out." });
     }, timeout);
@@ -38,16 +42,39 @@
     },
   });
   window.contourIOSLocation = (position) => {
-    for (const [id, entry] of [...positions]) {
-      clearTimeout(entry.timer);
-      if (!entry.watch) positions.delete(id);
-      entry.success(position);
+    // Older hosted pages may rebuild Details on a GPS fix. Preserve the reader's
+    // position until the hosted HTML receives its metrics-only rendering update.
+    const detail = document.getElementById?.("detail");
+    const sheet = document.getElementById?.("sheet");
+    const name = document.getElementById?.("dName")?.textContent;
+    const readingOffset = detail?.scrollTop ?? 0;
+    try {
+      for (const [id, entry] of [...positions]) {
+        clearTimeout(entry.timer);
+        if (!entry.watch) positions.delete(id);
+        entry.success(position);
+      }
+    } finally {
+      if (
+        readingOffset > 0 &&
+        sheet &&
+        !sheet.hidden &&
+        document.getElementById?.("detail") === detail &&
+        document.getElementById?.("dName")?.textContent === name
+      ) {
+        detail.scrollTop = readingOffset;
+      }
+      if (!positions.size) send("locationStop");
     }
-    if (!positions.size) send("locationStop");
   };
   window.contourIOSLocationError = (code, message) => {
     for (const [id, entry] of [...positions]) {
-      remove(id);
+      // A temporary error must not silently dispose the ongoing location watch.
+      if (!entry.watch || code === 1) remove(id);
+      else {
+        clearTimeout(entry.timer);
+        entry.timer = null;
+      }
       if (typeof entry.error === "function") entry.error({ code, message });
     }
   };
@@ -56,6 +83,18 @@
     if (window.onAlertSetupChanged) window.onAlertSetupChanged();
   };
   window.ContourBridge = {
+    openFloorOverlay: () => send("openFloorOverlay"),
+    openWalkingConnections: () => send("openWalkingConnections"),
+    planLandmarkRoute: (request) => send("planLandmarkRoute", { request }),
+    startFloorAR: (goal) => send("startFloorAR", { goal }),
+    startIndoorTracking: (request) => send("startIndoorTracking", { request }),
+    pauseIndoorTracking: () => send("pauseIndoorTracking"),
+    clearIndoorTracking: () => send("clearIndoorTracking"),
+    startFloorHeading: () => send("floorHeadingStart"),
+    stopFloorHeading: () => send("floorHeadingStop"),
+    startLibraryExitAR: () => send("startLibraryExitAR"),
+    startObstacleScan: () => send("startObstacleScan"),
+    stopObstacleScan: () => send("stopObstacleScan"),
     alertSetupStatus: () => JSON.stringify({ notifications }),
     openAlertSetting: (which) =>
       send(
@@ -82,6 +121,22 @@
     },
   };
   document.addEventListener("DOMContentLoaded", () => {
+    // Keep the installed iPhone label current while older hosted HTML is deployed.
+    const floorMapsLabel = document
+      .getElementById("indoorBtn")
+      ?.querySelector("span");
+    if (floorMapsLabel) {
+      const rename = () => {
+        if (floorMapsLabel.textContent === "Library floor maps")
+          floorMapsLabel.textContent = "Floor Maps";
+      };
+      new MutationObserver(rename).observe(floorMapsLabel, {
+        childList: true,
+        characterData: true,
+        subtree: true,
+      });
+      rename();
+    }
     for (const id of ["alClose", "alMap", "alAr"]) {
       document
         .getElementById(id)
