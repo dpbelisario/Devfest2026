@@ -493,7 +493,7 @@ final class ContourViewController: UIViewController, WKNavigationDelegate, WKUID
     }
 
     private func showMessage(_ text: String) {
-        let alert = UIAlertController(title: "SEA", message: text, preferredStyle: .alert)
+        let alert = UIAlertController(title: "SEAR", message: text, preferredStyle: .alert)
         alert.addAction(UIAlertAction(title: "OK", style: .default))
         present(alert, animated: true)
     }

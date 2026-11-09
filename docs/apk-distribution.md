@@ -122,6 +122,24 @@ adds Firebase to builds whose checkout has no `android/app/google-services.json`
 Leave it unset if the file is committed or push is not wanted; see
 [push-notifications.md](push-notifications.md).
 
+### 4b. IndoorAtlas credentials (optional)
+
+The APK includes the IndoorAtlas SDK (Engineering II room 221 pilot, see
+[indooratlas.md](indooratlas.md)). To enable positioning in CI builds, store the
+mobile SDK key and secret once, in Cloud Shell:
+
+```bash
+bash android/setup-indooratlas-secrets.sh
+```
+
+It prompts for both values (hidden), creates `indooratlas-api-key` and
+`indooratlas-api-secret` in Secret Manager and lets the build service account read
+them. Without them the build still succeeds and the app reports IndoorAtlas as not
+configured. The venue and POI IDs are public and default in `android/cloudbuild.yaml`;
+override them with `_INDOORATLAS_VENUE_ID` / `_INDOORATLAS_ROOM221_POI_ID` on the trigger.
+The key and secret end up inside the APK, as with any mobile SDK key, so use mobile SDK
+credentials, never IndoorAtlas admin/server keys.
+
 ### 5. Test it
 
 Select **Run** on the trigger, with branch `main`. A build takes about 8–12 minutes,
