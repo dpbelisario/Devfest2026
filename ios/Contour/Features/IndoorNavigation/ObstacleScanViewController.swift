@@ -59,9 +59,11 @@ enum ObstacleProbe {
 /// Camera-relative chevrons stay on screen even while AR acquires observations.
 final class CameraArrowsView: UIView {
     var cue = "scan" { didSet { setNeedsDisplay() } }
+    /// Exit bearing relative to the camera (radians, clockwise). When set, it overrides the coarse cue.
+    var angle: CGFloat? { didSet { setNeedsDisplay() } }
     override func draw(_ rect: CGRect) {
         guard let context = UIGraphicsGetCurrentContext() else { return }
-        let turn:CGFloat = cue == "left" ? -.pi/3 : cue == "right" ? .pi/3 : cue == "around" ? .pi : 0
+        let turn:CGFloat = angle ?? (cue == "left" ? -.pi/3 : cue == "right" ? .pi/3 : cue == "around" ? .pi : 0)
         context.translateBy(x:bounds.midX,y:bounds.height*0.65)
         for index in 0..<5 {
             context.saveGState()
@@ -74,7 +76,7 @@ final class CameraArrowsView: UIView {
                 if i == 0 { path.move(to:p) } else { path.addLine(to:p) }
             }
             path.close()
-            (cue == "scan" || cue == "around" ? UIColor.systemOrange : UIColor.white).setFill()
+            (angle != nil ? UIColor.white : UIColor.systemOrange).setFill()
             path.fill();UIColor.black.setStroke();path.lineWidth=2;path.stroke()
             context.restoreGState()
         }
@@ -299,18 +301,22 @@ final class ObstacleScanViewController: UIViewController, ARSessionDelegate, ARS
 
     /// Straight-line bearing from the best current position to the Entrance Hall doors, relative to the camera.
     /// shortcut: inaccurate GPS indoors is accepted on purpose for the demo; it ignores walls and shelves.
+    private var exitDistance: Double = .nan
     private func exitRelative(cameraHeading: Float) -> Float? {
         let here: (Double, Double)
         if let pose = indoorTracker?.pose, pose.status == "tracking", abs(Date().timeIntervalSince1970 * 1000 - pose.timestamp) < 5000 {
             here = (pose.latitude, pose.longitude)
-        } else if let location = lastLocation, abs(location.timestamp.timeIntervalSinceNow) < 30 {
+        } else if let location = lastLocation {
             here = (location.coordinate.latitude, location.coordinate.longitude)
-        } else { return nil }
+        } else {
+            // shortcut: no fix yet, assume the library 2F centre so the arrow still points toward the exit.
+            here = (LibraryExitGeometry.shared.defaultLatitude, LibraryExitGeometry.shared.defaultLongitude)
+        }
         let g = LibraryExitGeometry.shared
         let exit = g.entrance(latitude: g.defaultLatitude, longitude: g.defaultLongitude, width: g.defaultWidth, aspect: g.defaultAspect, angle: g.defaultAngle)
         let north = (exit.latitude - here.0) * .pi / 180 * 6378137
         let east = (exit.longitude - here.1) * .pi / 180 * 6378137 * cos(here.0 * .pi / 180)
-        guard hypot(east, north) > 0.5 else { return nil }
+        exitDistance = hypot(east, north)
         let delta = Float(atan2(east, north)) - cameraHeading
         return atan2(sin(delta), cos(delta))
     }
@@ -329,6 +335,15 @@ final class ObstacleScanViewController: UIViewController, ARSessionDelegate, ARS
             headingBubble.isEnabled = false; currentRelative = .nan; updateHeadingBubble()
             directionArrow.isHidden = false; directionArrow.cue = "scan"; arrow.text = "Hold"; cueFrames = 0
             status.text = "Tracking uncertain or camera tilted. Hold upright, level, and slowly scan."
+            // Keep pointing at the exit while tilted or while AR is still initialising; only obstacle checks pause.
+            if exitDemo, abs(frame.camera.transform.columns.2.y) < 0.95 {
+                let tiltedHeading = atan2(-frame.camera.transform.columns.2.x, frame.camera.transform.columns.2.z)
+                if let toExit = exitRelative(cameraHeading: tiltedHeading) {
+                    directionArrow.angle = CGFloat(toExit)
+                    arrow.text = abs(toExit) <= .pi / 7 ? "Exit ahead" : "Turn \(toExit > 0 ? "right" : "left") toward the exit"
+                    status.text = "Hold the phone more upright to check for obstacles."
+                }
+            }
             return
         }
         let heading = atan2(-frame.camera.transform.columns.2.x, frame.camera.transform.columns.2.z)
@@ -414,16 +429,30 @@ final class ObstacleScanViewController: UIViewController, ARSessionDelegate, ARS
         stableCue = cue
         let displayed = cueFrames >= 3 ? cue : evidence[1] == .near ? "stop" : "scan"
         arrow.text = ["forward":"Move straight", "left":"Move left", "right":"Move right", "face-left":"Turn left", "face-right":"Turn right", "around":"Turn around", "stop":"Stop", "scan":"Hold"][displayed]
-        if exitDemo && waypointGuide.complete { arrow.text = "Check exit doors" }
-        else if exitDemo && guessedFloor != "2F" { arrow.text = "2F demo only" }
+        if exitDemo && relative.isFinite {
+            // The arrow always shows the exit bearing; obstacles only change the advice text.
+            let degrees = Int(abs(relative) * 180 / .pi)
+            let turnText = degrees <= 25 ? "Exit ahead" : degrees >= 150 ? "Exit behind you · turn around" : "Exit \(degrees)° \(relative > 0 ? "right" : "left") · turn \(relative > 0 ? "right" : "left")"
+            let distanceText = exitDistance.isFinite ? " · ~\(Int(exitDistance.rounded())) m" : ""
+            if evidence[1] == .near {
+                arrow.text = evidence[0] != .near && evidence[2] == .near ? "Obstacle ahead · go around on the left"
+                    : evidence[2] != .near && evidence[0] == .near ? "Obstacle ahead · go around on the right"
+                    : evidence[0] != .near ? (relative > 0 && evidence[2] != .near ? "Obstacle ahead · go around on the right" : "Obstacle ahead · go around on the left")
+                    : "Blocked · take another aisle"
+            } else { arrow.text = turnText + distanceText }
+        }
         status.text = !relative.isFinite ? "Finding location/compass · obstacle scan active. Exit direction unavailable." : displayed == "stop" ? "Nearby directions blocked. Check your surroundings." : displayed == "scan" ? "Entrance Hall direction found · checking nearby surfaces." : "Entrance Hall exit · approximate map/GPS bearing. Check the real path."
         if !usesDepth { status.text = (status.text ?? "") + " Camera estimate; blank walls/glass can be missed." }
         renderArrow(frame,heading:heading,relative:relative,cue:displayed)
-        if evidence[1] == .near && displayed == "scan" { directionArrow.isHidden = true }
     }
 
     private func renderArrow(_ frame:ARFrame,heading:Float,relative:Float,cue:String) {
         directionArrow.cue = cue
+        if exitDemo {
+            directionArrow.angle = relative.isFinite ? CGFloat(relative) : nil
+            directionArrow.isHidden = false
+            return
+        }
         directionArrow.isHidden = cue == "stop"
         directionArrow.accessibilityLabel = cue == "scan" ? "Hold, arrow preview" : arrow.text
     }
