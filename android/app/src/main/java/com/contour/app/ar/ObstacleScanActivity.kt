@@ -7,6 +7,10 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Path
+import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
+import android.content.res.ColorStateList
+import android.widget.HorizontalScrollView
 import android.opengl.GLES11Ext
 import android.opengl.GLES20
 import android.opengl.GLSurfaceView
@@ -80,6 +84,8 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer, Sensor
     private var arrowSupported = false
     private var arrowStopped = false
     private var previewReady = true
+    /** False while the library-exit start picker is open: no arrows until a start is chosen. */
+    @Volatile private var startConfirmed = true
     private lateinit var review: Button
     @Volatile private var session: Session? = null
     @Volatile private var running = false
@@ -169,7 +175,7 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer, Sensor
             private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
             private val path = Path()
             override fun onDraw(canvas: Canvas) {
-                if (!previewReady || arrowStopped) return
+                if (!previewReady || arrowStopped || !startConfirmed) return
                 canvas.save()
                 canvas.translate(width*0.5f,height*0.65f)
                 for (index in 0..4) {
@@ -182,10 +188,11 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer, Sensor
                     path.moveTo(0f,-50f); path.lineTo(34f,-16f); path.lineTo(22f,-4f)
                     path.lineTo(0f,-26f); path.lineTo(-22f,-4f); path.lineTo(-34f,-16f); path.close()
                     paint.style=Paint.Style.FILL
-                    paint.color=if (arrowSupported) Color.WHITE else 0xFFFFA726.toInt()
+                    // Accent blue like the other 3D AR arrows; amber when the direction is unsupported.
+                    paint.color=if (arrowSupported) 0xFF1F5FD1.toInt() else 0xFFFFA726.toInt()
                     paint.alpha=(120+100*(0.5+0.5*kotlin.math.sin(SystemClock.uptimeMillis()/270.0-index*0.6))).toInt()
                     canvas.drawPath(path,paint)
-                    paint.style=Paint.Style.STROKE;paint.color=Color.BLACK;paint.strokeWidth=2f
+                    paint.style=Paint.Style.STROKE;paint.color=Color.WHITE;paint.strokeWidth=2f
                     canvas.drawPath(path,paint)
                     canvas.restore()
                 }
@@ -194,17 +201,49 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer, Sensor
             }
         }
         root.addView(chevrons,FrameLayout.LayoutParams(-1,-1))
+        // Same look as the web 3D AR screen: light header with a close button, white
+        // direction pill over the camera, white card at the bottom.
+        val dp = resources.displayMetrics.density
+        fun px(v: Float) = (v * dp).toInt()
+        val ink = 0xFF141714.toInt(); val ink2 = 0xFF55575D.toInt()
+        val wash = 0xFFF3F5F3.toInt(); val line = 0xFFDFE4E0.toInt()
+        val enabledStates = arrayOf(intArrayOf(-android.R.attr.state_enabled), intArrayOf())
+        fun rounded(fill: ColorStateList, radius: Float, stroke: Int? = null, strokeDp: Float = 1f) = GradientDrawable().apply {
+            setColor(fill); setCornerRadius(radius * dp)
+            if (stroke != null) setStroke(px(strokeDp), stroke)
+        }
+        fun styleButton(button: Button, primary: Boolean) = button.apply {
+            isAllCaps = false; stateListAnimator = null
+            minHeight = 0; minimumHeight = 0; minWidth = 0; minimumWidth = 0
+            textSize = if (primary) 15f else 13.5f
+            setTextColor(ColorStateList(enabledStates, if (primary) intArrayOf(Color.WHITE, Color.WHITE) else intArrayOf(0x66141714, ink)))
+            background = if (primary) rounded(ColorStateList(enabledStates, intArrayOf(0xFFC9CCC9.toInt(), ink)), 8f)
+                else rounded(ColorStateList.valueOf(Color.WHITE), 8f, line)
+            setPadding(px(12f), px(if (primary) 13f else 8f), px(12f), px(if (primary) 13f else 8f))
+        }
+        val topBar = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        val header = FrameLayout(this).apply { setBackgroundColor(wash) }
+        header.addView(TextView(this).apply {
+            text = "✕"; textSize = 18f; setTextColor(ink); gravity = Gravity.CENTER
+            contentDescription = "Close"
+            setOnClickListener { finishObservation("unknown", reason) }
+        }, FrameLayout.LayoutParams(px(48f), px(48f), Gravity.START or Gravity.CENTER_VERTICAL).apply { leftMargin = px(4f) })
         headingLabel = TextView(this).apply {
-            text = "3D AR · Library exit\nExit · 2F entrance · demo"
-            setTextColor(Color.WHITE); textSize = 19f
-            setPadding(24, 24, 24, 24); setBackgroundColor(0xCC000000.toInt())
+            text = "Library exit AR"; textSize = 16f; setTextColor(ink); gravity = Gravity.CENTER
+            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
         }
+        header.addView(headingLabel, FrameLayout.LayoutParams(-2, -2, Gravity.CENTER))
+        topBar.addView(header, LinearLayout.LayoutParams(-1, px(56f)))
         val guesses = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(16,8,16,8); setBackgroundColor(0xCC000000.toInt())
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(px(12f), px(8f), px(12f), px(10f))
         }
-        headingLabel.text = "Library exit AR"
-        guesses.addView(headingLabel)
+        val guessScroll = HorizontalScrollView(this).apply {
+            isHorizontalScrollBarEnabled = false; setBackgroundColor(wash)
+            addView(guesses)
+        }
+        topBar.addView(guessScroll, LinearLayout.LayoutParams(-1, -2))
+        topBar.addView(View(this).apply { setBackgroundColor(line) }, LinearLayout.LayoutParams(-1, px(1f)))
         floorBubble = Button(this).apply {
             text = "Floor guess · 2F · Edit"
             setOnClickListener {
@@ -242,22 +281,35 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer, Sensor
                     }.setNegativeButton("Cancel",null).show()
             }
         }
-        guesses.addView(floorBubble)
-        guesses.addView(startBubble)
-        guesses.addView(headingBubble)
-        root.addView(guesses,FrameLayout.LayoutParams(-1,-2,Gravity.TOP))
+        for ((index, chip) in listOf(floorBubble, startBubble, headingBubble).withIndex()) {
+            styleButton(chip, primary = false)
+            guesses.addView(chip, LinearLayout.LayoutParams(-2, -2).apply { if (index > 0) leftMargin = px(8f) })
+        }
         arrow = TextView(this).apply {
-            text = "Hold"; textSize = 22f; gravity = Gravity.CENTER
-            setTextColor(Color.WHITE); setShadowLayer(5f, 0f, 2f, Color.BLACK)
+            text = "Hold"; textSize = 16f; gravity = Gravity.CENTER; setTextColor(ink)
+            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+            background = rounded(ColorStateList.valueOf(Color.WHITE), 8f)
+            setPadding(px(16f), px(10f), px(16f), px(10f)); elevation = 6f * dp
             contentDescription = "Hold"
         }
+        topBar.addView(arrow, LinearLayout.LayoutParams(-2, -2).apply { gravity = Gravity.CENTER_HORIZONTAL; topMargin = px(14f) })
+        root.addView(topBar, FrameLayout.LayoutParams(-1, -2, Gravity.TOP))
         val panel = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(24, 16, 24, 24); setBackgroundColor(0xDD000000.toInt())
+            background = rounded(ColorStateList.valueOf(Color.WHITE), 12f)
+            setPadding(px(20f), px(18f), px(20f), px(16f))
         }
+        panel.addView(TextView(this).apply {
+            text = "Central Library"; textSize = 24f; setTextColor(ink)
+            typeface = Typeface.create("sans-serif-condensed", Typeface.BOLD)
+        })
+        panel.addView(TextView(this).apply {
+            text = "Library exit · 2F Entrance Hall (demo)"; textSize = 14f; setTextColor(ink2)
+            setPadding(0, px(4f), 0, 0)
+        })
         message = TextView(this).apply {
-            text = "Starting camera…"; setTextColor(Color.WHITE); textSize = 17f
-            setPadding(0, 0, 0, 12)
+            text = "Starting camera…"; setTextColor(ink2); textSize = 14f
+            setPadding(0, px(10f), 0, 0)
         }
         review = Button(this).apply {
             text = "Review possible obstacle"; isEnabled = false
@@ -270,16 +322,68 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer, Sensor
                 }
             }
         }
-        panel.addView(arrow)
         message.visibility = View.GONE
         panel.addView(message)
+        styleButton(review, primary = true)
         review.visibility = if (intent.getBooleanExtra("exitDemo",false)) View.GONE else View.VISIBLE
-        panel.addView(review,LinearLayout.LayoutParams(-1,-2))
-        panel.addView(Button(this).apply {
-            text = "Close"
-            setOnClickListener { finishObservation("unknown", reason) }
-        }, LinearLayout.LayoutParams(-1, -2))
-        root.addView(panel, FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM))
+        panel.addView(review, LinearLayout.LayoutParams(-1, -2).apply { topMargin = px(12f) })
+        root.addView(panel, FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM).apply {
+            leftMargin = px(16f); rightMargin = px(16f); bottomMargin = px(24f)
+        })
+        // Library exit: ask where the user is before showing arrows. The camera keeps running
+        // behind this card; the chips at the top still allow changes later.
+        if (intent.getBooleanExtra("exitDemo", false)) {
+            val picker = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                background = rounded(ColorStateList.valueOf(Color.WHITE), 12f)
+                setPadding(px(20f), px(18f), px(20f), px(16f)); elevation = 8f * dp
+                isClickable = true
+            }
+            picker.addView(TextView(this).apply {
+                text = "Where are you now?"; textSize = 22f; setTextColor(ink)
+                typeface = Typeface.create("sans-serif-condensed", Typeface.BOLD)
+            })
+            picker.addView(TextView(this).apply {
+                text = "Pick the spot on 2F closest to you. You can change it later."
+                textSize = 14f; setTextColor(ink2); setPadding(0, px(4f), 0, px(12f))
+            })
+            var chosen = waypointGuide.startId
+            val options = waypointGuide.starts.map { start ->
+                Button(this).apply {
+                    text = start.label; gravity = Gravity.START or Gravity.CENTER_VERTICAL
+                    styleButton(this, primary = false); textSize = 15f
+                    setPadding(px(14f), px(12f), px(14f), px(12f))
+                }
+            }
+            fun refresh() = options.forEachIndexed { index, button ->
+                val selected = waypointGuide.starts[index].id == chosen
+                button.background = rounded(ColorStateList.valueOf(Color.WHITE), 8f, if (selected) ink else line, if (selected) 2f else 1f)
+                button.typeface = Typeface.create("sans-serif-medium", if (selected) Typeface.BOLD else Typeface.NORMAL)
+            }
+            options.forEachIndexed { index, button ->
+                button.setOnClickListener { chosen = waypointGuide.starts[index].id; refresh() }
+                picker.addView(button, LinearLayout.LayoutParams(-1, -2).apply { if (index > 0) topMargin = px(8f) })
+            }
+            refresh()
+            picker.addView(TextView(this).apply {
+                text = "Destination · Library exit (2F Entrance Hall)"; textSize = 14f; setTextColor(ink2)
+                setPadding(0, px(14f), 0, 0)
+            })
+            picker.addView(Button(this).apply {
+                text = "Start"; styleButton(this, primary = true)
+                setOnClickListener {
+                    val start = waypointGuide.starts.first { it.id == chosen }
+                    pendingStartId = start.id
+                    startBubble.text = "Start guess · ${start.label} · Edit"
+                    picker.visibility = View.GONE; panel.visibility = View.VISIBLE
+                    arrow.visibility = View.VISIBLE; startConfirmed = true; chevrons.invalidate()
+                }
+            }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = px(12f) })
+            panel.visibility = View.GONE; arrow.visibility = View.GONE; startConfirmed = false
+            root.addView(picker, FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM).apply {
+                leftMargin = px(16f); rightMargin = px(16f); bottomMargin = px(24f)
+            })
+        }
         ViewCompat.setOnApplyWindowInsetsListener(root) { view, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
             view.setPadding(bars.left, bars.top, bars.right, bars.bottom)

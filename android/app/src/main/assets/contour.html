@@ -3513,7 +3513,7 @@ window.ContourLibrary = {
   const libraryRoutes = JSON.parse($("libraryRoutes").textContent);
   const libraryFloorName = f => f === -1 ? "B1" : `${f}F`;
   phone.insertAdjacentHTML("beforeend", `<section class="ind library-maps" id="libraryMaps" hidden role="dialog" aria-modal="true" aria-labelledby="libraryMapTitle">
-    <header class="ind-bar"><button class="ind-x" id="libraryMapClose" type="button">×</button><h2 id="libraryMapTitle"></h2></header>
+    <header class="ind-bar"><button class="ind-x" id="libraryMapClose" type="button" aria-label="Close"><svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2 2l10 10M12 2 2 12"/></svg></button><h2 id="libraryMapTitle"></h2></header>
     <div class="library-map-body"><div class="library-controls"><button id="libraryRelativeDemo" data-i18n="lib.relative" type="button"></button><button id="libraryPlan3dButton" data-i18n="lib.plan3d" type="button"></button><div id="libraryPlan3d" hidden><p data-i18n="lib.modelnote"></p><label>Rotate preview <input id="libraryPlanAngle" type="range" min="-90" max="90" value="25"></label><div id="libraryPlanCanvas"></div></div></div><label><span id="libraryFloorLabel"></span> <select id="libraryFloor">${libraryFloors.map(f => `<option value="${f.floor}"${f.floor === "2F" ? " selected" : ""}>${f.floor}</option>`).join("")}</select></label>
     <details><summary>About this route preview</summary><p id="libraryMapNote"></p></details><div class="library-controls"><details><summary>Photo assistance details</summary><p data-i18n="lib.privacy"></p></details><button id="libraryPhoto" data-i18n="lib.photo" type="button"></button><input id="libraryPhotoInput" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" hidden><p id="libraryPhotoStatus" role="status"></p><div id="libraryPhotoCandidates"></div></div><div class="library-controls">
       <label><span data-i18n="lib.start"></span> <select id="libraryStart"></select></label>
@@ -4278,7 +4278,7 @@ html:not(.native) .ind-panel { padding-bottom: 30px; }
     "in.m.sens": ["Sensors · {n} steps", "センサー・{n}歩", "传感器 · {n} 步", "센서 · {n}걸음"],
     "in.baro": ["floors: barometer", "階：気圧計", "楼层：气压计", "층: 기압계"],
     "in.nobaro": ["no barometer: set the floor with the floor button", "気圧計なし：右上の階ボタンで設定", "无气压计：请用右上角楼层按钮设置", "기압계 없음: 오른쪽 위 층 버튼으로 설정"],
-    "in.nosens": ["No motion sensor data. Use the simulated walk, or open this in the Android app.", "モーションセンサーの値がありません。シミュレーションを使うか、Androidアプリで開いてください。", "没有运动传感器数据。请使用模拟步行，或在 Android 应用中打开。", "모션 센서 데이터가 없습니다. 시뮬레이션을 사용하거나 Android 앱에서 여세요."],
+    "in.nosens": ["No motion sensor data. Open this in the Contour app on a phone with motion sensors.", "モーションセンサーの値がありません。モーションセンサーのあるスマホでContourアプリを開いてください。", "没有运动传感器数据。请在带有运动传感器的手机上打开 Contour 应用。", "모션 센서 데이터가 없습니다. 모션 센서가 있는 휴대폰에서 Contour 앱을 여세요."],
     "in.relhead": ["No compass: face the first direction of the route when you start.", "コンパスなし：開始時にルートの最初の方向を向いてください。", "无指南针：开始时请面向路线的初始方向。", "나침반 없음: 시작할 때 경로의 첫 방향을 바라보세요."],
     "in.no3d": ["The 3D view needs the internet the first time. Showing the map.", "3D表示には初回インターネット接続が必要です。地図を表示します。", "3D 视图首次需要联网。正在显示地图。", "3D 보기는 처음에 인터넷이 필요합니다. 지도를 표시합니다."],
     "in.truth": ["○ true position (simulation)", "○ 実際の位置（シミュレーション）", "○ 真实位置（模拟）", "○ 실제 위치 (시뮬레이션)"],
@@ -4648,12 +4648,7 @@ html:not(.native) .ind-panel { padding-bottom: 30px; }
         <canvas class="ind-prev" id="inPrev"></canvas>
         <label class="ind-f"><span data-t="in.from"></span><select id="inFrom"></select></label>
         <label class="ind-f"><span data-t="in.to"></span><select id="inTo"></select></label>
-        <div class="ind-f"><span data-t="in.input"></span>
-          <div class="ind-opts">
-            <label><input type="radio" name="inSrc" value="sim" checked><b data-t="in.sim"></b><small data-t="in.sim.d"></small></label>
-            <label><input type="radio" name="inSrc" value="sens"><b data-t="in.sens"></b><small data-t="in.sens.d"></small></label>
-          </div>
-        </div>
+        <input type="radio" name="inSrc" value="sens" checked hidden>
         <p class="ind-note" data-t="in.note"></p>
         <p class="ind-then" id="inThen" hidden></p>
         <button class="ind-go" id="inGo" type="button" data-t="in.start"></button>
@@ -4678,7 +4673,7 @@ html:not(.native) .ind-panel { padding-bottom: 30px; }
     </section>`);
   const $ = id => document.getElementById(id);
   const ind = $("ind"), stage = $("inStage"), mapCv = $("inMap"), c3d = $("in3d");
-  let running = false, src = "sim", view3d = true, placing = false, raf = 0, noteKey = "", toastT = 0;
+  let running = false, src = "sens", view3d = true, placing = false, raf = 0, noteKey = "", toastT = 0;
   const cam = { x: 0, y: 0, h: 0 };
 
   const say = msg => { const el = $("inToast"); el.textContent = msg; el.classList.add("on"); clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove("on"), 2200); };
@@ -5050,6 +5045,25 @@ button.logo:active { background: rgba(20,23,20,.06); }
 .set-lang button[aria-checked="true"] svg { visibility: visible; }
 #page-settings #pop { position: static; width: auto; padding: 0; border: 0; transform: none; opacity: 1; pointer-events: auto; box-shadow: none; border-radius: 0; background: none; }
 #page-settings #pop h4 { margin: 18px 0 6px; }
+
+/* Central Library panel: same cards, inputs and buttons as the rest of the app */
+.library-maps .library-map-body { display: flex; flex-direction: column; gap: 12px; padding: 16px max(16px, env(safe-area-inset-right, 0px)) calc(var(--bot) + 24px) max(16px, env(safe-area-inset-left, 0px)); background: var(--wash); }
+.library-maps .library-controls { margin: 0; gap: 8px; }
+.library-maps .library-map-body > * { flex-shrink: 0; }
+.library-maps .library-controls button { min-height: 46px; padding: 10px 14px; border: 1px solid var(--wash-line); border-radius: 10px; background: var(--paper); color: var(--ink); font: 500 14.5px/1.3 var(--f-body); text-align: center; }
+.library-maps .library-controls button:active { background: #eef0ee; }
+.library-maps #libraryConfirm, .library-maps #libraryNext { border-color: var(--ink); background: var(--ink); color: #fff; }
+.library-maps label { display: grid; gap: 6px; font: 600 12px/1.2 var(--f-body); color: var(--ink-2); }
+.library-maps select { width: 100%; height: 46px; padding: 0 12px; border: 1px solid var(--wash-line); border-radius: 10px; background: var(--paper); color: var(--ink); font: 500 14.5px/1 var(--f-body); }
+.library-maps details { padding: 12px 14px; border: 1px solid var(--wash-line); border-radius: 10px; background: var(--paper); }
+.library-maps summary { font: 500 14px/1.3 var(--f-body); color: var(--ink); cursor: pointer; }
+.library-maps details p { margin: 8px 0 0; color: var(--ink-2); }
+.library-maps #libraryGuide { margin: 0; padding: 16px; border: 1px solid var(--wash-line); border-radius: 12px; background: var(--paper); }
+.library-maps #libraryGuide p { margin: 0 0 8px; }
+.library-maps #libraryArrow { color: var(--accent); }
+.library-maps .library-map-scroll { border: 1px solid var(--wash-line); border-radius: 12px; }
+.library-maps #libraryPhotoStatus:empty { display: none; }
+.library-maps .library-map-body > p { margin: 0; font-size: 12.5px; }
 
 /* Map credits (Google / OSM) at the very bottom, under the cards */
 .phone { --attr-h: 18px; }
