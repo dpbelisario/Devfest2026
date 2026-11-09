@@ -1,0 +1,49 @@
+{
+  "id": "example-building",
+  "name": {
+    "en": "EXAMPLE Building (replace me)",
+    "ja": "サンプル建物（要変更）"
+  },
+  "enabled": false,
+  "indoorAtlas": {
+    "venueId": "00000000-0000-0000-0000-000000000000",
+    "floors": [
+      {
+        "floorPlanId": "00000000-0000-0000-0000-000000000001",
+        "floorLevel": 1,
+        "name": "1F"
+      }
+    ]
+  },
+  "location": {
+    "lat": 0,
+    "lng": 0,
+    "radiusM": 100
+  },
+  "exits": [
+    {
+      "id": "example-exit",
+      "name": {
+        "en": "EXAMPLE exit (replace me)",
+        "ja": "サンプル出口（要変更）"
+      },
+      "floorLevel": 1,
+      "lat": 0,
+      "lng": 0,
+      "kind": "exit",
+      "source": "estimate"
+    }
+  ],
+  "pois": [
+    {
+      "id": "example-room",
+      "name": {
+        "en": "EXAMPLE room (replace me)",
+        "ja": "サンプル部屋（要変更）"
+      },
+      "floorLevel": 1,
+      "indoorAtlasPoiId": "00000000-0000-0000-0000-000000000002"
+    }
+  ],
+  "notes": "TEMPLATE ONLY: not a real venue. Replace every value; all-zero IDs and 0,0 coordinates are placeholders."
+}

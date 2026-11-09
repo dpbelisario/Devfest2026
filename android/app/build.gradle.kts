@@ -49,7 +49,9 @@ android {
   buildConfigField("boolean", "INDOORATLAS_AR_FUSION", (indoorSetting("INDOORATLAS_AR_FUSION") == "true").toString())
   manifestPlaceholders["indoorAtlasApiKey"] = indoorSetting("INDOORATLAS_API_KEY")
   manifestPlaceholders["indoorAtlasApiSecret"] = indoorSetting("INDOORATLAS_API_SECRET")
-  buildConfigField("boolean", "INDOORATLAS_CONFIGURED", (indoorSetting("INDOORATLAS_API_KEY").isNotBlank() && indoorSetting("INDOORATLAS_API_SECRET").isNotBlank() && indoorSetting("INDOORATLAS_VENUE_ID").isNotBlank()).toString())
+  // Venues are runtime data (GET api/indoor/venues, docs/indoor-venues.md); the venue/POI above are only the
+  // fallback used when neither the server nor the device cache has a list.
+  buildConfigField("boolean", "INDOORATLAS_CONFIGURED", (indoorSetting("INDOORATLAS_API_KEY").isNotBlank() && indoorSetting("INDOORATLAS_API_SECRET").isNotBlank()).toString())
   testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
  }
  buildFeatures { compose = true; buildConfig = true }
@@ -74,6 +76,8 @@ dependencies {
  implementation("com.google.firebase:firebase-messaging")
  implementation("com.indooratlas.android:indooratlas-android-sdk:3.8.1@aar")
  testImplementation("junit:junit:4.13.2")
+ // Real org.json for JVM unit tests (the Android stub throws "not mocked").
+ testImplementation("org.json:json:20250517")
  androidTestImplementation("androidx.test.ext:junit:1.2.1")
  androidTestImplementation("androidx.test:runner:1.6.2")
 }

@@ -14,8 +14,10 @@
 #                     Firebase client config) for warning push; used only when the
 #                     checkout has no such file. Empty: build without Firebase
 #                     (docs/push-notifications.md).
-#   _INDOORATLAS_VENUE_ID        IndoorAtlas venue ID (public; default Engineering II)
-#   _INDOORATLAS_ROOM221_POI_ID  Room 221 POI in that venue (public)
+#   _INDOORATLAS_VENUE_ID        Fallback IndoorAtlas venue ID (public; default Engineering II).
+#   _INDOORATLAS_ROOM221_POI_ID  Fallback room 221 POI in that venue (public). Venues are runtime
+#                                data from the backend (docs/indoor-venues.md); these are used only
+#                                when neither the server list nor the on-device cache is available.
 # Secret Manager:
 #   android-debug-keystore  base64 of a shared debug.keystore, so every build
 #                           is signed with the same key and installs as an update.

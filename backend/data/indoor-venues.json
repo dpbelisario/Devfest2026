@@ -1,0 +1,48 @@
+{
+  "venues": [
+    {
+      "id": "nu-engineering-2",
+      "name": {
+        "en": "Engineering Building II",
+        "ja": "工学部2号館"
+      },
+      "enabled": true,
+      "indoorAtlas": {
+        "venueId": "0d3ece20-da98-11f1-95cb-e11cd22c6739",
+        "floors": [
+          {
+            "floorPlanId": "3f9a5929-0f70-4b45-922f-8f95b53b9be8",
+            "floorLevel": 2,
+            "name": "2F"
+          },
+          {
+            "floorPlanId": "64cc64e0-e2bb-4f48-ac6e-4dd8508c5353",
+            "floorLevel": 3,
+            "name": "3F"
+          }
+        ]
+      },
+      "location": {
+        "lat": 35.15561139,
+        "lng": 136.96476536,
+        "radiusM": 100
+      },
+      "exits": [],
+      "pois": [
+        {
+          "id": "room-221",
+          "name": {
+            "en": "Room 221",
+            "ja": "221教室"
+          },
+          "floorLevel": 2,
+          "indoorAtlasPoiId": "e8679fc0-da9a-11f1-b91e-6591398611dd",
+          "lat": 35.155600092138236,
+          "lng": 136.9647637009621
+        }
+      ],
+      "updatedAt": "2026-11-07T00:00:00+09:00",
+      "notes": "Seed copy of the IndoorAtlas CMS setup recorded in docs/indooratlas.md (Nov 7, 2026). Floor plans are approximate handbook alignments; the room 221 POI placement is approximate. No exits are recorded: none have been surveyed."
+    }
+  ]
+}

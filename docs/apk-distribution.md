@@ -135,8 +135,11 @@ bash android/setup-indooratlas-secrets.sh
 It prompts for both values (hidden), creates `indooratlas-api-key` and
 `indooratlas-api-secret` in Secret Manager and lets the build service account read
 them. Without them the build still succeeds and the app reports IndoorAtlas as not
-configured. The venue and POI IDs are public and default in `android/cloudbuild.yaml`;
-override them with `_INDOORATLAS_VENUE_ID` / `_INDOORATLAS_ROOM221_POI_ID` on the trigger.
+configured. Supported venues are runtime data served by the backend
+(`GET /api/indoor/venues`, see [indoor-venues.md](indoor-venues.md)), so adding or
+changing a venue needs no new APK. The venue and POI IDs in `android/cloudbuild.yaml`
+(`_INDOORATLAS_VENUE_ID` / `_INDOORATLAS_ROOM221_POI_ID`) are only the fallback used
+when neither the server list nor the on-device cache is available.
 The key and secret end up inside the APK, as with any mobile SDK key, so use mobile SDK
 credentials, never IndoorAtlas admin/server keys.
 
