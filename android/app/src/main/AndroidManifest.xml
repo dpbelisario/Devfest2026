@@ -46,7 +46,7 @@
         <service
             android:name=".alert.EmergencyAlertListener"
             android:exported="true"
-            android:label="SEA emergency pop-up"
+            android:label="SEAR emergency pop-up"
             android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
             <intent-filter>
                 <action android:name="android.service.notification.NotificationListenerService" />
