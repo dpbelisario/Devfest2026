@@ -2908,6 +2908,15 @@ window.contourIndoorGuidance = data => {
       ar.classList.remove("nocam");
     } catch (_) { if(cameraRun===arGeneration && !ar.hidden)$("arCamNote").hidden = false; }
   }
+  // Browser fallback for the library: straight AR arrow to the 2F Entrance Hall doors from the best position estimate.
+  // shortcut: door digitised on the saved 2F plan (LibraryExitGeometry.entrance), not surveyed.
+  const LIB_EXIT_LL = [35.15490110290696, 136.96399152523583];
+  function openLibraryExitAR(p) {
+    const exitName = { en: " · 2F exit", ja: " · 2F出口", zh: " · 2F出口", ko: " · 2F 출구" };
+    const names = p.names ? Object.fromEntries(Object.entries(p.names).map(([k, v]) => [k, v + (exitName[k] || exitName.en)])) : p.names;
+    openAR({ ...p, names, ll: LIB_EXIT_LL, m: dist(HERE, LIB_EXIT_LL) });
+    useGps({ quiet: true }).then(() => { if (arPoint) { arPoint.m = dist(HERE, arPoint.ll); arPlace(); } }).catch(() => {});
+  }
   async function openAR(p) {
     if (!p || !ar.hidden) return;
     const cameraRun = ++arGeneration;
@@ -2976,7 +2985,7 @@ window.contourIndoorGuidance = data => {
   // nearest exit first, then 3D AR to the site once outside. No = 3D AR straight away.
   function goAR(p) {
     if (!p) return;
-    if (p.id === "library") { closeAR(); if (typeof window.ContourBridge?.startLibraryExitAR === "function") return ContourBridge.startLibraryExitAR(); if (typeof window.ContourBridge?.startObstacleScan === "function") return ContourBridge.startObstacleScan(); return openLibraryMaps(p); }
+    if (p.id === "library") { closeAR(); if (typeof window.ContourBridge?.startLibraryExitAR === "function") return ContourBridge.startLibraryExitAR(); if (typeof window.ContourBridge?.startObstacleScan === "function") return ContourBridge.startObstacleScan(); return openLibraryExitAR(p); }
     if (mode !== "evac" || p.building || !hasIndoor()) return openAR(p);
     askQ({
       title: t("q.inside"), body: t("q.inside.b", { s: pTitle(p) }), yes: t("q.inside.yes"), no: t("q.inside.no"),

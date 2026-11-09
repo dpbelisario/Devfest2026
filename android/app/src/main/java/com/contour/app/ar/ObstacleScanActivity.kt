@@ -86,6 +86,7 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer, Sensor
     private var previewReady = true
     /** False while the library-exit start picker is open: no arrows until a start is chosen. */
     @Volatile private var startConfirmed = true
+    private val askStartFirst = false
     private lateinit var review: Button
     @Volatile private var session: Session? = null
     @Volatile private var running = false
@@ -332,7 +333,8 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer, Sensor
         })
         // Library exit: ask where the user is before showing arrows. The camera keeps running
         // behind this card; the chips at the top still allow changes later.
-        if (intent.getBooleanExtra("exitDemo", false)) {
+        // Library exit opens straight into arrows; the start chip at the top still allows a correction.
+        if (askStartFirst && intent.getBooleanExtra("exitDemo", false)) {
             val picker = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
                 background = rounded(ColorStateList.valueOf(Color.WHITE), 12f)
