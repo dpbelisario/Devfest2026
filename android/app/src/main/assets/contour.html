@@ -799,7 +799,6 @@ html.native .ar-near { background: var(--accent-wash); color: var(--accent-deep)
     <button class="ask-fab" id="askFab" type="button" data-i18n-aria="ask.title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5h16v10H9l-5 4z"/><path d="M8.5 10.5h.01M12 10.5h.01M15.5 10.5h.01" stroke-width="2.6"/></svg><span data-i18n="ask.fab">Ask</span></button>
 
     <div class="carousel" id="carousel" aria-label="Evacuation points"></div>
-    <button class="rail-grip" id="railGrip" type="button" aria-controls="carousel" aria-expanded="true" data-i18n-aria="rail.toggle" aria-label="Show or hide the list"><span class="rg-knob"><svg viewBox="0 0 16 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path class="g-up" d="m4 4.5 4-3 4 3"/><path class="g-dn" d="m4 7.5 4 3 4-3"/></svg></span></button>
 
     <div class="dim" id="dim"></div>
 
@@ -2158,6 +2157,7 @@ window.ContourLibrary = {
   // ----- cards
   const arrowSvg = deg => `<span class="arrow"><svg viewBox="0 0 12 12" style="transform:rotate(${deg.toFixed(0)}deg)"><path d="M6 1 10 10.5 6 8.4 2 10.5Z" fill="#178049"/></svg></span>`;
   const cardHTML = (p, i) => `
+    <span class="card-grab" aria-hidden="true"></span>
     <div class="card-body">
       <div class="eyebrow"><span><span class="num">${String(p.n).padStart(2, "0")}</span>${t(i === 0 && !(p.demoOrder && hereSource === "demo") ? "card.nearest" : p.building ? "b.eyebrow" : "card.point")}</span><button class="det" type="button" tabindex="-1">${t("card.det")}<svg viewBox="0 0 8 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m1.5 1.5 5 5-5 5"/></svg></button></div>
       <h3 class="name">${esc(pTitle(p))}</h3>
@@ -2183,7 +2183,7 @@ window.ContourLibrary = {
   carousel.appendChild(emptyCard);
 
   const fitRail = () => {
-    const h = Math.max(...cards.filter(c => !c.classList.contains("hide")).map(c => c.offsetHeight), emptyCard.offsetHeight || 0, phone.classList.contains("rail-sized") || phone.classList.contains("rail-down") ? 0 : 200);
+    const h = Math.max(...cards.filter(c => !c.classList.contains("hide")).map(c => c.offsetHeight), emptyCard.offsetHeight || 0, phone.classList.contains("rail-down") ? 0 : 200);
     phone.style.setProperty("--carousel-h", h + "px");
   };
   new ResizeObserver(fitRail).observe(carousel);
@@ -2304,61 +2304,34 @@ window.ContourLibrary = {
     route.setStyle({ dashArray: "1 9" }); routeCasing.setStyle({ dashArray: "1 9" });
   }
   const NATIVE = document.documentElement.classList.contains("native");
-  // ----- card rail drag bar: free height. The cards follow the finger and keep the height where it is
-  // released. Each card drops what no longer fits: 0 full · 1 no facts · 2 no distance · 3 name + AR · 4 one row.
-  const railGrip = $("railGrip");
-  const visibleCards = () => [...carousel.children].filter(c => c.classList.contains("card") && !c.classList.contains("hide"));
-  const cardMax = () => Math.max(0, ...visibleCards().map(c => c.offsetHeight));
-  let railH = 0;
-  // Natural height of every card at every level (no fixed height while measuring).
-  function railLevels() {
-    const cs = visibleCards(), keep = cs.map(c => c.dataset.rail), sized = phone.classList.contains("rail-sized");
-    phone.classList.remove("rail-sized");
-    const hs = new Map(cs.map(c => [c, []]));
-    for (let l = 0; l < 5; l++) { cs.forEach(c => { c.dataset.rail = l; }); cs.forEach(c => hs.get(c).push(c.offsetHeight)); }
-    hs.forEach(a => { for (let l = 1; l < 5; l++) a[l] = Math.min(a[l], a[l - 1]); });
-    cs.forEach((c, k) => { if (keep[k] == null) delete c.dataset.rail; else c.dataset.rail = keep[k]; });
-    phone.classList.toggle("rail-sized", sized);
-    return { hs, min: Math.max(0, ...[...hs.values()].map(a => a[4])), max: Math.max(0, ...[...hs.values()].map(a => a[0])) };
-  }
-  function railTo(h, m) {
-    railH = h = Math.min(m.max, Math.max(m.min, h));
-    let lo = 4;
-    m.hs.forEach((a, c) => { let l = a.findIndex(x => x <= h + 0.5); if (l < 0) l = 4; c.dataset.rail = l; lo = Math.min(lo, l); });
-    phone.dataset.rail = String(lo); phone.classList.toggle("rail-down", lo === 4);
-    railGrip.setAttribute("aria-expanded", String(lo === 0 && h >= m.max - 6));
-    phone.classList.add("rail-sized"); phone.style.setProperty("--card-h", Math.round(h) + "px");
-    fitRail();
-  }
-  function railFull() {
-    railH = 0; phone.classList.remove("rail-sized", "rail-down"); phone.style.removeProperty("--card-h"); phone.dataset.rail = "0";
-    [...carousel.children].forEach(c => delete c.dataset.rail); railGrip.setAttribute("aria-expanded", "true");
+  // ----- card grabber (top of each card): drag down = minimized row (name + 3D AR), drag up = full cards, tap toggles
+  function setRailDown(down) {
+    phone.classList.toggle("rail-down", down);
+    carousel.style.transform = ""; carousel.style.transition = "";
     fitRail(); requestAnimationFrame(fitRail);
   }
-  function railToggle() { if (phone.classList.contains("rail-sized")) railFull(); else { const m = railLevels(); railTo(m.min, m); } }
-  // New cards (mode switch, search) arrive without a level: fit them to the chosen height.
-  new MutationObserver(() => { if (railH && visibleCards().some(c => c.dataset.rail == null)) railTo(railH, railLevels()); })
-    .observe(carousel, { childList: true, subtree: true, attributes: true, attributeFilter: ["class"] });
   {
-    let y0 = null, dy = 0, moved = false, h0 = 0, m = null;
-    railGrip.addEventListener("pointerdown", e => {
-      y0 = e.clientY; dy = 0; moved = false; m = railLevels(); h0 = cardMax();
-      try { railGrip.setPointerCapture(e.pointerId); } catch (_) {}
-      phone.classList.add("rail-dragging");
-    });
-    railGrip.addEventListener("pointermove", e => {
+    let y0 = null, dy = 0, moved = false;
+    const scale = () => { const r = phone.getBoundingClientRect(); return r.height / phone.offsetHeight || 1; };   // the browser preview scales the phone
+    carousel.addEventListener("pointerdown", e => {
+      if (!e.target.closest(".card-grab")) return;
+      e.stopImmediatePropagation();   // not a sideways card drag
+      y0 = e.clientY; dy = 0; moved = false; carousel.style.transition = "none";
+      try { e.target.setPointerCapture(e.pointerId); } catch (_) {}
+    }, true);
+    carousel.addEventListener("pointermove", e => {
       if (y0 === null) return;
-      const r = phone.getBoundingClientRect(), scale = r.height / phone.offsetHeight || 1;   // the browser preview scales the phone
-      dy = (e.clientY - y0) / scale; if (Math.abs(dy) > 4) moved = true;
-      if (moved) railTo(h0 - dy, m);
+      dy = (e.clientY - y0) / scale(); if (Math.abs(dy) > 6) moved = true;
+      const off = phone.classList.contains("rail-down") ? Math.min(0, Math.max(-40, dy * 0.4)) : Math.min(140, Math.max(0, dy));
+      carousel.style.transform = `translateY(${off}px)`;
     });
     const end = () => {
-      if (y0 === null) return; y0 = null; phone.classList.remove("rail-dragging");
-      if (!moved) { railToggle(); return; }
-      if (railH >= m.max - 6) railFull();   // dragged back to the top: natural full cards
+      if (y0 === null) return; y0 = null;
+      const down = phone.classList.contains("rail-down");
+      setRailDown(!moved ? !down : down ? dy > -30 : dy > 30);
     };
-    railGrip.addEventListener("pointerup", end); railGrip.addEventListener("pointercancel", end);
-    railGrip.addEventListener("click", e => { if (e.detail === 0) railToggle(); });   // keyboard
+    carousel.addEventListener("pointerup", end); carousel.addEventListener("pointercancel", end);
+    carousel.addEventListener("click", e => { if (e.target.closest(".card-grab")) e.stopImmediatePropagation(); }, true);   // a grabber tap never opens the card
   }
   function uiPad() { return { top: NATIVE ? 208 : 253, bottom: (parseFloat(getComputedStyle(phone).getPropertyValue("--carousel-h")) || 236) + 40 }; }
   function frame(p, animate = true) {
@@ -5084,39 +5057,27 @@ button.logo:active { background: rgba(20,23,20,.06); }
 .leaflet-bottom.leaflet-left { bottom: 0; }
 .leaflet-control-attribution { margin-bottom: 2px !important; }
 .carousel { bottom: var(--attr-h); transition: transform .4s cubic-bezier(.2,.9,.25,1); }
-.phone .locate, .phone .ask-fab { bottom: calc(var(--attr-h) + var(--carousel-h) + 48px); transition: bottom .4s cubic-bezier(.2,.9,.25,1), opacity .3s, transform .3s; }
-.phone .ar-fab { bottom: calc(var(--attr-h) + var(--carousel-h) + 104px); transition: bottom .4s cubic-bezier(.2,.9,.25,1), opacity .3s, transform .3s; }
+.phone .locate, .phone .ask-fab { bottom: calc(var(--attr-h) + var(--carousel-h) + 26px); transition: bottom .4s cubic-bezier(.2,.9,.25,1), opacity .3s, transform .3s; }
+.phone .ar-fab { bottom: calc(var(--attr-h) + var(--carousel-h) + 82px); transition: bottom .4s cubic-bezier(.2,.9,.25,1), opacity .3s, transform .3s; }
 
-/* Drag bar: thin line along the top of the cards, small handle in the middle */
-.rail-grip { position: absolute; z-index: 16; left: max(20px, env(safe-area-inset-left, 0px)); right: max(20px, env(safe-area-inset-right, 0px)); bottom: calc(var(--attr-h) + var(--carousel-h) + 14px - 2px); height: 22px; display: grid; place-items: center; touch-action: none; cursor: grab; color: var(--ink-2); transition: bottom .35s cubic-bezier(.2,.9,.25,1); }
-.rail-grip::before { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 1.5px; margin-top: -.75px; border-radius: 1px; background: rgba(20,23,20,.22); }
-.rg-knob { position: relative; width: 30px; height: 16px; display: grid; place-items: center; border-radius: 8px; background: var(--paper); border: 1px solid var(--wash-line); box-shadow: 0 1px 3px rgba(20,22,28,.12); }
-.rg-knob svg { width: 12px; height: 10px; }
-.rail-grip .g-up { opacity: .4; }
-.phone.rail-down .rail-grip .g-up { opacity: 1; }
-.phone.rail-down .rail-grip .g-dn { opacity: .4; }
+/* Grabber: grey rounded bar at the top of each card (iPhone sheet style) */
+.card { position: relative; }
+.card-grab { position: absolute; z-index: 1; top: 0; left: 50%; width: 76px; height: 20px; margin-left: -38px; touch-action: none; cursor: grab; }
+.card-grab::before { content: ""; position: absolute; left: 50%; top: 7px; width: 36px; height: 5px; margin-left: -18px; border-radius: 3px; background: #c7c9cc; transition: background-color .2s; }
+.card-grab:active::before { background: #a9acb0; }
+.empty-card .card-grab { display: none; }
+.phone .card { padding-top: 24px; }
 
-/* Free-height cards: height follows the drag bar; content drops out as it shrinks */
-.phone.rail-sized .card { height: var(--card-h); overflow: hidden; }
-.card[data-rail="1"] .facts,
-.card[data-rail="2"] .facts, .card[data-rail="2"] .meta,
-.card[data-rail="3"] .facts, .card[data-rail="3"] .meta, .card[data-rail="3"] .jp, .card[data-rail="3"] .eyebrow { display: none; }
-.card[data-rail="3"] .name { margin-top: 0; }
-.phone.rail-dragging .rail-grip, .phone.rail-dragging .locate, .phone.rail-dragging .ask-fab, .phone.rail-dragging .ar-fab { transition: none; }
-.phone.rail-dragging { cursor: grabbing; }
-.phone:not([data-rail="0"]):not(:not([data-rail])) .rail-grip .g-up { opacity: 1; }
 /* Compact cards (dragged all the way down): name 75% | 3D AR 25% */
 .cta-s { display: none; }
 .phone.rail-down .carousel { padding-top: 10px; padding-bottom: 10px; }
-.phone .card[data-rail="4"] { padding: 10px 10px 10px 14px; }
-.phone .card[data-rail="4"] .card-body { display: flex; flex-direction: row; align-items: center; gap: 8px; width: 100%; text-align: left; }
-.phone .card[data-rail="4"] :is(.eyebrow, .jp, .meta, .facts, .d-photo, figure) { display: none; }
-.phone .card[data-rail="4"] .name { flex: 0 0 calc(75% - 4px); min-width: 0; margin: 0; font-size: 18px; line-height: 1.1; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-.phone .card[data-rail="4"] .cta { flex: 0 0 calc(25% - 4px); min-width: 0; height: 40px; margin: 0; padding: 0 4px; gap: 4px; font-size: 12.5px; }
-.phone .card[data-rail="4"] .cta svg { width: 14px; height: 14px; }
-.card[data-rail="4"] .cta-l { display: none; }
-.card[data-rail="4"] .cta-s { display: inline; white-space: nowrap; }
-.phone.rail-down .rail-grip { bottom: calc(var(--attr-h) + var(--carousel-h) + 10px - 2px); }
-.phone.walking .rail-grip, .phone.sheet-open .rail-grip { visibility: hidden; pointer-events: none; }
+.phone.rail-down .card { padding: 18px 10px 10px 14px; }
+.phone.rail-down .card .card-body { display: flex; flex-direction: row; align-items: center; gap: 8px; width: 100%; text-align: left; }
+.phone.rail-down .card :is(.eyebrow, .jp, .meta, .facts, .d-photo, figure) { display: none; }
+.phone.rail-down .card .name { flex: 0 0 calc(75% - 4px); min-width: 0; margin: 0; font-size: 18px; line-height: 1.1; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.phone.rail-down .card .cta { flex: 0 0 calc(25% - 4px); min-width: 0; height: 40px; margin: 0; padding: 0 4px; gap: 4px; font-size: 12.5px; }
+.phone.rail-down .card .cta svg { width: 14px; height: 14px; }
+.phone.rail-down .card .cta-l { display: none; }
+.phone.rail-down .card .cta-s { display: inline; white-space: nowrap; }
 </style>
 </body></html>
