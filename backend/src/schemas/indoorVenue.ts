@@ -7,8 +7,12 @@ import { z } from "zod";
  * console edit cannot reach the app.
  *
  * Exits carry their provenance: only `source: "verified"` exits were checked on
- * site. `event-map` and `estimate` exits must never be presented as verified
- * evacuation routes.
+ * site. `event-map`, `estimate` and `indooratlas` exits must never be presented
+ * as verified evacuation routes.
+ *
+ * Venues written by the IndoorAtlas sync job (`services/indoorAtlasSync.ts`)
+ * carry `syncedFrom: "indooratlas"`, use the document ID `ia-<venue UUID>` and
+ * are only ever changed by that job (or enabled/disabled by the admin script).
  */
 
 /** Venue/POI/exit IDs: lowercase slug, also usable as a Firestore document ID. */
@@ -63,8 +67,14 @@ export const indoorVenueExitSchema = z
     lat: latitudeSchema,
     lng: longitudeSchema,
     kind: z.enum(["exit", "entrance", "stairs"]),
-    /** `verified` = checked on site; `event-map` = copied from an event map; `estimate` = unverified guess. */
-    source: z.enum(["verified", "event-map", "estimate"]),
+    /**
+     * `verified` = checked on site; `event-map` = copied from an event map;
+     * `estimate` = unverified guess; `indooratlas` = a POI the venue owner
+     * marked in IndoorAtlas whose name looks like an exit (not independently verified).
+     */
+    source: z.enum(["verified", "event-map", "estimate", "indooratlas"]),
+    /** IndoorAtlas POI (GeoJSON feature) the exit came from, when synced. */
+    indoorAtlasPoiId: indoorAtlasIdSchema.optional(),
   })
   .strict()
   .refine(notNullIsland, nullIslandMessage);
@@ -100,13 +110,24 @@ const uniqueBy =
     }
   };
 
+/** Exit provenance values; see {@link indoorVenueExitSchema}. */
+export type IndoorVenueExitSource = z.infer<
+  typeof indoorVenueExitSchema
+>["source"];
+
 const venueFields = {
   id: venueSlugSchema,
   name: localizedNameSchema,
   enabled: z.boolean(),
+  /** Set only by the IndoorAtlas sync job; manual documents never carry it. */
+  syncedFrom: z.literal("indooratlas").optional(),
+  /** Position in the IndoorAtlas venue list (0 = first); synced documents only. */
+  syncOrder: z.number().int().min(0).max(10_000).optional(),
   indoorAtlas: z
     .object({
       venueId: indoorAtlasIdSchema,
+      /** Whether the IndoorAtlas venue has a wayfinding graph (the SDK routes on it). Unknown when absent. */
+      hasWayfinding: z.boolean().optional(),
       floors: z
         .array(indoorVenueFloorSchema)
         .max(60)
@@ -134,10 +155,17 @@ const venueFields = {
   notes: z.string().max(2000).optional(),
 };
 
+const syncFieldsTogether = (venue: {
+  syncedFrom?: string;
+  syncOrder?: number;
+}) => venue.syncOrder === undefined || venue.syncedFrom !== undefined;
+const syncFieldsMessage = { message: "syncOrder needs syncedFrom" };
+
 /** A stored venue document (Firestore or seed). `updatedAt` is ISO 8601. */
 export const indoorVenueSchema = z
   .object({ ...venueFields, updatedAt: z.iso.datetime({ offset: true }) })
-  .strict();
+  .strict()
+  .refine(syncFieldsTogether, syncFieldsMessage);
 export type IndoorVenue = z.infer<typeof indoorVenueSchema>;
 
 /** Admin script input: same as a stored venue, `updatedAt` is set by the script. */
@@ -146,7 +174,8 @@ export const indoorVenueInputSchema = z
     ...venueFields,
     updatedAt: z.iso.datetime({ offset: true }).optional(),
   })
-  .strict();
+  .strict()
+  .refine(syncFieldsTogether, syncFieldsMessage);
 export type IndoorVenueInput = z.infer<typeof indoorVenueInputSchema>;
 
 /** Seed file: `backend/data/indoor-venues.json`. */
@@ -160,12 +189,20 @@ export const indoorVenueSeedSchema = z
     ),
   );
 
-/** One venue in `GET /api/indoor/venues`: enabled only, no internal notes. */
-export const publicIndoorVenueSchema = indoorVenueSchema
-  .omit({ notes: true, enabled: true })
+/**
+ * One venue in `GET /api/indoor/venues`: enabled only, no internal notes.
+ * Listed IndoorAtlas-synced first (IndoorAtlas order), then manual Firestore
+ * venues, then seed venues; `rank` is the 1-based position and `primary` marks
+ * rank 1 (the app shows it as "01").
+ */
+export const publicIndoorVenueSchema = z
+  .object({ ...venueFields, updatedAt: z.iso.datetime({ offset: true }) })
+  .omit({ notes: true, enabled: true, syncOrder: true })
   .extend({
     /** Where this record came from: the Firestore collection or the bundled seed. */
     origin: z.enum(["firestore", "seed"]),
+    rank: z.number().int().min(1),
+    primary: z.boolean(),
   })
   .strict();
 export type PublicIndoorVenue = z.infer<typeof publicIndoorVenueSchema>;

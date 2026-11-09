@@ -57,6 +57,12 @@ const environmentSchema = z.object({
     .pipe(
       z.string().regex(/^[A-Za-z0-9\-_.~%]{1,900}$/, "Invalid FCM topic name"),
     ),
+  /**
+   * IndoorAtlas Mapping REST API key for `/jobs/indooratlas/sync` (jobs
+   * service only; from Secret Manager `indooratlas-mapping-api-key`). Unset:
+   * the sync reports `configured: false` and does nothing. Never logged.
+   */
+  INDOORATLAS_MAPPING_API_KEY: optionalText,
   /** Assistant requests allowed per minute in total, per instance. */
   ASSISTANT_TOTAL_PER_MINUTE: z.coerce.number().int().min(1).default(60),
 });

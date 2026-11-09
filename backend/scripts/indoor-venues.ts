@@ -6,11 +6,14 @@
  *   npm run indoor-venues --workspace backend -- list
  *   npm run indoor-venues --workspace backend -- upsert path/to/venue.json
  *   npm run indoor-venues --workspace backend -- enable|disable <id>
+ *   INDOORATLAS_MAPPING_API_KEY=… npm run indoor-venues --workspace backend -- sync
  *
  * GOOGLE_CLOUD_PROJECT and FIRESTORE_DATABASE_ID are honoured when set.
+ * `sync` reads the IndoorAtlas Mapping API key from the environment only.
  */
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { createIndoorAtlasClient } from "../src/services/indoorAtlasClient.js";
 import { FirestoreIndoorVenuesRepository } from "../src/repositories/firestoreIndoorVenuesRepository.js";
 import {
   AdminInputError,
@@ -22,6 +25,8 @@ const optional = (value: string | undefined) => value?.trim() || undefined;
 // npm runs workspace scripts from backend/; resolve files against the caller's directory.
 const callerDirectory = process.env.INIT_CWD ?? process.cwd();
 
+const mappingApiKey = optional(process.env.INDOORATLAS_MAPPING_API_KEY);
+
 try {
   const lines = await runIndoorVenuesCommand(process.argv.slice(2), {
     repository: FirestoreIndoorVenuesRepository.create({
@@ -29,6 +34,10 @@ try {
       databaseId: optional(process.env.FIRESTORE_DATABASE_ID),
     }),
     seed: loadSeedVenues(),
+    indoorAtlasClient: mappingApiKey
+      ? createIndoorAtlasClient({ apiKey: mappingApiKey })
+      : null,
+    log: (message) => console.warn(message),
     readJson: async (path) => {
       const text = await readFile(resolve(callerDirectory, path), "utf8");
       try {

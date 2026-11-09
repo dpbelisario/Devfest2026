@@ -154,16 +154,24 @@ test("stored venues merge with the seed; invalid docs are skipped with a warning
   assert.equal(result.source, "firestore");
   assert.deepEqual(
     result.venues.map((venue) => [venue.id, venue.origin]),
+    // Manual Firestore venues are listed before seed venues.
     [
-      ["nu-engineering-2", "seed"],
       ["synthetic-hall", "firestore"],
+      ["nu-engineering-2", "seed"],
     ],
   );
   assert.equal(warnings.length, 2);
   assert.match(warnings.join("\n"), /indoorVenues\/broken/);
   assert.match(warnings.join("\n"), /indoorVenues\/mismatch/);
   // Exit provenance is passed through, never upgraded.
-  assert.equal(result.venues[1]!.exits[0]!.source, "event-map");
+  assert.equal(result.venues[0]!.exits[0]!.source, "event-map");
+  assert.deepEqual(
+    result.venues.map((venue) => [venue.rank, venue.primary]),
+    [
+      [1, true],
+      [2, false],
+    ],
+  );
 });
 
 test("disabled venues are hidden, including a disabled seed override", async () => {

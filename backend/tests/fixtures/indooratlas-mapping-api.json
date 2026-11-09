@@ -1,0 +1,96 @@
+{
+  "_comment": "Example responses copied from the IndoorAtlas Mapping API OpenAPI spec (v0.5.0): IndoorAtlas sample data in Oulu, Finland, not a real evacuation venue. Offline test fixtures only.",
+  "venues": [
+    {
+      "id": "021d95b0-8177-11f0-8b4a-4db64e3e5bb4",
+      "name": "IndoorAtlas office building",
+      "description": "IndoorAtlas offices in Oulu, Finland",
+      "address": "10-N Electronic Avenue, 90590-OULU, Finland",
+      "coordinates": { "lat": 65.0605, "lon": 25.4401 }
+    }
+  ],
+  "floorplans": [
+    {
+      "id": "fa622b60-8180-11f0-8e93-87f6b9a47be8",
+      "venueId": "c4cf2575-6bbc-4dba-b167-3a557a976020",
+      "name": "First floor, reception and lobby",
+      "floorNumber": 1,
+      "image": {
+        "url": "https://cdn.indooratlas.com/1b02f0f1-5c8e-4c2e-8b2e-1e7b414a2c83/images/8a80a6e4-1d0a-4e32-97fd-5fa6c3e775e2",
+        "width": 1000,
+        "height": 1000,
+        "widthMeters": 100,
+        "heightMeters": 100,
+        "metersToPixels": 10,
+        "pixelsToMeters": 0.1,
+        "center": { "lat": 65.0603881, "lon": 25.4401979 },
+        "topLeft": { "lat": 65.0608881, "lon": 25.4396979 },
+        "topRight": { "lat": 65.0608881, "lon": 25.4406979 },
+        "bottomLeft": { "lat": 65.0599881, "lon": 25.4396979 },
+        "bottomRight": { "lat": 65.0599881, "lon": 25.4406979 }
+      }
+    }
+  ],
+  "geofences": {
+    "type": "FeatureCollection",
+    "features": [
+      {
+        "type": "Feature",
+        "id": "c48b8e70-8309-11f0-8a1f-7f0e3a839157",
+        "properties": {
+          "floor": 3,
+          "name": "Test Rectangle",
+          "description": "This is a test."
+        },
+        "geometry": {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [25.4401, 65.0605],
+              [25.44031, 65.0605],
+              [25.44031, 65.06059],
+              [25.4401, 65.06059],
+              [25.4401, 65.0605]
+            ]
+          ]
+        }
+      },
+      {
+        "type": "Feature",
+        "id": "c5425b50-8309-11f0-8a1f-7f0e3a839158",
+        "properties": {
+          "floor": 3,
+          "name": "Nearby Point",
+          "description": "This is nearby, seriously."
+        },
+        "geometry": { "type": "Point", "coordinates": [25.44005, 65.06055] }
+      }
+    ]
+  },
+  "wayfinding": {
+    "type": "FeatureCollection",
+    "features": [
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "LineString",
+          "coordinates": [
+            [25.4401, 65.0605, 0],
+            [25.4402, 65.0606, 0]
+          ]
+        }
+      },
+      {
+        "type": "Feature",
+        "properties": { "directed": true, "tags": ["inaccessible"] },
+        "geometry": {
+          "type": "LineString",
+          "coordinates": [
+            [25.4404, 65.0605, 0],
+            [25.4403, 65.0604, 1]
+          ]
+        }
+      }
+    ]
+  }
+}

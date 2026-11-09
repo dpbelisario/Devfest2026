@@ -1,5 +1,7 @@
 import { randomBytes } from "node:crypto";
+import type { IndoorVenuesRepository } from "../../repositories/indoorVenuesRepository.js";
 import type { JobsRepository } from "../../repositories/jobsRepository.js";
+import type { IndoorAtlasClient } from "../indoorAtlasClient.js";
 import type { FetchText } from "./http.js";
 import type { WarningSender } from "./warningPush.js";
 
@@ -19,6 +21,15 @@ export interface JobsContext {
   now: () => Date;
   newRunId: () => string;
   delivery: WarningDelivery;
+  /**
+   * IndoorAtlas venue sync (`/jobs/indooratlas/sync`). `client` is null when
+   * INDOORATLAS_MAPPING_API_KEY is unset; omitted entirely, the sync also
+   * reports `configured: false`.
+   */
+  indoorAtlas?: {
+    client: IndoorAtlasClient | null;
+    venues: IndoorVenuesRepository;
+  };
 }
 
 /** Sortable, Firestore-safe run identifier, e.g. `20261105T061200Z-1a2b3c4d`. */

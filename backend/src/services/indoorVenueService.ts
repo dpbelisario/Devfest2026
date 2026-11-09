@@ -55,33 +55,73 @@ export function parseVenueDocuments(
   return result;
 }
 
+/** A venue with where it came from. */
+export interface MergedVenue {
+  venue: IndoorVenue;
+  origin: "firestore" | "seed";
+}
+
+/** Listing group: IndoorAtlas-synced documents, manual documents, then seed. */
+function group({ venue, origin }: MergedVenue): number {
+  if (origin === "seed") return 2;
+  return venue.syncedFrom === "indooratlas" ? 0 : 1;
+}
+
 /**
  * Combine Firestore and seed venues. A Firestore document overrides the seed
  * venue with the same `id` (including disabling it); seed venues without a
- * document stay available, so today's venue keeps working after a new one is
- * added. Returns every venue, enabled or not, sorted by id.
+ * document stay available. Returns every venue, enabled or not, in listing
+ * order: IndoorAtlas-synced documents first (by `syncOrder`, then name), then
+ * manual Firestore documents, then seed venues (each by id).
  */
 export function mergeVenues(
   stored: IndoorVenue[],
   seed: IndoorVenue[],
-): { venue: IndoorVenue; origin: "firestore" | "seed" }[] {
+): MergedVenue[] {
   const storedIds = new Set(stored.map((venue) => venue.id));
   return [
     ...stored.map((venue) => ({ venue, origin: "firestore" as const })),
     ...seed
       .filter((venue) => !storedIds.has(venue.id))
       .map((venue) => ({ venue, origin: "seed" as const })),
-  ].sort((a, b) => a.venue.id.localeCompare(b.venue.id));
+  ].sort(
+    (a, b) =>
+      group(a) - group(b) ||
+      (a.venue.syncOrder ?? 0) - (b.venue.syncOrder ?? 0) ||
+      (group(a) === 0 ? a.venue.name.en.localeCompare(b.venue.name.en) : 0) ||
+      a.venue.id.localeCompare(b.venue.id),
+  );
+}
+
+/**
+ * Enabled venues as the public list shows them. When at least one enabled
+ * IndoorAtlas-synced venue exists, seed venues without a Firestore document
+ * are hidden: the seed (Engineering Building II) belongs to another
+ * IndoorAtlas account. A Firestore document for a seed venue (e.g. written by
+ * `indoor-venues enable nu-engineering-2`) keeps it listed.
+ */
+export function visibleVenues(merged: MergedVenue[]): MergedVenue[] {
+  const enabled = merged.filter(({ venue }) => venue.enabled);
+  const hasSynced = enabled.some((entry) => group(entry) === 0);
+  return hasSynced
+    ? enabled.filter(({ origin }) => origin !== "seed")
+    : enabled;
 }
 
 function toPublic(
-  venue: IndoorVenue,
-  origin: "firestore" | "seed",
+  { venue, origin }: MergedVenue,
+  index: number,
 ): PublicIndoorVenue {
-  const { notes: _notes, enabled: _enabled, ...rest } = venue;
+  const {
+    notes: _notes,
+    enabled: _enabled,
+    syncOrder: _syncOrder,
+    ...rest
+  } = venue;
   void _notes;
   void _enabled;
-  return { ...rest, origin };
+  void _syncOrder;
+  return { ...rest, origin, rank: index + 1, primary: index === 0 };
 }
 
 export interface IndoorVenueServiceOptions {
@@ -130,13 +170,11 @@ export class IndoorVenueService {
   }
 
   private build(
-    entries: { venue: IndoorVenue; origin: "firestore" | "seed" }[],
+    entries: MergedVenue[],
     source: "firestore" | "seed",
   ): IndoorVenuesResponse {
     return indoorVenuesResponseSchema.parse({
-      venues: entries
-        .filter(({ venue }) => venue.enabled)
-        .map(({ venue, origin }) => toPublic(venue, origin)),
+      venues: visibleVenues(entries).map(toPublic),
       source,
       checkedAt: new Date(this.now()).toISOString(),
     });

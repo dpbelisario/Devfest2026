@@ -53,6 +53,8 @@ class WebUiActivity : ComponentActivity() {
     private data class PageRequest(val id: String, val generation: Long)
     private var pageGeneration = 0L
     private var indoorRequest: PageRequest? = null
+    /** Destination of the current IndoorAtlas session: room 221 or the detected venue's nearest exit. */
+    private var indoorTarget = com.contour.app.indoor.IndoorTarget.ROOM_221
     private var pendingIndoorPermission: PageRequest? = null
     private val askIndoorPermissions = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
         val request = pendingIndoorPermission
@@ -62,20 +64,21 @@ class WebUiActivity : ComponentActivity() {
         // Denied location still permits pressure and relative camera estimates.
         if (lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)) {
             indoor.pause()
-            indoor.start(request.id)
+            indoor.start(request.id, indoorTarget)
         }
         nativeCameraRequest?.let { continueNativeCamera(it) }
     }
 
-    private fun startIndoor(id: String) {
+    private fun startIndoor(id: String, target: com.contour.app.indoor.IndoorTarget) {
         val request = PageRequest(id, pageGeneration)
         indoorRequest = request
+        indoorTarget = target
         val permissions = mutableListOf(Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION)
         if (android.os.Build.VERSION.SDK_INT >= 29) permissions += Manifest.permission.ACTIVITY_RECOGNITION
         if (BuildConfig.INDOORATLAS_CONFIGURED && android.os.Build.VERSION.SDK_INT >= 31) permissions += Manifest.permission.BLUETOOTH_SCAN
         if (BuildConfig.INDOORATLAS_CONFIGURED && android.os.Build.VERSION.SDK_INT >= 33) permissions += Manifest.permission.NEARBY_WIFI_DEVICES
         val missing = permissions.filter { checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED }
-        indoor.start(id) // Publish unknown floor immediately; permissions never seed a fictional start.
+        indoor.start(id, target) // Publish unknown floor immediately; permissions never seed a fictional start.
         if (missing.isNotEmpty() && pendingIndoorPermission == null) {
             pendingIndoorPermission = request
             askIndoorPermissions.launch(permissions.toTypedArray())
@@ -555,10 +558,10 @@ class WebUiActivity : ComponentActivity() {
                 val id = data.optString("navigationId")
                 if (!id.matches(Regex("[a-zA-Z0-9-]{1,80}"))) return@addWebMessageListener
                 when (data.optString("type")) {
-                    "start221" -> {
+                    "start221", "startNearestExit" -> {
                         demoSensorsRequest = null
                         indoorDemoSensors.stop()
-                        startIndoor(id)
+                        startIndoor(id, com.contour.app.indoor.IndoorTarget.fromCommand(data.optString("type"))!!)
                     }
                     "stop" -> if (indoorRequest?.id == id) { indoorRequest = null; indoor.stop() }
                     "correctFloor" -> if (indoorRequest?.id == id) indoor.correctFloor(data.optInt("floor", -1))
@@ -712,7 +715,7 @@ class WebUiActivity : ComponentActivity() {
             if (androidx.core.app.NotificationManagerCompat.from(this).areNotificationsEnabled()) enableWarningPush()
             else warningPushChanged("denied")
         }
-        indoorRequest?.takeIf { it.generation == pageGeneration && pendingIndoorPermission == null }?.let { indoor.start(it.id) }
+        indoorRequest?.takeIf { it.generation == pageGeneration && pendingIndoorPermission == null }?.let { indoor.start(it.id, indoorTarget) }
         nativeCameraRequest?.let { continueNativeCamera(it) }
     }
 

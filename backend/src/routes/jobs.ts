@@ -16,6 +16,8 @@ import {
   weatherProcessRequestSchema,
   weatherProcessResponseSchema,
 } from "../schemas/jobs.js";
+import { indoorAtlasSyncSummarySchema } from "../schemas/indoorAtlas.js";
+import { syncIndoorAtlasVenues } from "../services/indoorAtlasSync.js";
 import type { JobsContext } from "../services/jobs/context.js";
 import { JobError } from "../services/jobs/errors.js";
 import { checkEqvol, processEqvol } from "../services/jobs/jmaEqvol.js";
@@ -135,6 +137,20 @@ export function createJobsRouter(context: JobsContext): Router {
     "/outbox/deliver",
     job("outbox/deliver", emptyRequestSchema, outboxDeliverResponseSchema, () =>
       deliverOutbox(context),
+    ),
+  );
+  router.post(
+    "/indooratlas/sync",
+    job(
+      "indooratlas/sync",
+      emptyRequestSchema,
+      indoorAtlasSyncSummarySchema,
+      () =>
+        syncIndoorAtlasVenues({
+          client: context.indoorAtlas?.client ?? null,
+          repository: context.indoorAtlas?.venues ?? null,
+          now: context.now,
+        }),
     ),
   );
   return router;
