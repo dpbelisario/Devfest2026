@@ -248,6 +248,7 @@ final class ContourViewController: UIViewController, WKNavigationDelegate, WKUID
                 } else {
                     let scanner = ObstacleScanViewController()
                     scanner.exitDemo = exitDemo
+                    scanner.indoorTracker = self.indoorTracker
                     scanner.modalPresentationStyle = .fullScreen
                     scanner.completion = report
                     self.obstacleScanner = scanner

@@ -85,6 +85,10 @@ final class CameraArrowsView: UIView {
 final class ObstacleScanViewController: UIViewController, ARSessionDelegate, ARSCNViewDelegate, CLLocationManagerDelegate {
     var exitDemo = false
     var completion: ((String, String) -> Void)?
+    /// Shared Floor Maps step tracker; when it is tracking, its position beats raw GPS for the exit bearing.
+    weak var indoorTracker: IndoorStepTracker?
+    private var lastLocation: CLLocation?
+    private var markerLocated = false
     private let scene = ARSCNView()
     private let usesDepth = ARWorldTrackingConfiguration.supportsFrameSemantics(.sceneDepth)
     private let status = UILabel()
@@ -278,7 +282,7 @@ final class ObstacleScanViewController: UIViewController, ARSessionDelegate, ARS
             config.frameSemantics.insert(.sceneDepth)
             if ARWorldTrackingConfiguration.supportsSceneReconstruction(.mesh) { config.sceneReconstruction = .mesh }
         }
-        waypointGuide.reset()
+        waypointGuide.reset(); markerLocated = false
         manualGoalHeading = nil; manualRouteHeading = false; currentHeading = .nan; headingBubble.isEnabled = false
         nearFrames = 0; review.isEnabled = false; cueFrames = 0; stableCue = "scan"
         directionArrow.isHidden = false; directionArrow.cue = "scan"
@@ -297,6 +301,27 @@ final class ObstacleScanViewController: UIViewController, ARSessionDelegate, ARS
         headingAt=heading.timestamp; headingAccuracy=heading.headingAccuracy
     }
     func locationManager(_ manager:CLLocationManager,didFailWithError error:Error) { }
+    func locationManager(_ manager:CLLocationManager,didUpdateLocations locations:[CLLocation]) {
+        if let latest = locations.last, latest.horizontalAccuracy >= 0 { lastLocation = latest }
+    }
+
+    /// Straight-line bearing from the best current position to the Entrance Hall doors, relative to the camera.
+    /// shortcut: inaccurate GPS indoors is accepted on purpose for the demo; it ignores walls and shelves.
+    private func exitRelative(cameraHeading: Float) -> Float? {
+        let here: (Double, Double)
+        if let pose = indoorTracker?.pose, pose.status == "tracking", abs(Date().timeIntervalSince1970 * 1000 - pose.timestamp) < 5000 {
+            here = (pose.latitude, pose.longitude)
+        } else if let location = lastLocation, abs(location.timestamp.timeIntervalSinceNow) < 30 {
+            here = (location.coordinate.latitude, location.coordinate.longitude)
+        } else { return nil }
+        let g = LibraryExitGeometry.shared
+        let exit = g.entrance(latitude: g.defaultLatitude, longitude: g.defaultLongitude, width: g.defaultWidth, aspect: g.defaultAspect, angle: g.defaultAngle)
+        let north = (exit.latitude - here.0) * .pi / 180 * 6378137
+        let east = (exit.longitude - here.1) * .pi / 180 * 6378137 * cos(here.0 * .pi / 180)
+        guard hypot(east, north) > 0.5 else { return nil }
+        let delta = Float(atan2(east, north)) - cameraHeading
+        return atan2(sin(delta), cos(delta))
+    }
 
     func session(_ session: ARSession, didUpdate frame: ARFrame) {
         guard frame.timestamp - lastUpdate >= 0.2 else { return }
@@ -336,6 +361,7 @@ final class ObstacleScanViewController: UIViewController, ARSessionDelegate, ARS
             status.text = "Location marker \(sighting.marker.label) is not on the supported 2F exit path."
             return
         }
+        markerLocated = true
         guessedFloor = "2F"; floorBubble.setTitle("Floor · 2F · QR", for: .normal); startBubble.isEnabled = true
         manualGoalHeading = nil; manualRouteHeading = false; cueFrames = 0
         startBubble.setTitle("Located · \(sighting.marker.label) · QR", for: .normal)
@@ -376,6 +402,8 @@ final class ObstacleScanViewController: UIViewController, ARSessionDelegate, ARS
                 relative = Float(waypointGuide.update(cameraX:currentCameraX,cameraZ:currentCameraZ,cameraHeading:Double(heading),mapRotation:.nan))
             }
         }
+        // AR world is gravityAndHeading in the exit demo, so the camera heading is a compass bearing.
+        if exitDemo && !markerLocated, let toExit = exitRelative(cameraHeading: heading) { relative = toExit }
         currentRelative = relative
         updateHeadingBubble()
 
