@@ -276,7 +276,7 @@ final class ObstacleScanViewController: UIViewController, ARSessionDelegate, ARS
             config.frameSemantics.insert(.sceneDepth)
             if ARWorldTrackingConfiguration.supportsSceneReconstruction(.mesh) { config.sceneReconstruction = .mesh }
         }
-        waypointGuide.reset()
+        waypointGuide.reset(); exitLatch = nil
         manualGoalHeading = nil; manualRouteHeading = false; currentHeading = .nan; headingBubble.isEnabled = false
         nearFrames = 0; review.isEnabled = false; cueFrames = 0; stableCue = "scan"
         directionArrow.isHidden = false; directionArrow.cue = "scan"
@@ -302,6 +302,11 @@ final class ObstacleScanViewController: UIViewController, ARSessionDelegate, ARS
     /// Straight-line bearing from the best current position to the Entrance Hall doors, relative to the camera.
     /// shortcut: inaccurate GPS indoors is accepted on purpose for the demo; it ignores walls and shelves.
     private var exitDistance: Double = .nan
+    /// Demo shortcut: once GPS says we are near the doors, freeze "straight out" as a world direction,
+    /// because indoor GPS overshoots the pinned door and would otherwise flip the arrow backwards.
+    private var exitLatch: (bearing: Float, x: Float, z: Float)?
+    private let exitLatchRadius = 10.0
+    private let exitLeaveDistance: Float = 12
     private func exitRelative(cameraHeading: Float) -> Float? {
         let here: (Double, Double)
         if let pose = indoorTracker?.pose, pose.status == "tracking", abs(Date().timeIntervalSince1970 * 1000 - pose.timestamp) < 5000 {
@@ -338,7 +343,8 @@ final class ObstacleScanViewController: UIViewController, ARSessionDelegate, ARS
             // Keep pointing at the exit while tilted or while AR is still initialising; only obstacle checks pause.
             if exitDemo, abs(frame.camera.transform.columns.2.y) < 0.95 {
                 let tiltedHeading = atan2(-frame.camera.transform.columns.2.x, frame.camera.transform.columns.2.z)
-                if let toExit = exitRelative(cameraHeading: tiltedHeading) {
+                if var toExit = exitRelative(cameraHeading: tiltedHeading) {
+                    if let latch = exitLatch { let delta = latch.bearing - tiltedHeading; toExit = atan2(sin(delta), cos(delta)) }
                     directionArrow.angle = CGFloat(toExit)
                     arrow.text = abs(toExit) <= .pi / 7 ? "Exit ahead" : "Turn \(toExit > 0 ? "right" : "left") toward the exit"
                     status.text = "Hold the phone more upright to check for obstacles."
@@ -362,7 +368,20 @@ final class ObstacleScanViewController: UIViewController, ARSessionDelegate, ARS
             }
         }
         // AR world is gravityAndHeading in the exit demo, so the camera heading is a compass bearing.
-        if exitDemo, let toExit = exitRelative(cameraHeading: heading) { relative = toExit }
+        if exitDemo, let toExit = exitRelative(cameraHeading: heading) {
+            relative = toExit
+            if exitLatch == nil, exitDistance < exitLatchRadius {
+                exitLatch = (heading + toExit, camera.x, camera.z)
+            }
+        }
+        if exitDemo, let latch = exitLatch {
+            let delta = latch.bearing - heading
+            relative = atan2(sin(delta), cos(delta))
+            if hypot(camera.x - latch.x, camera.z - latch.z) > exitLeaveDistance {
+                finish("arrived", "exit-reached")
+                return
+            }
+        }
         currentRelative = relative
         updateHeadingBubble()
 
@@ -440,6 +459,9 @@ final class ObstacleScanViewController: UIViewController, ARSessionDelegate, ARS
                     : evidence[0] != .near ? (relative > 0 && evidence[2] != .near ? "Obstacle ahead · go around on the right" : "Obstacle ahead · go around on the left")
                     : "Blocked · take another aisle"
             } else { arrow.text = turnText + distanceText }
+            if exitLatch != nil && evidence[1] != .near {
+                arrow.text = abs(relative) <= .pi / 7 ? "Exit doors ahead · go straight out" : "Exit doors \(relative > 0 ? "right" : "left") · turn and go straight out"
+            }
         }
         status.text = !relative.isFinite ? "Finding location/compass · obstacle scan active. Exit direction unavailable." : displayed == "stop" ? "Nearby directions blocked. Check your surroundings." : displayed == "scan" ? "Entrance Hall direction found · checking nearby surfaces." : "Entrance Hall exit · approximate map/GPS bearing. Check the real path."
         if !usesDepth { status.text = (status.text ?? "") + " Camera estimate; blank walls/glass can be missed." }
