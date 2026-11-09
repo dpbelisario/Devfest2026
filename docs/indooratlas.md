@@ -102,9 +102,13 @@ Its placement is approximate; the actual door position still needs checking.
    ./gradlew :app:assembleDebug :app:testDebugUnitTest :app:lintDebug
    ```
 
-No deployment pipeline is added. Main's existing pipeline remains unchanged and
-needs those build inputs supplied through its existing configuration to produce
-an IndoorAtlas-configured APK. A branch push alone does not configure production.
+Firebase App Distribution builds (`android/cloudbuild.yaml`) read the key and
+secret from Secret Manager (`indooratlas-api-key`, `indooratlas-api-secret`) and
+use the venue/POI IDs above as defaults. Store the secrets once with
+`bash android/setup-indooratlas-secrets.sh` in Cloud Shell; see
+[apk-distribution.md](apk-distribution.md#4b-indooratlas-credentials-optional).
+Without them the CI APK still builds, with IndoorAtlas reported as not configured.
+Local Gradle builds need `dl.cloudsmith.io` reachable to download the SDK.
 
 ## Estimates and correction
 
