@@ -31,10 +31,10 @@
 \definecolor{gtext}{HTML}{202124}
 
 % ---------- section styling ----------
-\titleformat{\section}{\large\bfseries\color{gtext}}{\thesection.}{0.6em}{}
-\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection.}{0.6em}{}
-\titlespacing*{\section}{0pt}{16pt}{8pt}
-\titlespacing*{\subsection}{0pt}{10pt}{5pt}
+\titleformat{\section}{\fontsize{15}{18}\selectfont\bfseries\color{gtext}\raggedright\hyphenpenalty=10000}{\thesection.}{0.6em}{}
+\titleformat{\subsection}{\fontsize{12}{14.5}\selectfont\bfseries}{\thesubsection.}{0.6em}{}
+\titlespacing*{\section}{0pt}{30pt plus 4pt minus 2pt}{11pt}
+\titlespacing*{\subsection}{0pt}{21pt plus 3pt minus 2pt}{8pt}
 
 % ---------- helpers ----------
 \newcommand{\checkedbox}{\makebox[1.2em]{$\boxtimes$}}
@@ -59,7 +59,7 @@
 
 % bracketed part headings, e.g. [Required Items]
 \newcommand{\partheading}[1]{%
-  \vspace{14pt}\noindent{\large\bfseries [#1]}\par\vspace{4pt}%
+  \vspace{26pt}\noindent{\large\bfseries [#1]}\par\vspace{4pt}%
   \noindent\rule{\textwidth}{0.8pt}\par\vspace{2pt}}
 
 % ---------- architecture diagram (same as architecture.tex) ----------
@@ -131,17 +131,17 @@
 \toprule
 Venue                  & Nagoya University (Nagoya) \\
 Team Name              & Contour \\
-Member                 & David Belisario Patrick Santos, Le Minh Quang, Bert, Soo Wing Seng \\
-Application Name       & ``Contour'' \\
+Member                 & David Belisario Patrick Santos, Le Minh Quang, Bert Jacob Andal Tropicales, Soo Wing Seng \\
+Application Name       & ``SEAR'' (Student Evacuation AR) \\
 Category               & Creative \\
-GitHub Repository URL  & \url{https://github.com/dpbelisario/Devfest2026} \\
+GitHub Repository URL  & \url{https://github.com/Devfest-Hackathon-2026/df-2026-t113.git} \\
 \bottomrule
 \end{tabularx}
 
 % ------------------------------------------------------------
 \section{Project Overview}
 
-``Contour'' is a phone app that gets you where you need to go, fast, in your own language.
+``SEAR'' (Student Evacuation AR) is a phone app that gets you where you need to go, fast, in your own language.
 In an emergency it finds the nearest official evacuation site, guides you to the nearest
 exit of the building, and points the way with 3D AR arrows on the camera view. On an
 ordinary day it is a campus guide that takes students to buildings and classrooms, floor
@@ -175,12 +175,12 @@ class, people lose precious minutes because alerts and evacuation data come in J
 nothing shows which exit, which way, or which classroom to head for.
 
 \medskip
-\noindent\textbf{Solution:} Contour gets you there fast, in your own language.
+\noindent\textbf{Solution:} SEAR gets you there fast, in your own language.
 
 \begin{itemize}[leftmargin=1.4em,itemsep=2pt,topsep=4pt]
   \item \textbf{To the evacuation site, fast.} One tap shows the nearest official site.
-        Contour guides you to the nearest exit of the building, then 3D AR arrows on the camera
-        view point the way. When an official alert arrives on Android, Contour opens by itself
+        SEAR guides you to the nearest exit of the building, then 3D AR arrows on the camera
+        view point the way. When an official alert arrives on Android, SEAR opens by itself
         with what to do now and the nearest suitable site.
   \item \textbf{To the classroom, fast.} Pick the building, your starting point and your
         destination, floor by floor, and follow the route on the floor map or with 3D AR.
@@ -193,7 +193,7 @@ nothing shows which exit, which way, or which classroom to head for.
 \begin{tabularx}{\textwidth}{|L{2.6cm}|Y|Y|}
 \hline
 \rowcolor{ghead}
-\textbf{Aspect} & \textbf{Before: official hazard maps and general map apps} & \cellcolor{gblue!18}\textbf{\color{gblue!70!black}With Contour} \\
+\textbf{Aspect} & \textbf{Before: official hazard maps and general map apps} & \cellcolor{gblue!18}\textbf{\color{gblue!70!black}With SEAR} \\
 \hline
 \textbf{Finding a site}   & Search a map service or data file, mostly in Japanese. & Nearest official sites on a map, filtered by disaster type, with distance and direction. \\
 \hline
@@ -233,7 +233,7 @@ nothing shows which exit, which way, or which classroom to head for.
 \midrule
 Cloud Run & Backend API, app interface and data-import jobs. & One container, scales to zero when idle. & Cold starts can delay the first request. \\
 Firebase Hosting & Public HTTPS address in front of Cloud Run. & One address for Android, iOS and browsers. & One more layer to configure. \\
-Gemini (Vertex AI) & Ask Contour assistant with function calling. Reads library sign photos. & Replies in four languages, grounded in our data. & Needs rate limits and strict rules so it does not invent sites. \\
+Gemini (Vertex AI) & SEAR AI assistant with function calling. Reads library sign photos. & Replies in four languages, grounded in our data. & Needs rate limits and strict rules so it does not invent sites. \\
 Cloud Firestore & Stores evacuation sites and JMA warnings. & Serverless. Cached, so most requests cost no reads. & Charged per read and write. \\
 Cloud Scheduler + Workflows & Import sites hourly and warnings every minute. & Retries and step graphs with no server to run. & Console edits can drift from the repository. \\
 Google Maps JavaScript API & Basemap for sites and campus buildings. & Detailed, familiar map. & Needs the internet. Paid beyond the free tier. \\
@@ -335,7 +335,7 @@ JMA warnings, so its answers stay tied to real data.
 
 \end{tikzpicture}}
 
-\caption{System architecture of Contour. Steps 1--4 follow one user request from top to bottom,
+\caption{System architecture of SEAR. Steps 1--4 follow one user request from top to bottom,
 results return the same way. Steps A--B run on a schedule (evacuation sites hourly, JMA warnings every minute).}
 \label{fig:contour-architecture}
 \end{figure}
@@ -402,7 +402,7 @@ Korean) with the globe button in the header, or under \textbf{Menu $\rightarrow$
   \item Choose your \textbf{starting room and floor}. The destination is the
         \textbf{nearest exit}. Tap \textbf{Start} and follow the indoor directions to the exit
         (stairs only, no elevators, sample floor plan).
-  \item After the exit, Contour continues with \textbf{3D AR} arrows on the camera view to
+  \item After the exit, SEAR continues with \textbf{3D AR} arrows on the camera view to
         the evacuation site.
   \item (Android app only) Open the menu and tap \textbf{Test alert}. After a few seconds
         the emergency pop-up should open with what to do now and the nearest site.
@@ -430,8 +430,8 @@ No account or saved data is needed. The app uses:
 \midrule
 1 & Nearest evacuation sites & Official Nagoya sites on a map, filtered by disaster type (earthquake, tsunami, flood, landslide, fire and more), with straight-line distance and direction. \\
 2 & 3D AR directions & Arrows drawn on the camera view using the phone's compass point toward the chosen site. \\
-3 & Ask Contour (Gemini) & Questions in four languages. The assistant reads the real site list and warnings, and can highlight sites on the map or start AR. \\
-4 & Emergency pop-up & When an official emergency alert arrives, Contour opens over the lock screen with what to do now and the nearest suitable site. \\
+3 & SEAR AI (Gemini) & Questions in four languages. The assistant reads the real site list and warnings, and can highlight sites on the map or start AR. \\
+4 & Emergency pop-up & When an official emergency alert arrives, SEAR opens over the lock screen with what to do now and the nearest suitable site. \\
 5 & Indoor navigation & Guides to the nearest exit (avoiding elevators) or to a classroom, estimating position from steps, compass and air pressure. The Central Library uses the official university floor maps. \\
 6 & Student mode & Campus guide for 16 Nagoya University buildings that works offline. \\
 7 & Offline translation and voice input & ML Kit translates site names and text on the phone, even offline, and questions can be spoken. \\
@@ -459,7 +459,7 @@ We used AI in two places: to build the app, and inside the app itself.
         checks, lint, tests and build, and report each change on our shared GitHub issue.
         This let a small team build the Android app, the iOS app, their shared interface
         and the backend within the hackathon.
-  \item \textbf{Ask Contour (Gemini on Vertex AI):} The assistant uses function calling.
+  \item \textbf{SEAR AI (Gemini on Vertex AI):} The assistant uses function calling.
         It looks up the official site list and the latest JMA warnings with our own tools,
         then replies in the user's language and can show sites on the map or start AR.
         Grounding the answers in our data keeps them from inventing sites or warnings.

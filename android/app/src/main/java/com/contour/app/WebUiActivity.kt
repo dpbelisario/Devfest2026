@@ -214,10 +214,11 @@ class WebUiActivity : ComponentActivity() {
         web.evaluateJavascript("window.contourObstacle && window.contourObstacle($payload)", null)
     }
 
-    private fun startObstacleScan(exitDemo: Boolean = false) {
+    private fun startObstacleScan(exitDemo: Boolean = false, floor: String? = null) {
         if (!pageReady || !isOurs(web.url?.let { Uri.parse(it).host }) || obstaclePageUrl != null) return
         obstaclePageUrl = web.url
-        obstacleScan.launch(Intent(this, com.contour.app.ar.ObstacleScanActivity::class.java).putExtra("exitDemo", exitDemo))
+        obstacleScan.launch(Intent(this, com.contour.app.ar.ObstacleScanActivity::class.java).putExtra("exitDemo", exitDemo)
+            .apply { if (floor != null) putExtra(com.contour.app.ar.ObstacleScanActivity.EXTRA_FLOOR, floor) })
     }
 
     // ----- Emergency pop-up: an alert waiting for the page, and the page's load state.
@@ -376,6 +377,13 @@ class WebUiActivity : ComponentActivity() {
 
         @android.webkit.JavascriptInterface
         fun startLibraryExitAR() { activity.runOnUiThread { activity.startObstacleScan(exitDemo = true) } }
+
+        /** Library exit AR starting from the floor the user picked ("B1", "1F" … "4F"); anything else falls back to 2F. */
+        @android.webkit.JavascriptInterface
+        fun startLibraryExitARFrom(floor: String) {
+            val checked = floor.takeIf { it in setOf("B1", "1F", "2F", "3F", "4F") }
+            activity.runOnUiThread { activity.startObstacleScan(exitDemo = true, floor = checked) }
+        }
 
         @android.webkit.JavascriptInterface
         fun startObstacleScan() { activity.runOnUiThread { activity.startObstacleScan() } }
