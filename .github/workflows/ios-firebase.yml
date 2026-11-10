@@ -15,7 +15,7 @@ on:
       release_notes:
         description: Notes for this build
         type: string
-        default: Contour iOS prototype; routes and alerts are demonstrations.
+        default: SEAR iOS prototype; routes and alerts are demonstrations.
 
 permissions:
   contents: read
@@ -162,8 +162,8 @@ jobs:
           if [[ "$DISTRIBUTION" == firebase ]]; then
             signing=(CODE_SIGN_STYLE=Manual "DEVELOPMENT_TEAM=$IOS_TEAM_ID" "PROVISIONING_PROFILE_SPECIFIER=$IOS_PROFILE_UUID" 'CODE_SIGN_IDENTITY=Apple Distribution')
           fi
-          xcodebuild -quiet -project ios/Contour.xcodeproj -scheme Contour -configuration Release \
-            -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/Contour.xcarchive" \
+          xcodebuild -quiet -project ios/SEAR.xcodeproj -scheme SEAR -configuration Release \
+            -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/SEAR.xcarchive" \
             -derivedDataPath ios/DerivedData "PRODUCT_BUNDLE_IDENTIFIER=$IOS_BUNDLE_ID" \
             "CURRENT_PROJECT_VERSION=$GITHUB_RUN_NUMBER" "${signing[@]}" archive
       - name: Package unsigned IPA for local re-signing
@@ -171,13 +171,13 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/ios-package/Payload" ios/DerivedData/distribution
-          cp -R "$RUNNER_TEMP/Contour.xcarchive/Products/Applications/Contour.app" "$RUNNER_TEMP/ios-package/Payload/"
-          (cd "$RUNNER_TEMP/ios-package" && zip -qr "$GITHUB_WORKSPACE/ios/DerivedData/distribution/Contour-unsigned.ipa" Payload)
+          cp -R "$RUNNER_TEMP/SEAR.xcarchive/Products/Applications/SEAR.app" "$RUNNER_TEMP/ios-package/Payload/"
+          (cd "$RUNNER_TEMP/ios-package" && zip -qr "$GITHUB_WORKSPACE/ios/DerivedData/distribution/SEAR-unsigned.ipa" Payload)
           echo 'Unsigned IPA requires local Apple development signing before installation; Firebase cannot install it.' >> "$GITHUB_STEP_SUMMARY"
       - name: Export ad hoc IPA
         if: inputs.distribution == 'firebase'
         run: |
-          xcodebuild -quiet -exportArchive -archivePath "$RUNNER_TEMP/Contour.xcarchive" \
+          xcodebuild -quiet -exportArchive -archivePath "$RUNNER_TEMP/SEAR.xcarchive" \
             -exportOptionsPlist "$RUNNER_TEMP/ios-export.plist" -exportPath ios/DerivedData/distribution
       - name: Authenticate to the owner's existing Google service account
         if: inputs.distribution == 'firebase'
@@ -194,7 +194,7 @@ jobs:
         run: |
           set -euo pipefail
           printf '%s\n' "$RELEASE_NOTES" > "$RUNNER_TEMP/ios-release-notes.txt"
-          npx --yes firebase-tools@15.33.0 appdistribution:distribute ios/DerivedData/distribution/Contour.ipa \
+          npx --yes firebase-tools@15.33.0 appdistribution:distribute ios/DerivedData/distribution/SEAR.ipa \
             --project "$FIREBASE_PROJECT_ID" --app "$FIREBASE_IOS_APP_ID" \
             --groups "$TESTER_GROUPS" --release-notes-file "$RUNNER_TEMP/ios-release-notes.txt" --non-interactive
       - name: Save the IPA

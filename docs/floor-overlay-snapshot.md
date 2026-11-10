@@ -5,7 +5,7 @@ with the code on main. It was exported from the app's single saved-overlay file
 on 2026-11-08. No other phone files, preferences, GPS history, credentials or
 signing data are included.
 
-Artifact: `ios/Contour/Resources/default-floor-overlay.json`. The decoded image
+Artifact: `ios/SEAR/Resources/default-floor-overlay.json`. The decoded image
 is the Central Library **2F** plan. The reference source already documented by the
 project is [Nagoya University Central Library floor maps](https://www.nul.nagoya-u.ac.jp/central/floormap_e.html)
 and its [2F image](https://www.nul.nagoya-u.ac.jp/central/images/2f.jpg).

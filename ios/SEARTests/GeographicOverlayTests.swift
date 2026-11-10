@@ -3,7 +3,7 @@ import UIKit
 import MapKit
 import SwiftUI
 import WebKit
-@testable import Contour
+@testable import SEAR
 
 final class GeographicOverlayTests: XCTestCase {
     func testTrackedARResolvesSavedDestinationAndPlansFromLivePose() throws {

@@ -181,7 +181,7 @@ a review UI (the JSON is edited by hand), and the MapCreator 2 walk-through.
   (`docs/floorplan-ingestion.md`). Event layout, no stated scale: expect 出口 (top
   right), 入口 + 階段・EV (bottom right), トイレ (right).
 - **Central Library 2F**: existing reviewed overlay
-  `ios/Contour/Resources/default-floor-overlay.json` and saved destinations
+  `ios/SEAR/Resources/default-floor-overlay.json` and saved destinations
   (Entrance Hall, Sky Learning Studio…). Good ground truth for OCR and walls.
 
 ## Acceptance

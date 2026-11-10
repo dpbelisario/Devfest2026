@@ -15,7 +15,7 @@ build has been uploaded or installed; no iOS release has been distributed yet.
 
 ## Same repository and Firestore backend
 
-Keep the existing `ios/Contour.xcodeproj` shell. It loads
+Keep the existing `ios/SEAR.xcodeproj` shell. It loads
 `https://gen-lang-client-0467526025.web.app/app/`, just like Android. Firebase Hosting
 forwards to Cloud Run `api`, whose existing live-data services read Firestore.
 The live Hosting rewrite was checked and still targets `api` in `asia-northeast1`.

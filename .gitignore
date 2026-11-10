@@ -20,7 +20,7 @@ ios/DerivedData/
 .playwright-cli/
 output/playwright/
 
-ios/Contour.xcodeproj/project.xcworkspace/contents.xcworkspacedata
+ios/SEAR.xcodeproj/project.xcworkspace/contents.xcworkspacedata
 
 __pycache__/
 

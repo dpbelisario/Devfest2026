@@ -10,7 +10,7 @@ const assert = require("node:assert/strict");
     "utf8",
   );
   const bridge = readFileSync(
-    path.join(__dirname, "../Contour/Resources/native-floor-overlay.js"),
+    path.join(__dirname, "../SEAR/Resources/native-floor-overlay.js"),
     "utf8",
   );
   const leaflet = readFileSync(

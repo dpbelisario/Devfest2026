@@ -1,8 +1,8 @@
 import XCTest
 import UIKit
-@testable import Contour
+@testable import SEAR
 
-final class ContourTests: XCTestCase {
+final class SEARTests: XCTestCase {
     @MainActor func testExitCameraShowsEditableGuessesAndShortHoldState() {
         let scan = ObstacleScanViewController()
         scan.loadViewIfNeeded()
