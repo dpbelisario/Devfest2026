@@ -99,8 +99,18 @@ struct CameraCueGate {
     }
 }
 
-/// A user-confirmed origin and printed destination; this is a bearing goal, not a wall-aware route.
+/// A tracked origin and destination, optionally following a natively validated floor route.
 struct FloorARGoal: Codable {
+    struct RoutePoint: Codable {
+        let latitude: Double
+        let longitude: Double
+        var isValid: Bool { latitude.isFinite && abs(latitude) < 85 && longitude.isFinite && abs(longitude) <= 180 }
+    }
+    struct RouteRequest: Codable {
+        let startID: UUID
+        let destinationID: UUID
+        let revision: String
+    }
     struct Point: Codable {
         let latitude: Double
         let longitude: Double
@@ -118,6 +128,8 @@ struct FloorARGoal: Codable {
     }
     var heading: Heading? = nil
     var trackingID: String? = nil
+    var routeRequest: RouteRequest? = nil
+    var route: [RoutePoint]? = nil
     let version: Int
     let floor: String
     let start: Point
@@ -129,7 +141,8 @@ struct FloorARGoal: Codable {
     }
     var isValid: Bool {
         version == 1 && ["B1", "1F", "2F", "3F", "4F"].contains(floor) && start.isValid && destination.isValid &&
-        simd_length(offset).isFinite && simd_length(offset) > 0.5 && simd_length(offset) <= 1000
+        simd_length(offset).isFinite && (route != nil || simd_length(offset) > 0.5) && simd_length(offset) <= 1000 &&
+        (route.map { (2...3200).contains($0.count) && $0.allSatisfy(\.isValid) } ?? true)
     }
     func guidance(from pose: IndoorStepPose) -> (distance: Float, relative: Float) {
         let north = (destination.latitude - pose.latitude) * 111319.49079327358
@@ -143,6 +156,37 @@ struct FloorARGoal: Codable {
         let angle = cameraYaw + bearing - Float(compassDegrees * .pi / 180)
         let distance = simd_length(offset)
         return camera + SIMD2(distance * sin(angle), -distance * cos(angle))
+    }
+}
+
+/// Advances along consecutive route segments using the shared step pose, never AR/GPS displacement.
+struct FloorRouteFollower {
+    let points: [FloorARGoal.RoutePoint]
+    private(set) var targetIndex = 1
+    mutating func guidance(from pose: IndoorStepPose) -> (distance: Float, relative: Float, offRoute: Bool) {
+        guard points.count >= 2 else { return (0, 0, true) }
+        func vector(_ point: FloorARGoal.RoutePoint) -> SIMD2<Double> {
+            SIMD2((point.longitude - pose.longitude) * 111319.49079327358 * cos(pose.latitude * .pi / 180),
+                (point.latitude - pose.latitude) * 111319.49079327358)
+        }
+        while targetIndex < points.count - 1 {
+            let from = vector(points[targetIndex - 1]), to = vector(points[targetIndex]), segment = to - from
+            let length = simd_length(segment)
+            let projection = length > 0.01 ? simd_dot(-from, segment) / (length * length) : 1
+            let lateral = length > 0.01 ? abs(from.x * segment.y - from.y * segment.x) / length : simd_length(to)
+            if simd_length(to) <= 1 || (projection >= 1 && lateral <= 1) { targetIndex += 1 }
+            else { break }
+        }
+        let to = vector(points[targetIndex]), from = vector(points[targetIndex - 1]), segment = to - from
+        let squared = simd_length_squared(segment)
+        let progress = squared > 0.0001 ? max(0, min(1, simd_dot(-from, segment) / squared)) : 0
+        let offRoute = simd_length(from + progress * segment) > 3
+        var remaining = simd_length(to)
+        if targetIndex + 1 < points.count {
+            for index in (targetIndex + 1)..<points.count { remaining += simd_length(vector(points[index]) - vector(points[index - 1])) }
+        }
+        let delta = atan2(to.x, to.y) - pose.heading * .pi / 180
+        return (Float(remaining), Float(atan2(sin(delta), cos(delta))), offRoute)
     }
 }
 
@@ -189,6 +233,8 @@ final class IndoorDestinationScanViewController: UIViewController, ARSessionDele
     var exitDemo = false
     var floorGoal: FloorARGoal?
     var indoorTracker: IndoorStepTracker?
+    private var routeFollower: FloorRouteFollower?
+    private var routeOffTrack = false
     private var lastObstacleAt: TimeInterval = 0
     private var lastBlocked = false
     private var lastFarther = false
@@ -332,10 +378,10 @@ final class IndoorDestinationScanViewController: UIViewController, ARSessionDele
         else if let snapshot = floorGoal?.heading, snapshot.isFresh() {
             compassDegrees = snapshot.degrees; headingAt = Date(timeIntervalSince1970: snapshot.timestamp / 1000); headingAccuracy = snapshot.accuracy
         }
-        let config = Self.cameraConfiguration(exitGoal: floorGoal == nil && !localOnly)
+        let config = Self.cameraConfiguration(exitGoal: floorGoal == nil && !localOnly, directionOnly: indoorTracker != nil)
         if floorGoal != nil {
             if indoorTracker == nil && CLLocationManager.headingAvailable() { location.startUpdatingHeading() }
-            status.text = "Direction from your confirmed start. Obstacle checks run in the background."
+            status.text = "Approximate route direction from your step-tracked position."
             immediateArrow.isHidden = false
             showImmediateDirection()
         } else if !localOnly {
@@ -371,10 +417,10 @@ final class IndoorDestinationScanViewController: UIViewController, ARSessionDele
     }
 
     /// Explicit camera-only configuration, also on LiDAR-capable iPhones.
-    static func cameraConfiguration(exitGoal: Bool) -> ARWorldTrackingConfiguration {
+    static func cameraConfiguration(exitGoal: Bool, directionOnly: Bool = false) -> ARWorldTrackingConfiguration {
         let config = ARWorldTrackingConfiguration()
         config.worldAlignment = exitGoal ? .gravityAndHeading : .gravity
-        config.planeDetection = [.horizontal, .vertical]
+        config.planeDetection = directionOnly ? [] : [.horizontal, .vertical]
         config.frameSemantics = []
         config.sceneReconstruction = []
         config.isAutoFocusEnabled = true
@@ -405,17 +451,27 @@ final class IndoorDestinationScanViewController: UIViewController, ARSessionDele
     func locationManager(_ manager:CLLocationManager,didFailWithError error:Error) { }
 
     /// The map and AR read the same pedometer/gyro pose. Camera transforms only support obstacle checks here.
+    private func trackedGuidance(from pose: IndoorStepPose) -> (distance: Float, relative: Float) {
+        guard let floorGoal else { return (0, 0) }
+        if let points = floorGoal.route {
+            if routeFollower == nil { routeFollower = FloorRouteFollower(points: points) }
+            let result = routeFollower!.guidance(from: pose)
+            routeOffTrack = result.offRoute
+            return (result.distance, result.relative)
+        }
+        return floorGoal.guidance(from: pose)
+    }
     func refreshIndoorPose() {
         guard isViewLoaded, let floorGoal, indoorTracker != nil else { return }
         immediateArrow.isHidden = false; directionArrow.isHidden = true
         guard let pose = indoorTracker?.pose, pose.sessionID == floorGoal.trackingID else {
-            immediateArrow.update(relative: nil, stopped: true); arrow.text = "Reconfirm your position"
-            status.text = "Indoor tracking ended. Close AR and set your position again."; return
+            immediateArrow.update(relative: nil, stopped: true); arrow.text = "Return to Floor Maps"
+            status.text = "Indoor tracking ended. Close AR and start or resume tracking in Floor Maps."; return
         }
-        guard pose.status == "tracking" else {
+        guard pose.status == "tracking", abs(Date().timeIntervalSince1970 * 1000 - pose.timestamp) < 2000 else {
             immediateArrow.update(relative: nil, stopped: true)
-            arrow.text = pose.status == "starting" ? "Starting motion tracking" : "Reconfirm your position"
-            status.text = "Motion tracking is paused or unavailable. Close AR and set your position again."
+            arrow.text = pose.status == "starting" ? "Starting motion tracking" : "Tracking paused"
+            status.text = "Close AR and use Resume tracking in Floor Maps. Check Motion & Fitness permission if needed."
             return
         }
         guard !pose.wallBlocked else {
@@ -424,14 +480,16 @@ final class IndoorDestinationScanViewController: UIViewController, ARSessionDele
             status.text = "Estimated movement crossed a reviewed wall. Close AR and check your position, heading or the saved doorway geometry."
             return
         }
-        let goal = floorGoal.guidance(from: pose)
-        let fresh = CACurrentMediaTime() - lastObstacleAt < 0.6
-        let blocked = fresh && lastBlocked
-        let detour = fresh ? lastDetour : nil
-        immediateArrow.update(relative: detour ?? goal.relative, caution: !fresh || !lastFarther, stopped: blocked && detour == nil)
-        arrow.text = blocked ? (detour == nil ? "Stop · obstacle ahead" : "Obstacle ahead · check side")
-            : goal.distance <= 1.5 ? "Destination nearby · check the room sign" : "Toward your destination"
-        status.text = "\(floorGoal.destination.name) · approximately \(Int(goal.distance.rounded())) m · \(pose.steps) steps. Hold the phone in front of you. Local obstacle cues; no wall-aware route."
+        let goal = trackedGuidance(from: pose)
+        if routeOffTrack {
+            immediateArrow.update(relative: nil, stopped: true)
+            arrow.text = "Position is off the mapped route"
+            status.text = "Return to Floor Maps to check your position and recalculate the route. No GPS fallback is used."
+            return
+        }
+        immediateArrow.update(relative: goal.relative)
+        arrow.text = goal.distance <= 1.5 ? "Destination nearby · check the room sign" : "Toward your destination"
+        status.text = "\(floorGoal.destination.name) · approximately \(Int(goal.distance.rounded())) m remaining · \(pose.steps) steps. \(floorGoal.route == nil ? "Direction preview." : "Following your reviewed floor route.") Hold the phone facing your walking direction. Direction only; watch for obstacles yourself."
     }
 
     private func showImmediateDirection(relative: Float? = nil, caution: Bool = false, stopped: Bool = false) {
@@ -454,6 +512,7 @@ final class IndoorDestinationScanViewController: UIViewController, ARSessionDele
     func session(_ session: ARSession, didUpdate frame: ARFrame) {
         guard frame.timestamp - lastUpdate >= 0.2 else { return }
         lastUpdate = frame.timestamp
+        if indoorTracker != nil { refreshIndoorPose(); return }
         inspect(frame)
     }
 
@@ -491,7 +550,7 @@ final class IndoorDestinationScanViewController: UIViewController, ARSessionDele
             }
         }
         let camera=frame.camera.transform.columns.3
-        let stepGoal = indoorTracker?.pose.flatMap { pose in pose.sessionID == floorGoal?.trackingID && pose.status == "tracking" ? floorGoal?.guidance(from: pose) : nil }
+        let stepGoal = indoorTracker?.pose.flatMap { pose in pose.sessionID == floorGoal?.trackingID && pose.status == "tracking" ? trackedGuidance(from: pose) : nil }
         let remaining = stepGoal?.distance ?? targetPosition.map { hypot($0.x-camera.x, $0.y-camera.z) }
         let nearDestination = floorGoal != nil && remaining.map { $0 <= 1.5 } == true
         let goal=targetPosition.flatMap { target -> Float? in

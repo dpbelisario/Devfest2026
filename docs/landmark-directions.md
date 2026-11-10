@@ -55,10 +55,9 @@ alignment changes transform its points with the image.
 The native `FloorLandmarkPlanner` constructs a visibility graph from the pins and
 reviewed wall barriers, then adds eligible reviewed bent passages. It checks the
 entire segment of every connection against the walls, allowing reviewed door
-openings. Dijkstra compares `(number of connections, total metres)` lexicographically:
-fewer intermediate pins take priority, then shorter length breaks ties. Thus a
-longer route can win if it uses fewer intermediate landmarks. A direct wall-clear
-connection wins over a route through unnecessary pins. Reverse traversal reverses the bend sequence. Instructions
+openings. Dijkstra minimizes total mapped metres, using fewer connections to break
+equal-distance ties. A shorter route wins even when it passes more landmarks.
+Reverse traversal reverses the bend sequence. Instructions
 refer to the intermediate landmarks, approximate connection distances and turns
 relative to the incoming passage, not the current phone heading. The initial
 instruction names the first landmark to head toward. Start equals destination is a
@@ -79,8 +78,8 @@ multi-floor/stairs routing or verified evacuation guidance. The user must interp
 landmarks and follow the marked passage; furniture and real conditions may differ
 from the plan. Wall detection alone cannot establish walkability.
 
-Native checks cover automatic visibility connections, pin-count priority and distance
-tie-breaking, intermediate landmark order, reverse turns, scale, door openings,
+Native checks cover automatic visibility connections, shortest-distance priority,
+intermediate landmark order, reverse turns, scale, door openings,
 blocked shortcuts, disconnected graphs, unreviewed walls, same-place, invalid IDs,
 persistence, pruning, revision changes and draft
 suggestions. Browser checks cover automatic generation after selection without confirmation/motion, stable

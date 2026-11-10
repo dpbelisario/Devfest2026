@@ -83,13 +83,28 @@ const assert = require("node:assert/strict");
         openWalkingConnections() {
           window.walkingEditorCalls = (window.walkingEditorCalls || 0) + 1;
         },
+        readHealthStepLength(requestID) {
+          window.healthRequestID = requestID;
+        },
+        cancelHealthStepLength() {
+          window.healthCancelled = true;
+        },
+        startStepCalibration(request) {
+          window.calibrationRequest = request;
+        },
+        finishStepCalibration(requestID) {
+          window.calibrationFinishID = requestID;
+        },
+        cancelStepCalibration() {
+          window.calibrationCancelled = true;
+        },
         startIndoorTracking(request) {
           window.indoorRequest = request;
           window.contourIOSIndoorPose({
             ...request,
             steps: 0,
             distance: 0,
-            status: "tracking",
+            status: window.deferIndoorPose ? "starting" : "tracking",
             timestamp: Date.now(),
           });
         },
@@ -187,6 +202,12 @@ const assert = require("node:assert/strict");
     };
     assert.equal(await page.evaluate(() => window.startWatches.size), 0);
     await open();
+    await page.locator("#libraryMaps").waitFor({ state: "visible" });
+    assert.equal(
+      await page.evaluate(() => window.lastFloorARGoal),
+      undefined,
+      "Opening Floor Maps must not open AR or invent a start or exit",
+    );
     assert.equal(await page.evaluate(() => window.startWatches.size), 1);
     for (const selector of [
       "#libraryRelativeDemo",
@@ -504,82 +525,155 @@ const assert = require("node:assert/strict");
     await assertLayout();
     assert.equal(await screen.getAttribute("data-sheet-expanded"), "false");
     await screen.screenshot({ path: "/tmp/contour-floor-map-collapsed.png" });
+    await page
+      .getByRole("button", { name: "Map options", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Start calibration", exact: true })
+      .click();
+    const calibration = await page.evaluate(() => window.calibrationRequest);
+    assert.equal(calibration.distance, 20);
+    await page.evaluate(
+      (requestID) =>
+        window.contourIOSStepCalibration({
+          requestID,
+          status: "walking",
+          steps: 28,
+          message: "Walk the measured distance.",
+        }),
+      calibration.requestID,
+    );
+    await page
+      .getByRole("button", { name: "Finish calibration", exact: true })
+      .click();
+    assert.equal(
+      await page.evaluate(() => window.calibrationFinishID),
+      calibration.requestID,
+    );
+    await page.evaluate(
+      (requestID) =>
+        window.contourIOSStepCalibration({
+          requestID,
+          status: "complete",
+          steps: 28,
+          stepLength: 20 / 28,
+          message: "Saved.",
+        }),
+      calibration.requestID,
+    );
+    assert.equal(
+      await page.getByLabel("Step length in metres").inputValue(),
+      String(20 / 28),
+    );
+    await page
+      .getByRole("button", { name: "Start calibration", exact: true })
+      .click();
+    const cancelledCalibration = await page.evaluate(
+      () => window.calibrationRequest.requestID,
+    );
+    await page
+      .getByRole("button", { name: "Cancel calibration", exact: true })
+      .click();
+    await page.evaluate(
+      (requestID) =>
+        window.contourIOSStepCalibration({
+          requestID,
+          status: "complete",
+          steps: 25,
+          stepLength: 0.8,
+          message: "Late result",
+        }),
+      cancelledCalibration,
+    );
+    assert.equal(
+      await page.getByLabel("Step length in metres").inputValue(),
+      String(20 / 28),
+      "Cancelled calibration results must not replace the saved step length",
+    );
+    assert.equal(
+      await page.evaluate(() =>
+        localStorage.getItem("contour.indoorStepLength"),
+      ),
+      String(20 / 28),
+    );
+    const healthButton = page.getByRole("button", {
+      name: "Use Apple Health step length",
+      exact: true,
+    });
+    await healthButton.click();
+    const healthID = await page.evaluate(() => window.healthRequestID);
+    await page.evaluate(
+      (requestID) =>
+        window.contourIOSHealthStepLength({
+          requestID,
+          status: "empty",
+          message: "No readable samples.",
+        }),
+      healthID,
+    );
+    assert.equal(
+      await page.getByLabel("Step length in metres").inputValue(),
+      String(20 / 28),
+      "Missing Health samples preserve the prior value",
+    );
+    await healthButton.click();
+    const nextHealthID = await page.evaluate(() => window.healthRequestID);
+    await page.evaluate(
+      (requestID) =>
+        window.contourIOSHealthStepLength({
+          requestID,
+          status: "ok",
+          stepLength: 0.9,
+          sampleCount: 8,
+          latest: Date.now(),
+        }),
+      healthID,
+    );
+    assert.equal(
+      await page.getByLabel("Step length in metres").inputValue(),
+      String(20 / 28),
+      "Ignore stale Health responses",
+    );
+    await page.evaluate(
+      (requestID) =>
+        window.contourIOSHealthStepLength({
+          requestID,
+          status: "ok",
+          stepLength: 0.74,
+          sampleCount: 8,
+          latest: Date.now(),
+        }),
+      nextHealthID,
+    );
+    assert.equal(
+      await page.getByLabel("Step length in metres").inputValue(),
+      "0.74",
+    );
+    assert.equal(
+      await page.evaluate(() =>
+        localStorage.getItem("contour.indoorStepLength"),
+      ),
+      "0.74",
+    );
+    await page
+      .getByRole("button", { name: "Close map options", exact: true })
+      .click();
     await page.getByRole("button", { name: "Directions", exact: true }).click();
     assert.equal(await page.locator(".contour-route-card").isHidden(), true);
     assert.equal(await instructionList.isVisible(), true);
-    const progress = page.locator(".contour-step-progress");
-    const arrival = page.locator(".contour-step-arrived");
-    assert.equal(await instructionList.locator("li:visible").count(), 1);
-    assert.equal(await progress.textContent(), "Step 1 of 2");
-    await page.evaluate(() =>
-      window.contourIOSHeading({
-        degrees: 97,
-        accuracy: 8,
-        timestamp: Date.now(),
-      }),
-    );
-    await arrival.click();
-    const arrivalPose = await page.evaluate(() => window.indoorRequest);
-    assert.equal(arrivalPose.heading, 97);
-    const dotAndPin = async () =>
-      page.evaluate(() => {
-        const pin = document
-          .querySelector('.contour-floor-pin[data-id="b"]')
-          .getBoundingClientRect();
-        const dot = document
-          .querySelector(
-            '.contour-start-map .leaflet-overlay-pane path[fill="#188038"]',
-          )
-          .getBoundingClientRect();
-        return Math.hypot(
-          (pin.left + pin.right - dot.left - dot.right) / 2,
-          (pin.top + pin.bottom - dot.top - dot.bottom) / 2,
-        );
-      });
-    await page.waitForFunction(() => {
-      const pin = document
-        .querySelector('.contour-floor-pin[data-id="b"]')
-        .getBoundingClientRect();
-      const dot = document
-        .querySelector(
-          '.contour-start-map .leaflet-overlay-pane path[fill="#188038"]',
-        )
-        .getBoundingClientRect();
-      return (
-        Math.hypot(
-          (pin.left + pin.right - dot.left - dot.right) / 2,
-          (pin.top + pin.bottom - dot.top - dot.bottom) / 2,
-        ) < 2
-      );
-    });
-    assert.ok(
-      (await dotAndPin()) < 2,
-      "Arrival moves the live dot onto the reached pin",
-    );
-    assert.equal(await progress.textContent(), "Step 2 of 2");
-    assert.equal(await instructionList.locator("li:visible").count(), 1);
-    await page.evaluate(() => window.emitStartFix(35.1553, 136.9643));
-    assert.ok(
-      (await dotAndPin()) < 2,
-      "GPS cannot undo the arrival correction",
-    );
     assert.equal(
-      await progress.textContent(),
-      "Step 2 of 2",
-      "GPS must not advance confirmed steps",
+      await instructionList.locator("li:visible").count(),
+      3,
+      "Directions show the complete route without manual progress confirmation",
     );
-    await arrival.click();
-    assert.match(await progress.textContent(), /Destination reached/);
-    assert.equal(await arrival.isHidden(), true);
-    assert.equal(await instructionList.locator("li:visible").count(), 0);
-    await page
-      .getByRole("button", { name: "Previous step", exact: true })
-      .click();
-    assert.equal(await progress.textContent(), "Step 2 of 2");
-    await page
-      .getByRole("button", { name: "Previous step", exact: true })
-      .click();
-    assert.equal(await progress.textContent(), "Step 1 of 2");
+    assert.equal(await page.locator(".contour-step-arrived").count(), 0);
+    const routeSession = await page.evaluate(() => window.indoorRequest);
+    await page.evaluate(() => window.emitStartFix(35.1553, 136.9643));
+    assert.deepEqual(
+      await page.evaluate(() => window.indoorRequest),
+      routeSession,
+      "Reading directions never restarts tracking or relocates the user",
+    );
     assert.equal(await screen.getAttribute("data-sheet-expanded"), "true");
     await assertLayout();
     await screen.screenshot({ path: "/tmp/contour-floor-map-expanded.png" });
@@ -825,7 +919,48 @@ const assert = require("node:assert/strict");
         timestamp: Date.now(),
       }),
     );
-    await toolClick("Set my position here");
+    await page.evaluate(() => {
+      window.deferIndoorPose = true;
+    });
+    await page
+      .getByRole("button", { name: "Start tracking", exact: true })
+      .click();
+    const startingButton = page.getByRole("button", {
+      name: "Starting…",
+      exact: true,
+    });
+    assert.equal(
+      await startingButton.isVisible(),
+      true,
+      "Keep the tracking control visible during sensor startup",
+    );
+    assert.equal(await openAR.isDisabled(), true);
+    assert.equal(await page.locator("#contour-ar-hint").isVisible(), true);
+    assert.match(
+      await page.locator("#contour-ar-hint").textContent(),
+      /step counter/,
+    );
+    await page.evaluate(() => {
+      window.deferIndoorPose = false;
+      window.contourIOSIndoorPose({
+        ...window.indoorRequest,
+        steps: 0,
+        distance: 0,
+        status: "tracking",
+        timestamp: Date.now(),
+      });
+    });
+    assert.equal(
+      await page
+        .getByRole("button", { name: "Tracking ✓", exact: true })
+        .isVisible(),
+      true,
+    );
+    assert.equal(
+      await page.evaluate(() => window.indoorRequest.stepLength),
+      0.74,
+      "The next start uses the imported Health estimate",
+    );
     assert.equal(await openAR.isEnabled(), true);
     await page.evaluate(() =>
       window.contourIOSHeading({
@@ -840,6 +975,17 @@ const assert = require("node:assert/strict");
     assert.equal(arGoal.floor, "2F");
     assert.equal(arGoal.start.name, "Room A <text>");
     assert.equal(arGoal.destination.name, "Desk B");
+    assert.deepEqual(arGoal.routeRequest, {
+      startID: "a",
+      destinationID: "b",
+      revision: value.routingRevision,
+    });
+    await openAR.click();
+    assert.equal(
+      (await page.evaluate(() => window.lastFloorARGoal)).destination.name,
+      "Desk B",
+      "Floor Maps AR must use the selected saved destination",
+    );
     assert.ok(
       Number.isFinite(arGoal.start.latitude) &&
         Number.isFinite(arGoal.destination.longitude),
@@ -851,6 +997,20 @@ const assert = require("node:assert/strict");
       "Start and destination must differ",
     );
     await page.getByLabel("Saved floor destinations").selectOption("b");
+    await page.getByLabel("Starting point", { exact: true }).selectOption("b");
+    assert.equal(
+      await page
+        .getByRole("button", { name: "Start tracking", exact: true })
+        .isVisible(),
+      true,
+    );
+    assert.equal(
+      await openAR.isDisabled(),
+      true,
+      "A different planned origin must be anchored before AR",
+    );
+    await page.getByLabel("Starting point", { exact: true }).selectOption("a");
+    assert.equal(await openAR.isEnabled(), true);
     await toolClick("Use uncorrected phone position");
     assert.equal(await openAR.isDisabled(), true);
     assert.equal(
@@ -1156,6 +1316,40 @@ const assert = require("node:assert/strict");
       ),
       { lat: movedPoint.lat + 0.00001, lng: movedPoint.lng },
       "Only step tracking updates the confirmed indoor position",
+    );
+    assert.match(
+      await page.locator(".contour-route-caption").textContent(),
+      /Walking · 2 steps/,
+    );
+    await page.evaluate(() =>
+      window.contourIOSIndoorPose({
+        ...window.indoorRequest,
+        latitude: window.indoorRequest.latitude + 0.00001,
+        longitude: window.indoorRequest.longitude,
+        heading: 123,
+        steps: 2,
+        distance: 1.44,
+        status: "motion-interrupted",
+        timestamp: Date.now(),
+      }),
+    );
+    const pausedSession = await page.evaluate(
+      () => window.indoorRequest.sessionID,
+    );
+    await page
+      .getByRole("button", { name: "Resume tracking", exact: true })
+      .click();
+    const resumed = await page.evaluate(() => window.indoorRequest);
+    assert.notEqual(resumed.sessionID, pausedSession);
+    assert.equal(
+      resumed.latitude,
+      movedPoint.lat + 0.00001,
+      "Resume must start from the last live position, not teleport back to the original pin",
+    );
+    assert.equal(resumed.longitude, movedPoint.lng);
+    assert.match(
+      await page.locator(".contour-route-caption").textContent(),
+      /Walking · 0 steps/,
     );
     await toolClick("Use uncorrected phone position");
     assert.deepEqual(

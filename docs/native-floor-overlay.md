@@ -25,6 +25,21 @@ The editor requires iOS 17; the existing iOS 16 shell shows an availability mess
 7. **Hide/Show** persists visibility. **Find** centers the overlay. Top-bar **Done**
    returns to Contour; save before closing to retain edits.
 
+## Move detected pins
+
+Open **Review pins** (or finish **Detect labels**). Drag any numbered pin on the
+image to its correct position. You can also select its number in the image or
+list and tap the new spot. The selected pin is orange and its name appears below
+the image. Use **Zoom** up to 4× and pan the image background for precise placement;
+**Fit** restores the overview. **Undo move** restores the last placement without
+undoing renamed labels or inclusion choices.
+
+**Save pins** keeps the reviewed positions on this iPhone. If alignment edits are
+also open, finish with **Save alignment**. **Cancel** discards unsaved pin edits.
+Moving a pin preserves its identity and bilingual label metadata. Existing custom
+walking approach points remain separate; edit **Walking connections** if those
+also need moving.
+
 ## Saved and bundled plans
 
 The user-authorized export from the iPhone is bundled as

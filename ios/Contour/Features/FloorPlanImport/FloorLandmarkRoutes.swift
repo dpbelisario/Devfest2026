@@ -68,7 +68,7 @@ struct FloorLandmarkRoute: Codable {
 }
 
 /// Wall-constrained visibility graph over landmark pins, with optional reviewed bent passages.
-/// Dijkstra compares (connection count, metres): fewer intermediate pins take priority over distance.
+/// Dijkstra minimizes mapped distance, breaking equal-distance ties with fewer intermediate pins.
 enum FloorLandmarkPlanner {
     static func revision(_ overlay: GeographicOverlay) throws -> String {
         // Exclude opacity/visibility; include the image and every item that can change route validity.
@@ -166,7 +166,7 @@ enum FloorLandmarkPlanner {
         struct Cost {
             let hops: Int
             let metres: Double
-            func precedes(_ other: Cost) -> Bool { hops == other.hops ? metres < other.metres : hops < other.hops }
+            func precedes(_ other: Cost) -> Bool { metres == other.metres ? hops < other.hops : metres < other.metres }
         }
         var costs = [start: Cost(hops: 0, metres: 0)], previous: [UUID: (UUID, Hop)] = [:], visited = Set<UUID>()
         while let current = costs.keys.filter({ !visited.contains($0) }).min(by: {
@@ -189,7 +189,7 @@ enum FloorLandmarkPlanner {
             hops.insert(entry.1, at: 0); cursor = entry.0; ids.insert(cursor, at: 0)
         }
         let names = Dictionary(uniqueKeysWithValues: (overlay.destinations ?? []).map { ($0.id, $0.name) })
-        var value = result("ok", "Map route preview · fewest intermediate pins, then shortest mapped length. Avoids reviewed walls; check actual passages and furniture.")
+        var value = result("ok", "Map route preview · shortest mapped length, then fewest intermediate pins. Avoids reviewed walls; check actual passages and furniture.")
         var path: [FloorPlanPoint] = [], incoming: (Double, Double)?
         for (index, hop) in hops.enumerated() {
             let segments = zip(hop.path, hop.path.dropFirst()).map { (($0.1.x - $0.0.x) * overlay.width, ($0.1.y - $0.0.y) * overlay.height) }
