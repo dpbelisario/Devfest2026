@@ -90,6 +90,14 @@
     startIndoorTracking: (request) => send("startIndoorTracking", { request }),
     pauseIndoorTracking: () => send("pauseIndoorTracking"),
     clearIndoorTracking: () => send("clearIndoorTracking"),
+    startStepCalibration: (request) =>
+      send("startStepCalibration", { request }),
+    finishStepCalibration: (requestID) =>
+      send("finishStepCalibration", { requestID }),
+    cancelStepCalibration: () => send("cancelStepCalibration"),
+    readHealthStepLength: (requestID) =>
+      send("readHealthStepLength", { requestID }),
+    cancelHealthStepLength: () => send("cancelHealthStepLength"),
     startFloorHeading: () => send("floorHeadingStart"),
     stopFloorHeading: () => send("floorHeadingStop"),
     startLibraryExitAR: () => send("startLibraryExitAR"),

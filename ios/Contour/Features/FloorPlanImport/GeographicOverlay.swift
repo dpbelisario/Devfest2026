@@ -86,6 +86,14 @@ struct FloorDestination: Codable, Equatable, Identifiable {
         x.isFinite && y.isFinite && (0...1).contains(x) && (0...1).contains(y) &&
         confidence.isFinite && (0...1).contains(confidence)
     }
+    /// Move a reviewed pin using image-local points, independent of display zoom.
+    mutating func move(to point: CGPoint, imageSize: CGSize) {
+        guard point.x.isFinite, point.y.isFinite, imageSize.width.isFinite, imageSize.height.isFinite,
+              imageSize.width > 0, imageSize.height > 0 else { return }
+        x = min(1, max(0, Double(point.x / imageSize.width)))
+        y = min(1, max(0, Double(point.y / imageSize.height)))
+        textBounds = nil
+    }
     static func recognized(name: String, boundingBox: CGRect, confidence: Float) -> FloorDestination? {
         let label = name.split(whereSeparator: \.isWhitespace).joined(separator: " ")
         guard !label.isEmpty, label.count <= 80,

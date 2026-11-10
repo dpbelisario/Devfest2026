@@ -6,6 +6,86 @@ import WebKit
 @testable import Contour
 
 final class GeographicOverlayTests: XCTestCase {
+    func testTrackedARResolvesSavedDestinationAndPlansFromLivePose() throws {
+        let plan = landmarkPlan, pins = plan.destinations!
+        let initialRoute = try FloorLandmarkPlanner.plan(overlay: plan, start: pins[0].id, destination: pins[3].id)
+        let origin = initialRoute.path[1] // Already reached the first corner when AR opens.
+        var pose = IndoorStepModel(request: .init(sessionID: "tracked-ar", floor: "2F", latitude: origin.latitude,
+            longitude: origin.longitude, heading: 90, stepLength: 0.74), time: 100).pose
+        pose.status = "tracking"
+        var request = FloorARGoal(trackingID: pose.sessionID,
+            routeRequest: .init(startID: pins[0].id, destinationID: pins[3].id, revision: try FloorLandmarkPlanner.revision(plan)),
+            version: 1, floor: "2F", start: .init(latitude: 0, longitude: 0, name: "Untrusted"),
+            destination: .init(latitude: 0, longitude: 0.001, name: "Untrusted"))
+        let resolved = try OverlayDisk.resolveARGoal(request, overlay: plan, pose: pose)
+        XCTAssertEqual(resolved.destination.name, pins[3].name)
+        let route = try XCTUnwrap(resolved.route)
+        XCTAssertEqual(route.first!.latitude, pose.latitude, accuracy: 0.0000001)
+        XCTAssertEqual(route.first!.longitude, pose.longitude, accuracy: 0.0000001)
+        XCTAssertTrue(resolved.isValid)
+        XCTAssertEqual(plan.destinations![0].x, 0.1, "AR must not mutate the saved start pin")
+        request.routeRequest = .init(startID: pins[0].id, destinationID: pins[3].id, revision: "outdated")
+        XCTAssertThrowsError(try OverlayDisk.resolveARGoal(request, overlay: plan, pose: pose))
+        request.routeRequest = nil
+        XCTAssertThrowsError(try OverlayDisk.resolveARGoal(request, overlay: plan, pose: pose))
+    }
+    func testHealthStepLengthUsesRecentMedianAndRejectsUnusableSamples() throws {
+        let now = Date(timeIntervalSince1970: 1800000000)
+        let summary = try XCTUnwrap(HealthStepLengthSummary.summarize([
+            (0.7, now.addingTimeInterval(-100)), (0.72, now.addingTimeInterval(-200)),
+            (0.74, now.addingTimeInterval(-300)), (1.05, now.addingTimeInterval(-400)),
+            (0.2, now), (.nan, now), (0.9, now.addingTimeInterval(100)),
+            (0.6, now.addingTimeInterval(-31 * 86400))
+        ], now: now))
+        XCTAssertEqual(summary.metres, 0.73, accuracy: 0.00001)
+        XCTAssertEqual(summary.sampleCount, 4)
+        XCTAssertEqual(summary.latest, now.addingTimeInterval(-100))
+        XCTAssertNil(HealthStepLengthSummary.summarize([], now: now))
+        XCTAssertNil(HealthStepLengthSummary.summarize([(1.5, now)], now: now))
+        let bounded = try XCTUnwrap(HealthStepLengthSummary.summarize(
+            (0..<60).map { (0.75, now.addingTimeInterval(Double(-$0))) }, now: now))
+        XCTAssertEqual(bounded.sampleCount, 50)
+    }
+    func testStepCalibrationRequiresMeasuredDistanceAndEnoughPlausibleSteps() {
+        XCTAssertEqual(StepLengthCalibration.length(distance: 20, steps: 28)!, 20.0 / 28, accuracy: 0.00001)
+        XCTAssertNil(StepLengthCalibration.length(distance: 20, steps: 0))
+        XCTAssertNil(StepLengthCalibration.length(distance: 5, steps: 7))
+        XCTAssertNil(StepLengthCalibration.length(distance: 20, steps: 10))
+        XCTAssertNil(StepLengthCalibration.length(distance: .nan, steps: 28))
+        XCTAssertNil(StepLengthCalibration.length(distance: 200, steps: 280))
+    }
+    func testCalibratedStepsContinuouslyAdvanceTheIndoorPose() throws {
+        let length = try XCTUnwrap(StepLengthCalibration.length(distance: 20, steps: 28))
+        let request = IndoorStepRequest(sessionID: "calibrated-walk", floor: "2F", latitude: 35,
+            longitude: 136, heading: 0, stepLength: length)
+        var model = IndoorStepModel(request: request, time: 100)
+        for index in 0...100 { XCTAssertTrue(model.turn(clockwiseRadiansPerSecond: 0, time: 100 + Double(index) * 0.2)) }
+        XCTAssertTrue(model.countSteps(28, time: 120))
+        XCTAssertEqual(model.pose.steps, 28)
+        XCTAssertEqual(model.pose.distance, 20, accuracy: 0.00001)
+        XCTAssertEqual((model.pose.latitude - 35) * 111319.49079327358, 20, accuracy: 0.00001)
+        XCTAssertEqual(model.pose.longitude, 136)
+    }
+    func testReviewedPinMoveUsesImageCoordinatesAtAnyZoomAndPersists() throws {
+        var pin = FloorDestination(name: "Reference Books", x: 0.2, y: 0.3, confidence: 0.8,
+            textBounds: CGRect(x: 0.1, y: 0.2, width: 0.2, height: 0.1), sourceLabels: ["Reference Books", "参考図書"])
+        let id = pin.id
+        pin.move(to: CGPoint(x: 600, y: 120), imageSize: CGSize(width: 800, height: 400))
+        XCTAssertEqual(pin.x, 0.75); XCTAssertEqual(pin.y, 0.3)
+        XCTAssertNil(pin.textBounds)
+        XCTAssertEqual(pin.id, id); XCTAssertEqual(pin.confidence, 0.8)
+        XCTAssertEqual(pin.sourceLabels, ["Reference Books", "参考図書"])
+        let moved = pin
+        pin.move(to: CGPoint(x: 1200, y: 240), imageSize: CGSize(width: 1600, height: 800))
+        XCTAssertEqual(pin, moved, "Zoom must not change the normalized pin location")
+        let restored = try JSONDecoder().decode(FloorDestination.self, from: JSONEncoder().encode(pin))
+        XCTAssertEqual(restored, moved)
+        pin.move(to: CGPoint(x: -20, y: 1000), imageSize: CGSize(width: 800, height: 400))
+        XCTAssertEqual(pin.x, 0); XCTAssertEqual(pin.y, 1); XCTAssertTrue(pin.isValid)
+        let edge = pin
+        pin.move(to: .zero, imageSize: .zero)
+        XCTAssertEqual(pin, edge, "Ignore an unlaid-out image")
+    }
     private var landmarkPlan: GeographicOverlay {
         var plan = sample; plan.width = 10; plan.aspect = 1; plan.angle = 0
         plan.destinations = [FloorDestination(name: "Start", x: 0.1, y: 0.1),
@@ -55,14 +135,14 @@ final class GeographicOverlayTests: XCTestCase {
         XCTAssertEqual(try FloorLandmarkPlanner.plan(overlay: plan, start: UUID(), destination: pins[0].id).status, "invalid")
     }
 
-    func testFewerIntermediatePinsTakePriorityOverAShorterMultiPinRoute() throws {
+    func testShorterMultiPinRouteWinsOverLongerDirectConnection() throws {
         var plan = landmarkPlan; let pins = plan.destinations!
         plan.walkingNetwork?.connections.removeAll { Set([$0.from, $0.to]) == Set([pins[0].id, pins[3].id]) }
         plan.walkingNetwork?.connections.append(.init(from: pins[0].id, to: pins[3].id,
             via: [.init(x: 0.1, y: 0.9), .init(x: 0.9, y: 0.9)]))
         let route = try FloorLandmarkPlanner.plan(overlay: plan, start: pins[0].id, destination: pins[3].id)
-        XCTAssertEqual(route.landmarkIDs, [pins[0].id, pins[3].id])
-        XCTAssertEqual(route.distance, 24, accuracy: 0.001, "Zero intermediate pins wins over the 22 m route with two pins")
+        XCTAssertEqual(route.landmarkIDs, Array(pins.prefix(4)).map(\.id))
+        XCTAssertEqual(route.distance, 22, accuracy: 0.001, "Prefer the shorter wall-clear route even when it passes more landmarks")
         XCTAssertEqual(route.path.count, 4, "Keep bends; do not simplify into a straight line through the wall")
         let map = FloorWallMap(latitude: plan.latitude, longitude: plan.longitude, width: plan.width,
             aspect: plan.aspect, angle: plan.angle, geometry: plan.wallGeometry!)

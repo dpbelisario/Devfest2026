@@ -3,6 +3,75 @@ import ARKit
 @testable import Contour
 
 final class IndoorDestinationTests: XCTestCase {
+    func testDirectionOnlyARDoesNotRequestObstacleGeometry() {
+        let config = IndoorDestinationScanViewController.cameraConfiguration(exitGoal: false, directionOnly: true)
+        XCTAssertTrue(config.planeDetection.isEmpty)
+        XCTAssertTrue(config.frameSemantics.isEmpty)
+        XCTAssertTrue(config.sceneReconstruction.isEmpty)
+    }
+    func testStationaryAndUnknownStepCountsNeverMoveOrCatchUpLater() {
+        var gate = IndoorWalkingGate(time: 100)
+        XCTAssertEqual(gate.consume(total: 3, time: 102), 0, "Unknown activity must not move the dot")
+        gate.record(time: 102, walking: false)
+        XCTAssertEqual(gate.consume(total: 7, time: 105), 0, "Sitting/fidgeting counts are consumed without movement")
+        gate.record(time: 105, walking: true)
+        XCTAssertEqual(gate.consume(total: 10, time: 108), 3, "Only the three new walking steps count")
+        XCTAssertEqual(gate.consume(total: 10, time: 108), 3, "Repeated batches must not move twice")
+        XCTAssertEqual(gate.consume(total: 8, time: 107), 3, "Old batches must not roll back counters")
+        gate.record(time: 108, walking: false)
+        XCTAssertEqual(gate.consume(total: 12, time: 110), 3)
+        gate.record(time: 110, walking: true)
+        XCTAssertEqual(gate.consume(total: 14, time: 112), 5, "Do not replay rejected counts after walking resumes")
+    }
+    func testStationaryPhoneTurnsDoNotMoveCoordinates() {
+        var model = IndoorStepModel(request: .init(sessionID: "seated", floor: "2F", latitude: 35,
+            longitude: 136, heading: 0, stepLength: 0.75), time: 100)
+        for tick in 0...50 { XCTAssertTrue(model.turn(clockwiseRadiansPerSecond: 0.1, time: 100 + Double(tick) * 0.2)) }
+        XCTAssertTrue(model.countSteps(0, time: 110))
+        XCTAssertEqual(model.pose.latitude, 35); XCTAssertEqual(model.pose.longitude, 136)
+        XCTAssertEqual(model.pose.steps, 0); XCTAssertEqual(model.pose.distance, 0)
+        XCTAssertGreaterThan(model.pose.heading, 0)
+    }
+
+    func testTrackedARRouteFollowsCornersRatherThanTheDirectDestinationBearing() {
+        let metre = 111319.49079327358, latitude = 35.0, longitude = 136.0
+        let east10 = 10 / (metre * cos(latitude * .pi / 180))
+        let points: [FloorARGoal.RoutePoint] = [.init(latitude: latitude, longitude: longitude),
+            .init(latitude: latitude + 10 / metre, longitude: longitude),
+            .init(latitude: latitude + 10 / metre, longitude: longitude + east10)]
+        var follower = FloorRouteFollower(points: points)
+        var pose = IndoorStepModel(request: .init(sessionID: "route", floor: "2F", latitude: latitude,
+            longitude: longitude, heading: 0, stepLength: 0.75), time: 100).pose
+        let first = follower.guidance(from: pose)
+        XCTAssertEqual(first.relative, 0, accuracy: 0.001)
+        XCTAssertEqual(first.distance, 20, accuracy: 0.01)
+        XCTAssertFalse(first.offRoute)
+        pose.latitude = points[1].latitude
+        let corner = follower.guidance(from: pose)
+        XCTAssertEqual(follower.targetIndex, 2)
+        XCTAssertEqual(corner.relative, .pi / 2, accuracy: 0.001)
+        pose.heading = 90
+        XCTAssertEqual(follower.guidance(from: pose).relative, 0, accuracy: 0.001)
+        pose.longitude = points[2].longitude
+        XCTAssertLessThan(follower.guidance(from: pose).distance, 0.01)
+        var offRoute = FloorRouteFollower(points: points)
+        pose.latitude = latitude; pose.longitude = longitude + east10 / 2
+        XCTAssertTrue(offRoute.guidance(from: pose).offRoute)
+        XCTAssertEqual(offRoute.targetIndex, 1, "Do not jump to a later nearby corridor")
+    }
+    func testDelayedStepBatchUpdatesPositionWithoutPausingOrRegressingPoseTime() {
+        let request = IndoorStepRequest(sessionID: "delayed", floor: "2F", latitude: 35, longitude: 136, heading: 0, stepLength: 0.75)
+        var model = IndoorStepModel(request: request, time: 100)
+        for tick in 0...50 { XCTAssertTrue(model.turn(clockwiseRadiansPerSecond: 0, time: 100 + Double(tick) * 0.2)) }
+        XCTAssertTrue(model.countSteps(5, time: 105), "A batch five seconds behind the gyro is valid")
+        XCTAssertEqual(model.pose.steps, 5)
+        XCTAssertEqual(model.pose.status, "tracking")
+        XCTAssertEqual(model.pose.timestamp, 110000, "The page must receive a monotonic pose date")
+        XCTAssertEqual((model.pose.latitude - 35) * 111319.49079327358, 3.75, accuracy: 0.001)
+        XCTAssertTrue(model.countSteps(8, time: 108))
+        XCTAssertEqual(model.pose.distance, 6, accuracy: 0.001)
+        XCTAssertEqual(model.pose.timestamp, 110000)
+    }
     func testReviewedWallRejectsCrossingStepWithoutChangingHeadingOrLosingCounts() {
         let geometry = FloorWallGeometry(walls: [.init(start: .init(x: 0.1, y: 0.52), end: .init(x: 0.9, y: 0.52))], reviewed: true)
         let map = FloorWallMap(latitude: 35, longitude: 136, width: 10, aspect: 1, angle: 0, geometry: geometry)

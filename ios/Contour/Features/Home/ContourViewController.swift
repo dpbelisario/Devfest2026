@@ -10,6 +10,10 @@ final class ContourViewController: UIViewController, WKNavigationDelegate, WKUID
     private(set) var web: WKWebView!
     private let location = CLLocationManager()
     private let indoorTracker = IndoorStepTracker()
+    private let stepCalibration = StepLengthCalibration()
+    private let healthStepLength = HealthStepLengthImporter()
+    private var healthImportTask: Task<Void, Never>?
+    private var preparingTrackedAR = false
     private let haptics = AlertHaptics()
     private let audio = AVAudioEngine()
     private var launchObstacleDemo = ProcessInfo.processInfo.arguments.contains("--bundled-obstacle-demo")
@@ -36,6 +40,11 @@ final class ContourViewController: UIViewController, WKNavigationDelegate, WKUID
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        stepCalibration.onUpdate = { [weak self] result in
+            guard let self, self.pageReady, let data = try? JSONEncoder().encode(result),
+                  let object = try? JSONSerialization.jsonObject(with: data) else { return }
+            self.call("contourIOSStepCalibration", [object])
+        }
         view.backgroundColor = .systemBackground
         let config = WKWebViewConfiguration()
         config.userContentController.add(self, name: "contour")
@@ -258,6 +267,31 @@ final class ContourViewController: UIViewController, WKNavigationDelegate, WKUID
         }
     }
 
+    private func startTrackedAR(_ request: FloorARGoal) {
+        guard !preparingTrackedAR, presentedViewController == nil else { return }
+        guard request.routeRequest != nil else { showMessage("Choose your start and destination in Floor Maps first."); return }
+        let generation = sessionGeneration
+        preparingTrackedAR = true
+        Task { [weak self] in
+            guard let self else { return }
+            defer { self.preparingTrackedAR = false }
+            do {
+                guard let initial = self.indoorTracker.pose else { self.showMessage("Start tracking in Floor Maps first."); return }
+                var goal = try await OverlayDisk.shared.trackedARGoal(request, pose: initial)
+                guard self.pageReady, generation == self.sessionGeneration else { return }
+                guard let pose = self.indoorTracker.pose, pose.sessionID == request.trackingID, pose.floor == goal.floor,
+                      pose.status == "tracking", abs(Date().timeIntervalSince1970 * 1000 - pose.timestamp) < 2000 else {
+                    self.showMessage("Start or resume tracking in Floor Maps before opening AR."); return
+                }
+                goal.heading = .init(degrees: pose.heading, accuracy: 0, timestamp: pose.timestamp)
+                self.startObstacleScan(floorGoal: goal)
+            } catch {
+                guard self.pageReady, generation == self.sessionGeneration else { return }
+                self.showMessage("No current wall-clear route is available. In Floor Maps, review walls/openings and choose a reachable destination, then try AR again.")
+            }
+        }
+    }
+
     private func call(_ name: String, _ arguments: [Any]) {
         guard pageReady, isOurs(web.url), let data = try? JSONSerialization.data(withJSONObject: arguments),
               let json = String(data: data, encoding: .utf8) else { return }
@@ -357,12 +391,47 @@ final class ContourViewController: UIViewController, WKNavigationDelegate, WKUID
                   let data = try? JSONSerialization.data(withJSONObject: request),
                   let config = try? JSONDecoder().decode(IndoorStepRequest.self, from: data), config.isValid else { return }
             indoorTracker.start(config)
+        case "startStepCalibration":
+            guard let request = body["request"] as? [String: Any], let id = request["requestID"] as? String,
+                  let distance = request["distance"] as? Double else { return }
+            stepCalibration.start(id: id, distance: distance)
+        case "finishStepCalibration":
+            guard let id = body["requestID"] as? String else { return }
+            stepCalibration.finish(id: id)
+        case "cancelStepCalibration": stepCalibration.cancel()
+        case "readHealthStepLength":
+            guard let id = body["requestID"] as? String, !id.isEmpty, id.count <= 80 else { return }
+            healthImportTask?.cancel()
+            let generation = sessionGeneration
+            healthImportTask = Task { [weak self] in
+                guard let self else { return }
+                var result: [String: Any] = ["requestID": id]
+                do {
+                    if !HealthStepLengthImporter.available {
+                        result["status"] = "unavailable"
+                        result["message"] = "Apple Health is unavailable on this device. Use manual calibration instead."
+                    } else if let summary = try await self.healthStepLength.load() {
+                        result["status"] = "ok"; result["stepLength"] = summary.metres
+                        result["sampleCount"] = summary.sampleCount; result["latest"] = summary.latest.timeIntervalSince1970 * 1000
+                    } else {
+                        result["status"] = "empty"
+                        result["message"] = "No usable Walking Step Length was available in the last 30 days. Check Health access for Contour, or use manual calibration."
+                    }
+                } catch is CancellationError { return }
+                catch {
+                    result["status"] = "error"
+                    result["message"] = "Could not read Walking Step Length. Unlock your iPhone, check Health permissions, and try again."
+                }
+                guard !Task.isCancelled, self.pageReady, generation == self.sessionGeneration else { return }
+                self.call("contourIOSHealthStepLength", [result])
+            }
+        case "cancelHealthStepLength": healthImportTask?.cancel(); healthImportTask = nil
         case "pauseIndoorTracking": indoorTracker.pause()
         case "clearIndoorTracking": indoorTracker.stop()
         case "startFloorAR":
             guard let payload = body["goal"] as? [String: Any],
                   let data = try? JSONSerialization.data(withJSONObject: payload),
-                  let goal = try? JSONDecoder().decode(FloorARGoal.self, from: data), goal.isValid else {
+                  let goal = try? JSONDecoder().decode(FloorARGoal.self, from: data), goal.version == 1, goal.routeRequest != nil else {
                 showMessage("Choose a destination and confirm your starting position before opening AR.")
                 return
             }
@@ -371,7 +440,7 @@ final class ContourViewController: UIViewController, WKNavigationDelegate, WKUID
                 showMessage("Set your starting position and allow Motion & Fitness access before opening indoor AR.")
                 return
             }
-            startObstacleScan(floorGoal: goal)
+            startTrackedAR(goal)
         case "stopObstacleScan":
             obstacleScanner?.pause(); obstacleScanner?.dismiss(animated: false)
             indoorScanner?.pause(); indoorScanner?.dismiss(animated: false)
@@ -483,6 +552,8 @@ final class ContourViewController: UIViewController, WKNavigationDelegate, WKUID
     }
 
     func stopDeviceActivity() {
+        healthImportTask?.cancel(); healthImportTask = nil
+        stepCalibration.cancel()
         obstacleScanner?.pause()
         indoorScanner?.pause()
         sessionGeneration += 1

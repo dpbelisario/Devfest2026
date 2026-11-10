@@ -1,5 +1,13 @@
 # Camera-only obstacle AR on iPhone
 
+**Central Library → Details → AR** keeps main's hard-coded hackathon exit demo,
+including its fixed Entrance Hall target, gate lock and AR-displacement arrival
+shortcut. **Details → Floor Maps → AR** is the separate step-tracked algorithm
+prototype; see [tracked-floor-ar.md](tracked-floor-ar.md). The Floor Maps arrow
+shows direction only and does not run obstacle detection or avoidance.
+
+## Legacy camera preview
+
 Open **01 Central Library → 3D AR directions**. The native screen now always uses
 the rear camera plus ARKit visual/inertial tracking. It does not request LiDAR scene
 depth, smoothed depth, or mesh reconstruction, even on a Pro iPhone. No extra model,

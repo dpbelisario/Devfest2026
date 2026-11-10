@@ -22,11 +22,14 @@
   let indoorPose = null;
   let trackingRequested = false;
   let stepLength = 0.72;
+  try {
+    const saved = Number(localStorage.getItem("contour.indoorStepLength"));
+    if (saved >= 0.4 && saved <= 1.1) stepLength = saved;
+  } catch {}
   let showWalls = false;
   let mapPinTarget = "start";
   let landmarkSelection = null;
   let landmarkRoute = null;
-  let directionStep = 0;
   let landmarkRequest = null;
   let landmarkTimer = null;
   let landmarkVersion = 0;
@@ -49,7 +52,6 @@
     clearTimeout(landmarkTimer);
     landmarkTimer = null;
     landmarkRoute = null;
-    directionStep = 0;
     landmarkRequest = null;
     landmarkVersion++;
   }
@@ -107,39 +109,231 @@
       landmarkRoute?.status === "ok"
         ? `${Math.max(0, landmarkRoute.landmarkIDs.length - 2)} intermediate pins · approximately ${Math.round(landmarkRoute.distance)} m. Blue line: route preview.`
         : "";
-    updateDirectionStep();
     updateFloorMapSummary();
   }
-  function updateDirectionStep() {
-    if (!floorUI) return;
-    const ui = floorUI;
-    const count = directionStepCount();
-    const complete = count > 0 && directionStep >= count;
-    [...ui.directionList.children].forEach((item, index) => {
-      item.hidden = complete || index !== directionStep;
-    });
-    ui.directionList.start = directionStep + 1;
-    ui.stepProgress.hidden = !count;
-    ui.stepProgress.textContent = complete
-      ? "Destination reached — you confirmed arrival."
-      : `Step ${directionStep + 1} of ${count}`;
-    ui.arrived.hidden = !count || complete;
-    ui.arrived.textContent =
-      directionStep === count - 1
-        ? "I've arrived at my destination"
-        : "I've arrived — next step";
-    ui.previousStep.hidden = !count || directionStep === 0;
+  let stepCalibration = null;
+  let calibrationTimer = null;
+  let healthRequestID = null;
+  let healthTimer = null;
+  function cancelHealthImport() {
+    if (!healthRequestID) return;
+    healthRequestID = null;
+    clearTimeout(healthTimer);
+    window.ContourBridge?.cancelHealthStepLength?.();
+    updateCalibrationControls();
   }
-  function directionStepCount() {
-    if (landmarkRoute?.status !== "ok") return 0;
-    const instructions = landmarkRoute.instructions;
-    // The planner appends a finish reminder after the last actual walking leg.
-    return (
-      instructions.length -
-      (instructions.length > 1 && /^Finish at /.test(instructions.at(-1))
-        ? 1
-        : 0)
+  window.contourIOSHealthStepLength = (result) => {
+    if (
+      !healthRequestID ||
+      result?.requestID !== healthRequestID ||
+      !["ok", "empty", "error", "unavailable"].includes(result.status)
+    )
+      return;
+    const ui = floorUI?.calibration;
+    if (!ui) return;
+    if (result.status === "ok") {
+      if (
+        !Number.isFinite(result.stepLength) ||
+        result.stepLength < 0.4 ||
+        result.stepLength > 1.1 ||
+        !Number.isInteger(result.sampleCount) ||
+        result.sampleCount < 1 ||
+        result.sampleCount > 50 ||
+        !Number.isFinite(result.latest) ||
+        result.latest > Date.now() + 60000 ||
+        result.latest < Date.now() - 31 * 86400000
+      )
+        return;
+      stepLength = result.stepLength;
+      floorUI.stride.value = String(stepLength);
+      try {
+        localStorage.setItem("contour.indoorStepLength", String(stepLength));
+      } catch {}
+      ui.healthStatus.textContent = `Apple Health: ${stepLength.toFixed(2)} m per step · ${result.sampleCount} recent samples (latest ${new Date(result.latest).toLocaleDateString()}). Saved for the next time you set your starting position.`;
+      ui.status.textContent = `Current step length: ${stepLength.toFixed(2)} m. Set your start to use it. Manual calibration is optional.`;
+    } else {
+      ui.healthStatus.textContent =
+        typeof result.message === "string"
+          ? result.message.slice(0, 300)
+          : "No step length was imported. Your current value is unchanged.";
+    }
+    healthRequestID = null;
+    clearTimeout(healthTimer);
+    updateCalibrationControls();
+  };
+  function cancelStepCalibration() {
+    if (!stepCalibration) return;
+    window.ContourBridge?.cancelStepCalibration?.();
+    stepCalibration = null;
+    clearTimeout(calibrationTimer);
+    updateCalibrationControls(
+      "Calibration cancelled. Your saved step length is unchanged.",
     );
+  }
+  function updateCalibrationControls(message) {
+    const ui = floorUI?.calibration;
+    if (!ui) return;
+    ui.start.disabled = !!stepCalibration || !!healthRequestID;
+    if (ui.health) ui.health.disabled = !!stepCalibration || !!healthRequestID;
+    floorUI.stride.disabled = !!stepCalibration || !!healthRequestID;
+    ui.distance.disabled = !!stepCalibration;
+    ui.finish.hidden = !stepCalibration;
+    ui.finish.disabled = stepCalibration?.finishing === true;
+    ui.cancel.hidden = !stepCalibration;
+    if (message) ui.status.textContent = message;
+  }
+  window.contourIOSStepCalibration = (result) => {
+    if (
+      !stepCalibration ||
+      result?.requestID !== stepCalibration.id ||
+      !["walking", "finishing", "complete", "error", "cancelled"].includes(
+        result.status,
+      ) ||
+      !Number.isInteger(result.steps) ||
+      result.steps < 0
+    )
+      return;
+    const ui = floorUI.calibration;
+    let message =
+      typeof result.message === "string" ? result.message.slice(0, 250) : "";
+    if (result.status === "complete") {
+      if (
+        !Number.isFinite(result.stepLength) ||
+        result.stepLength < 0.4 ||
+        result.stepLength > 1.1
+      )
+        return;
+      stepLength = result.stepLength;
+      floorUI.stride.value = String(stepLength);
+      try {
+        localStorage.setItem("contour.indoorStepLength", String(stepLength));
+      } catch {}
+      message = `${stepLength.toFixed(2)} m per step · ${result.steps} steps. Saved for the next time you set your starting position.`;
+    }
+    if (["complete", "error", "cancelled"].includes(result.status)) {
+      stepCalibration = null;
+      clearTimeout(calibrationTimer);
+    } else if (result.status === "finishing") stepCalibration.finishing = true;
+    ui.status.textContent =
+      result.status === "walking"
+        ? `${result.steps} steps · ${message}`
+        : message;
+    updateCalibrationControls();
+  };
+  function installStepCalibration() {
+    const ui = floorUI;
+    if (typeof window.ContourBridge?.startStepCalibration !== "function")
+      return;
+    const box = document.createElement("section");
+    box.setAttribute("aria-label", "Step length calibration");
+    box.style.cssText = "padding:12px 0;border-top:1px solid #e6ebf2";
+    const title = document.createElement("h3");
+    title.textContent = "Calibrate my steps";
+    const hint = document.createElement("p");
+    hint.textContent =
+      "Before choosing your start, walk a measured distance (ideally 10–20 m), holding the phone in front and facing your walking direction. Use a measured distance, not indoor GPS.";
+    const label = document.createElement("label");
+    label.textContent = "Measured distance (m) ";
+    const distance = document.createElement("input");
+    distance.type = "number";
+    distance.min = "5";
+    distance.max = "100";
+    distance.step = "0.1";
+    distance.value = "20";
+    distance.setAttribute("aria-label", "Calibration distance in metres");
+    label.append(distance);
+    const start = document.createElement("button");
+    start.type = "button";
+    start.textContent = "Start calibration";
+    const finish = document.createElement("button");
+    finish.type = "button";
+    finish.textContent = "Finish calibration";
+    const cancel = document.createElement("button");
+    cancel.type = "button";
+    cancel.textContent = "Cancel calibration";
+    const status = document.createElement("p");
+    status.setAttribute("role", "status");
+    status.textContent = `Current step length: ${stepLength.toFixed(2)} m. Set your start after calibration to use it.`;
+    start.onclick = () => {
+      const metres = Number(distance.value);
+      if (!Number.isFinite(metres) || metres < 5 || metres > 100) {
+        status.textContent =
+          "Enter a measured distance between 5 and 100 metres.";
+        return;
+      }
+      const id =
+        window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`;
+      stepCalibration = { id, finishing: false };
+      updateCalibrationControls(
+        "Starting step counter. Allow Motion & Fitness access if asked…",
+      );
+      window.ContourBridge.startStepCalibration({
+        requestID: id,
+        distance: metres,
+      });
+    };
+    finish.onclick = () => {
+      if (!stepCalibration || stepCalibration.finishing) return;
+      stepCalibration.finishing = true;
+      updateCalibrationControls("Reading final steps…");
+      window.ContourBridge.finishStepCalibration(stepCalibration.id);
+      calibrationTimer = setTimeout(() => {
+        cancelStepCalibration();
+        status.textContent = "Step query timed out. Try calibration again.";
+      }, 30000);
+    };
+    cancel.onclick = () => {
+      cancelStepCalibration();
+      status.textContent =
+        "Calibration cancelled. Your saved step length is unchanged.";
+    };
+    const health = document.createElement("button");
+    health.type = "button";
+    health.textContent = "Use Apple Health step length";
+    health.hidden =
+      typeof window.ContourBridge?.readHealthStepLength !== "function";
+    const healthHint = document.createElement("p");
+    healthHint.textContent =
+      "Import your recent Walking Step Length from Apple Health instead of measuring a walk. Only this measurement is requested; Contour does not write Health data.";
+    const healthStatus = document.createElement("p");
+    healthStatus.setAttribute("role", "status");
+    health.onclick = () => {
+      if (stepCalibration || healthRequestID) return;
+      healthRequestID =
+        window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`;
+      healthStatus.textContent =
+        "Allow Walking Step Length access in the iPhone permission sheet, then wait for the import.";
+      updateCalibrationControls();
+      healthTimer = setTimeout(() => {
+        cancelHealthImport();
+        healthStatus.textContent =
+          "Health import timed out. Try again when your phone is unlocked.";
+      }, 120000);
+      window.ContourBridge.readHealthStepLength(healthRequestID);
+    };
+    box.append(
+      title,
+      health,
+      healthHint,
+      healthStatus,
+      hint,
+      label,
+      start,
+      finish,
+      cancel,
+      status,
+    );
+    ui.startChoices.append(box);
+    ui.calibration = {
+      start,
+      finish,
+      cancel,
+      distance,
+      status,
+      health,
+      healthStatus,
+    };
+    updateCalibrationControls();
   }
   function updateFloorMapSummary() {
     if (!floorUI?.routeMetric) return;
@@ -157,10 +351,55 @@
               : state === "no-path"
                 ? "No route found"
                 : "Plan your route";
-    ui.routeCaption.textContent =
+    let caption =
       state === "ok"
         ? `${Math.max(0, landmarkRoute.landmarkIDs.length - 2)} intermediate stops · Floor ${pending?.floor || "2F"}`
         : "Choose a start and destination above";
+    if (ui.trackingButton) {
+      const newStart = !!chosenStartID && chosenStartID !== confirmedStart?.id;
+      const active = !newStart && indoorPose?.status === "tracking";
+      const paused =
+        confirmedStart &&
+        indoorPose &&
+        !["starting", "tracking"].includes(indoorPose.status);
+      const freshHeading =
+        phoneHeading && Date.now() - phoneHeading.timestamp <= 10000;
+      const status =
+        !confirmedStart || newStart
+          ? !chosenStartID
+            ? "Choose your actual start, then start tracking"
+            : !freshHeading
+              ? "Waiting for a usable compass reading"
+              : "Ready — tap Start tracking to move the green dot"
+          : active
+            ? `${indoorPose.wallBlocked ? "Held at mapped wall" : "Walking"} · ${indoorPose.steps} steps · ${indoorPose.distance.toFixed(1)} m`
+            : indoorPose?.status === "motion-unavailable"
+              ? "Motion access needed — check Motion & Fitness in Settings"
+              : paused
+                ? "Tracking paused — resume from your last position"
+                : !freshHeading && !trackingRequested
+                  ? "Waiting for a usable compass reading"
+                  : "Starting step counter — allow Motion & Fitness access";
+      caption = `${status} · Floor ${pending?.floor || "2F"}`;
+      const starting =
+        !newStart &&
+        !!confirmedStart &&
+        (!indoorPose || indoorPose.status === "starting");
+      ui.trackingButton.hidden = false;
+      ui.trackingButton.textContent = active
+        ? "Tracking ✓"
+        : starting
+          ? !freshHeading && !trackingRequested
+            ? "Waiting for compass…"
+            : "Starting…"
+          : paused && !newStart
+            ? "Resume tracking"
+            : "Start tracking";
+      ui.trackingButton.disabled =
+        active || starting || (!confirmedStart && !chosenStartID);
+    }
+    if (ui.routeCaption.textContent !== caption)
+      ui.routeCaption.textContent = caption;
     ui.showDirections.disabled = !landmarkRoute?.instructions?.length;
     ui.swap.disabled = !landmarkStartID() || !selectedID;
   }
@@ -280,7 +519,6 @@
     landmarkTimer = null;
     landmarkRequest = null;
     landmarkRoute = value;
-    directionStep = 0;
     landmarkVersion++;
     updateLandmarkDirections();
     startRenderKey = null;
@@ -702,6 +940,8 @@
     startFitKey = null;
     startRenderKey = null;
     clearStartLayers();
+    cancelStepCalibration();
+    cancelHealthImport();
     window.ContourBridge?.stopFloorHeading?.();
   }
   function startLocation() {
@@ -1231,23 +1471,30 @@
     );
     const ready =
       !!confirmedStart &&
+      (!chosenStartID || chosenStartID === confirmedStart.id) &&
       !!destination &&
       indoorPose?.status === "tracking" &&
       !indoorPose.wallBlocked &&
       confirmedStart.id !== destination.id &&
       typeof window.ContourBridge?.startFloorAR === "function";
     floorUI.openAR.disabled = !ready;
-    floorUI.arHint.textContent = !confirmedStart
-      ? "Set your starting position on the map first."
-      : indoorPose?.status !== "tracking"
-        ? "Allow motion access and set your position to start indoor tracking."
-        : indoorPose.wallBlocked
-          ? "Position held at a mapped wall. Check your position, heading or saved door openings before opening AR."
-          : !destination
-            ? "Choose a saved destination to open camera navigation."
-            : confirmedStart.id === destination.id
-              ? "Choose a destination different from your starting point."
-              : `Open AR toward ${destination.name}. Position comes from steps and turns, not GPS. Camera-only obstacle cues; no wall-aware route yet.`;
+    floorUI.arHint.textContent =
+      !confirmedStart || (chosenStartID && chosenStartID !== confirmedStart.id)
+        ? "Tap Start tracking at your chosen starting point to enable AR."
+        : indoorPose?.status !== "tracking"
+          ? !trackingRequested
+            ? "AR is waiting for a compass reading. Hold your phone in front of you."
+            : indoorPose?.status === "starting" || !indoorPose
+              ? "AR is waiting for the step counter. Allow Motion & Fitness if prompted."
+              : "Tap Resume tracking. If motion access is blocked, enable Motion & Fitness in Settings."
+          : indoorPose.wallBlocked
+            ? "Position held at a mapped wall. Check your position, heading or saved door openings before opening AR."
+            : !destination
+              ? "Choose a saved destination to open camera navigation."
+              : confirmedStart.id === destination.id
+                ? "Choose a destination different from your starting point."
+                : `Open AR toward ${destination.name}. Position comes from steps and turns, not GPS. AR shows the approximate route direction; it does not detect or avoid obstacles.`;
+    floorUI.arHint.hidden = ready;
     floorUI.openAR.title = floorUI.arHint.textContent;
   }
   function openFloorAR() {
@@ -1264,6 +1511,11 @@
     const ll = coordinate(pending, destination);
     window.ContourBridge?.startFloorAR?.({
       version: 1,
+      routeRequest: {
+        startID: landmarkStartID(),
+        destinationID: destination.id,
+        revision: pending.routingRevision || "",
+      },
       trackingID: confirmedStart.sessionID,
       heading: {
         degrees: indoorPose.heading,
@@ -1336,7 +1588,6 @@
       .contour-landmark-directions ol{padding-left:24px;margin:12px 0}.contour-landmark-directions li{margin:12px 0;line-height:1.5}
       .contour-landmark-directions .contour-generate-directions{width:100%;min-height:48px;padding:12px;border:0;border-radius:10px;background:#185abc;color:white;font:700 16px system-ui;cursor:pointer}
       .contour-landmark-directions .contour-generate-directions:disabled{background:#dce3ed;color:#566579;cursor:default}
-      .contour-step-progress{font-weight:700!important;color:#087f8c}.contour-step-arrived,.contour-step-previous{width:100%;min-height:44px;padding:12px;margin:5px 0;border:0;border-radius:12px;font:650 15px system-ui;cursor:pointer}.contour-step-arrived{background:#087f8c;color:white}.contour-step-previous{background:#edf3f6;color:#334155}.contour-step-arrived[hidden],.contour-step-previous[hidden],.contour-step-progress[hidden],.contour-landmark-directions li[hidden]{display:none!important}
     `;
     document.head.appendChild(style);
     const controls = document.createElement("div");
@@ -1387,38 +1638,6 @@
       "aria-label",
       "Sequential landmark instructions",
     );
-    const stepProgress = document.createElement("p");
-    stepProgress.setAttribute("role", "status");
-    stepProgress.className = "contour-step-progress";
-    const arrived = document.createElement("button");
-    arrived.type = "button";
-    arrived.className = "contour-step-arrived";
-    arrived.onclick = () => {
-      if (directionStep >= directionStepCount()) return;
-      const pinID =
-        landmarkRoute.landmarkIDs[
-          Math.min(directionStep + 1, landmarkRoute.landmarkIDs.length - 1)
-        ];
-      const pin = pending.destinations.find((pin) => pin.id === pinID);
-      if (!pin) return;
-      const heading =
-        indoorPose?.status === "tracking"
-          ? { degrees: indoorPose.heading, timestamp: indoorPose.timestamp }
-          : phoneHeading;
-      // Retain the planned origin while reanchoring the live indoor pose.
-      chosenStartID = landmarkStartID();
-      directionStep++;
-      positionAtPin(pin, heading);
-      updateDirectionStep();
-    };
-    const previousStep = document.createElement("button");
-    previousStep.type = "button";
-    previousStep.textContent = "Previous step";
-    previousStep.className = "contour-step-previous";
-    previousStep.onclick = () => {
-      directionStep = Math.max(0, directionStep - 1);
-      updateDirectionStep();
-    };
     const editConnections = document.createElement("button");
     editConnections.type = "button";
     editConnections.textContent = "Edit walking connections";
@@ -1434,9 +1653,6 @@
       directionMessage,
       directionSummary,
       directionList,
-      stepProgress,
-      arrived,
-      previousStep,
       editConnections,
     );
     controls.append(
@@ -1500,9 +1716,12 @@
     stride.setAttribute("aria-label", "Step length in metres");
     stride.onchange = () => {
       const number = Number(stride.value);
-      if (Number.isFinite(number) && number >= 0.4 && number <= 1.1)
+      if (Number.isFinite(number) && number >= 0.4 && number <= 1.1) {
         stepLength = number;
-      else stride.value = String(stepLength);
+        try {
+          localStorage.setItem("contour.indoorStepLength", String(number));
+        } catch {}
+      } else stride.value = String(stepLength);
     };
     strideLabel.appendChild(stride);
     startChoices.append(confirmStart, confirmHint, strideLabel, resetPosition);
@@ -1544,9 +1763,6 @@
       directionSummary,
       directionList,
       openAR,
-      stepProgress,
-      arrived,
-      previousStep,
       arHint,
       select,
       status,
@@ -1554,6 +1770,7 @@
       startStatus,
       startChoices,
       startSelect,
+      stride,
       confirmStart,
       confirmHint,
       resetPosition,
@@ -1563,6 +1780,7 @@
       disabled: new Map(),
       ownedURL: null,
     };
+    installStepCalibration();
     installFloorMapChrome();
     new MutationObserver(syncFloorMap).observe(root, {
       attributes: true,
@@ -1831,28 +2049,64 @@
     const metric = make("span", "contour-route-metric", "Plan your route");
     overview.append(mode, metric);
     const caption = make("p", "contour-route-caption");
+    caption.setAttribute("role", "status");
+    const trackingRow = make("div", "contour-tracking-row");
+    trackingRow.style.cssText =
+      "display:flex;align-items:center;gap:8px;flex-shrink:0";
+    caption.style.flex = "1";
+    const trackingButton = make(
+      "button",
+      "contour-tracking-button",
+      "Start tracking",
+    );
+    trackingButton.type = "button";
+    trackingButton.style.cssText =
+      "min-height:36px;border:0;border-radius:18px;padding:7px 12px;background:#188038;color:white;font:650 12px system-ui;flex-shrink:0";
+    trackingButton.onclick = () => {
+      if (
+        !confirmedStart ||
+        (chosenStartID && chosenStartID !== confirmedStart.id)
+      ) {
+        if (chosenStartID) confirmStartingPoint(chosenStartID);
+        return;
+      }
+      const ll = confirmedStart.last || confirmedStart.ll;
+      clearIndoorTracking();
+      confirmedStart = {
+        ...confirmedStart,
+        ll,
+        last: ll,
+        sessionID:
+          window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`,
+        heading:
+          phoneHeading && Date.now() - phoneHeading.timestamp <= 10000
+            ? phoneHeading
+            : null,
+      };
+      beginIndoorTracking();
+      startRenderKey = null;
+      renderStartSuggestion();
+    };
+    trackingRow.append(caption, trackingButton);
     const actions = make("div", "contour-route-actions"),
       showDirections = make("button", "contour-view-directions", "Directions");
     showDirections.type = "button";
     ui.openAR.textContent = "AR";
     ui.openAR.setAttribute("aria-label", "Open AR navigation");
+    ui.arHint.style.cssText =
+      "margin:4px 0;font:12px/1.35 system-ui;color:#52615a";
     actions.append(showDirections, ui.generateDirections, ui.openAR);
     const scroll = make("div", "contour-directions-scroll");
     scroll.id = "contour-floor-instructions-scroll";
-    scroll.append(
-      ui.directionsHint,
-      ui.stepProgress,
-      ui.directionList,
-      ui.arrived,
-      ui.previousStep,
-    );
+    scroll.append(ui.directionsHint, ui.directionList);
     ui.directionMessage.classList.add("contour-route-message");
     ui.directionSummary.classList.add("contour-old-summary");
     ui.directionsSection.replaceChildren(
       overview,
-      caption,
+      trackingRow,
       ui.directionMessage,
       actions,
+      ui.arHint,
       scroll,
       ui.directionSummary,
     );
@@ -1861,7 +2115,7 @@
       drag = null,
       moved = false;
     const collapsedHeight = () =>
-      Math.min(204, Math.max(166, root.clientHeight * 0.25));
+      Math.min(280, Math.max(240, root.clientHeight * 0.32));
     const expandedHeight = () =>
       Math.max(collapsedHeight(), Math.min(520, root.clientHeight * 0.57));
     function setSheet(value) {
@@ -1931,6 +2185,7 @@
       swap,
       routeMetric: metric,
       routeCaption: caption,
+      trackingButton,
       showDirections,
       closeOptions,
       refreshLayout: () => {
@@ -2115,8 +2370,8 @@
     }
     const source = document.getElementById("libraryMapSource");
     if (source) {
-      if (!source.dataset.originalText) {
-        source.dataset.originalText = source.textContent;
+      if (source.dataset.originalText == null) {
+        source.dataset.originalText = source.textContent || "Floor map source";
         source.dataset.originalHref = source.getAttribute("href") || "";
       }
       source.textContent =
