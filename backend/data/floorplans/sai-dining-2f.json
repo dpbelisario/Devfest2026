@@ -1,0 +1,196 @@
+{
+  "schemaVersion": 1,
+  "venue": {
+    "indoorAtlasVenueId": "4402be90-dbff-11f1-95cb-e11cd22c6739",
+    "name": "SAI Dining / 生協南部食堂"
+  },
+  "floor": {
+    "floorNumber": 2,
+    "floorPlanId": "20d4186e-18ea-4ede-a8d2-1eef231a3134",
+    "imageAspect": 0.7075
+  },
+  "source": {
+    "kind": "event-map",
+    "title": "2026 Japanese Ornithological Society conference programme, page 11 (生協南部食堂2階)",
+    "url": "https://osj2026.ornithology.jp/docs/osj2026_book.pdf#page=11",
+    "note": "Assumes the IndoorAtlas floor plan image is the whole page 11 (same aspect ratio). Positions were traced by hand on a 1241x1754 render; poster rows and booths are temporary conference furniture."
+  },
+  "review": {
+    "status": "reviewed",
+    "at": "2026-11-10",
+    "note": "Desk review against the conference map only. Exits, routes and the toilet position are not checked on site; walk the floor before relying on them."
+  },
+  "pois": [
+    {
+      "id": "abc52b04-dcbb-11f1-9e7e-4b06bf9eaeb9",
+      "name": "Exit / 出口",
+      "description": "Proposed from the OSJ 2026 conference map (event layout, no stated scale). Check on site.",
+      "kind": "exit",
+      "at": [0.7937, 0.3193],
+      "confidence": 0.6,
+      "note": "Opening in the right wall next to the 出口 label; the map does not draw the door itself.",
+      "origin": "manual-trace"
+    },
+    {
+      "id": "abc52c8a-dcbb-11f1-a79b-e999afca9435",
+      "name": "Entrance / 入口",
+      "description": "Proposed from the OSJ 2026 conference map (event layout, no stated scale). Check on site.",
+      "kind": "entrance",
+      "at": [0.56, 0.634],
+      "confidence": 0.8,
+      "note": "Top of the 階段・EV box, where the 入口 arrow points.",
+      "origin": "manual-trace"
+    },
+    {
+      "id": "abc52cf9-dcbb-11f1-a946-7d5fb8a9addd",
+      "name": "Stairs and elevator / 階段・EV",
+      "description": "Proposed from the OSJ 2026 conference map (event layout, no stated scale). Check on site.",
+      "kind": "stairs",
+      "at": [0.5866, 0.6984],
+      "confidence": 0.8,
+      "note": "Centre of the 階段・EV box.",
+      "origin": "manual-trace"
+    },
+    {
+      "id": "abc52d3b-dcbb-11f1-bb30-2bc7c23aa167",
+      "name": "Toilets / トイレ",
+      "description": "Proposed from the OSJ 2026 conference map (event layout, no stated scale). Check on site.",
+      "kind": "toilet",
+      "at": [0.8461, 0.3609],
+      "confidence": 0.5,
+      "note": "Tip of the トイレ arrow; the toilets are off the drawn plan.",
+      "origin": "manual-trace"
+    }
+  ],
+  "areas": [
+    {
+      "id": "abc52d6c-dcbb-11f1-a62a-79694ef9aa8b",
+      "name": "Poster room P129-P160 / ポスター会場",
+      "ring": [
+        [0.1104, 0.2184],
+        [0.4488, 0.2184],
+        [0.4488, 0.3364],
+        [0.1104, 0.3364],
+        [0.1104, 0.2184]
+      ],
+      "description": "Event layout area from the OSJ 2026 map."
+    },
+    {
+      "id": "abc52da1-dcbb-11f1-a39e-edcd3b1eb17a",
+      "name": "Stairs and elevator hall / 階段・EV",
+      "ring": [
+        [0.531, 0.6328],
+        [0.6446, 0.6328],
+        [0.6446, 0.7526],
+        [0.531, 0.7526],
+        [0.531, 0.6328]
+      ],
+      "description": "Box marked 階段・EV on the OSJ 2026 map."
+    }
+  ],
+  "graph": {
+    "nodes": [
+      {
+        "id": "exit",
+        "at": [0.7937, 0.3193],
+        "poiId": "abc52b04-dcbb-11f1-9e7e-4b06bf9eaeb9"
+      },
+      {
+        "id": "toilet",
+        "at": [0.8461, 0.3609],
+        "poiId": "abc52d3b-dcbb-11f1-bb30-2bc7c23aa167"
+      },
+      {
+        "id": "east-corridor",
+        "at": [0.7413, 0.3535]
+      },
+      {
+        "id": "north-corridor",
+        "at": [0.5641, 0.3506]
+      },
+      {
+        "id": "north-centre",
+        "at": [0.419, 0.3506]
+      },
+      {
+        "id": "poster-door",
+        "at": [0.328, 0.3421]
+      },
+      {
+        "id": "poster-room",
+        "at": [0.274, 0.2737]
+      },
+      {
+        "id": "main-aisle",
+        "at": [0.3425, 0.4333]
+      },
+      {
+        "id": "main-aisle-south",
+        "at": [0.3425, 0.516]
+      },
+      {
+        "id": "south-hall",
+        "at": [0.3425, 0.5701]
+      },
+      {
+        "id": "south-west",
+        "at": [0.2015, 0.5559]
+      },
+      {
+        "id": "south-hall-east",
+        "at": [0.4512, 0.5701]
+      },
+      {
+        "id": "entrance-hall",
+        "at": [0.5641, 0.5701]
+      },
+      {
+        "id": "entrance-front",
+        "at": [0.5616, 0.6157]
+      },
+      {
+        "id": "entrance",
+        "at": [0.56, 0.634],
+        "poiId": "abc52c8a-dcbb-11f1-a79b-e999afca9435"
+      },
+      {
+        "id": "stairs",
+        "at": [0.5866, 0.6984],
+        "poiId": "abc52cf9-dcbb-11f1-a946-7d5fb8a9addd"
+      },
+      {
+        "id": "east-lower",
+        "at": [0.5963, 0.4903]
+      },
+      {
+        "id": "east-middle",
+        "at": [0.6608, 0.4761]
+      },
+      {
+        "id": "east-side",
+        "at": [0.7413, 0.4333]
+      }
+    ],
+    "edges": [
+      ["exit", "east-corridor"],
+      ["toilet", "east-corridor"],
+      ["east-corridor", "north-corridor"],
+      ["north-corridor", "north-centre"],
+      ["north-centre", "poster-door"],
+      ["poster-door", "poster-room"],
+      ["poster-door", "main-aisle"],
+      ["main-aisle", "main-aisle-south"],
+      ["main-aisle-south", "south-hall"],
+      ["south-hall", "south-west"],
+      ["south-hall", "south-hall-east"],
+      ["south-hall-east", "entrance-hall"],
+      ["entrance-hall", "entrance-front"],
+      ["entrance-front", "entrance"],
+      ["entrance", "stairs"],
+      ["entrance-hall", "east-lower"],
+      ["east-lower", "east-middle"],
+      ["east-middle", "east-side"],
+      ["east-side", "east-corridor"]
+    ]
+  }
+}

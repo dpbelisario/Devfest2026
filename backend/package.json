@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test": "tsx --test tests/*.test.ts",
     "import:gsi": "tsx scripts/import-gsi.ts",
-    "indoor-venues": "tsx scripts/indoor-venues.ts"
+    "indoor-venues": "tsx scripts/indoor-venues.ts",
+    "floorplan": "tsx scripts/floorplan.ts"
   },
   "dependencies": {
     "@google-cloud/firestore": "^9.4.0",

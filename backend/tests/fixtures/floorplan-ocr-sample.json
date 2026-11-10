@@ -1,0 +1,42 @@
+{
+  "_note": "Hand-written sample in the shape the Gemini extract step returns for page 11 of the OSJ 2026 programme (SAI Dining 2F). Not a live model recording.",
+  "labels": [
+    {
+      "text": "出口",
+      "category": "exit",
+      "box": [243, 806, 256, 840],
+      "confidence": 0.95
+    },
+    {
+      "text": "トイレ",
+      "category": "toilet",
+      "box": [342, 823, 357, 870],
+      "confidence": 0.9
+    },
+    {
+      "text": "入口",
+      "category": "entrance",
+      "box": [656, 543, 672, 578],
+      "confidence": 0.9
+    },
+    {
+      "text": "階段・EV",
+      "category": "elevator",
+      "box": [692, 552, 707, 612],
+      "confidence": 0.85
+    },
+    {
+      "text": "机・椅子置場",
+      "category": "room",
+      "box": [273, 657, 288, 738],
+      "confidence": 0.8
+    },
+    {
+      "text": "企業展示",
+      "category": "other",
+      "box": [357, 395, 367, 443],
+      "confidence": 0.7
+    },
+    { "text": "", "category": "exit", "box": [0, 0, 1, 1], "confidence": 1 }
+  ]
+}
