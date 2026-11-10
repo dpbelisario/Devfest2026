@@ -364,8 +364,11 @@ on a phone or computer for quick testing. The Android and iOS apps have the same
 plus the native camera, sensor and AR features.
 
 \smallskip
-\textbf{Installing the apps:} Testers install the app through Firebase App Distribution
-(by invitation).
+\textbf{Installing the apps:} Testers install the app through Firebase App Distribution.
+
+\textbf{Updates:} Shared logic is written once in Kotlin Multiplatform. UI and venue data changes
+reach testers in minutes from Cloud Run and IndoorAtlas, and Android builds about 8 minutes after
+each merge through Firebase App Distribution.
 \end{answerbox}
 
 % ------------------------------------------------------------
@@ -391,7 +394,7 @@ Korean) with the globe button in the header, or under \textbf{Menu $\rightarrow$
 \noindent\textbf{\underline{Student version}}
 \begin{enumerate}[leftmargin=1.6em,itemsep=2pt,topsep=4pt]
   \item Tap \textbf{Student} at the top. Nagoya University buildings appear as blue pins
-        with cards at the bottom.
+        with cards.
   \item On the \textbf{Central Library} card, tap \textbf{Details}, then
         \textbf{Indoor navigation}.
   \item Choose the \textbf{floor}, your \textbf{starting checkpoint} and a
@@ -409,8 +412,8 @@ Korean) with the globe button in the header, or under \textbf{Menu $\rightarrow$
 \medskip
 \noindent\textbf{\underline{Evacuation version}}
 \begin{enumerate}[leftmargin=1.6em,itemsep=2pt,topsep=4pt]
-  \item Tap \textbf{Evacuation} at the top. Official Nagoya evacuation sites appear as green
-        pins, nearest first.
+  \item Tap \textbf{Evacuation} at the top. Nagoya evacuation sites appear as green pins,
+        nearest first.
   \item On the nearest site's card, tap \textbf{3D AR directions}. When asked
         ``Are you inside a building right now?'', tap \textbf{Yes, I'm inside}.
   \item Choose your \textbf{floor} and tap \textbf{Start}. The exit of the nearest building
