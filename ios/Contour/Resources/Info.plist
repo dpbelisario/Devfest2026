@@ -15,6 +15,7 @@
     <key>NSLocationWhenInUseUsageDescription</key><string>Find nearby evacuation sites and show your distance to them.</string>
     <key>NSMicrophoneUsageDescription</key><string>Listen to your spoken request when you start speech input.</string>
     <key>NSSpeechRecognitionUsageDescription</key><string>Turn your spoken request into text.</string>
+    <key>NSHealthShareUsageDescription</key><string>Use your Walking Step Length to personalize indoor walking distance estimates. Contour only reads this measurement and does not write Health data.</string>
     <key>NSMotionUsageDescription</key><string>Count walking steps and measure turns for indoor navigation from your confirmed position.</string>
     <key>ContourUIURL</key><string>$(CONTOUR_UI_URL)</string>
     <key>UIApplicationSceneManifest</key><dict>

@@ -206,3 +206,59 @@ test("indoor step tracking passes its origin and has explicit pause/clear action
     ["startIndoorTracking", "pauseIndoorTracking", "clearIndoorTracking"],
   );
 });
+
+test("step calibration uses separate measured-distance actions", () => {
+  const { context: p, sent } = page();
+  p.ContourBridge.startStepCalibration({ requestID: "cal-1", distance: 20 });
+  p.ContourBridge.finishStepCalibration("cal-1");
+  p.ContourBridge.cancelStepCalibration();
+  assert.deepEqual(JSON.parse(JSON.stringify(sent)), [
+    {
+      action: "startStepCalibration",
+      request: { requestID: "cal-1", distance: 20 },
+    },
+    { action: "finishStepCalibration", requestID: "cal-1" },
+    { action: "cancelStepCalibration" },
+  ]);
+});
+
+test("Health step length import is explicit and cancellable", () => {
+  const { context: p, sent } = page();
+  assert.equal(
+    sent.length,
+    0,
+    "Loading the bridge must not request Health access",
+  );
+  p.ContourBridge.readHealthStepLength("health-1");
+  p.ContourBridge.cancelHealthStepLength();
+  assert.deepEqual(JSON.parse(JSON.stringify(sent)), [
+    { action: "readHealthStepLength", requestID: "health-1" },
+    { action: "cancelHealthStepLength" },
+  ]);
+});
+
+test("Details demo AR and Floor Maps AR remain separate native entry points", () => {
+  const { context: p, sent } = page();
+  p.ContourBridge.startLibraryExitAR();
+  p.ContourBridge.startFloorAR({ version: 1, trackingID: "floor-session" });
+  assert.deepEqual(
+    sent.map((value) => value.action),
+    ["startLibraryExitAR", "startFloorAR"],
+  );
+  const controller = readFileSync(
+    require("node:path").join(
+      __dirname,
+      "../Contour/Features/Home/ContourViewController.swift",
+    ),
+    "utf8",
+  );
+  assert.match(
+    controller,
+    /case "startLibraryExitAR": startObstacleScan\(exitDemo: true\)/,
+  );
+  assert.match(
+    controller,
+    /case "startFloorAR":[\s\S]*?startTrackedAR\(goal\)/,
+  );
+  assert.doesNotMatch(controller, /contourIOSOpenTrackedAR/);
+});

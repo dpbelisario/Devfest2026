@@ -46,6 +46,42 @@ actor OverlayDisk {
         }
         return try FloorLandmarkPlanner.plan(overlay: overlay, start: start, destination: destination)
     }
+    /// Resolve destination and route from saved data; never trust coordinates supplied by the page.
+    func trackedARGoal(_ request: FloorARGoal, pose: IndoorStepPose) throws -> FloorARGoal {
+        guard let overlay = try load() else { throw NativeOverlayError.invalid }
+        return try Self.resolveARGoal(request, overlay: overlay, pose: pose)
+    }
+    nonisolated static func resolveARGoal(_ request: FloorARGoal, overlay saved: GeographicOverlay, pose: IndoorStepPose) throws -> FloorARGoal {
+        guard request.version == 1, let ids = request.routeRequest, saved.floorName == request.floor,
+              pose.sessionID == request.trackingID, pose.floor == request.floor, pose.status == "tracking", !pose.wallBlocked,
+              pose.latitude.isFinite, pose.longitude.isFinite,
+              ids.revision == (try FloorLandmarkPlanner.revision(saved)),
+              let startIndex = saved.destinations?.firstIndex(where: { $0.id == ids.startID }),
+              let geometry = saved.wallGeometry else { throw NativeOverlayError.invalid }
+        var overlay = saved
+        let map = FloorWallMap(latitude: overlay.latitude, longitude: overlay.longitude, width: overlay.width,
+            aspect: overlay.aspect, angle: overlay.angle, geometry: geometry)
+        let local = map.local(latitude: pose.latitude, longitude: pose.longitude)
+        let current = FloorPlanPoint(x: Double(local.x) / overlay.width + 0.5, y: Double(local.y) / overlay.height + 0.5)
+        guard current.isValid else { throw NativeOverlayError.invalid }
+        // Plan from the live position without modifying the saved pin or approach point.
+        overlay.destinations?[startIndex].x = current.x; overlay.destinations?[startIndex].y = current.y
+        if let index = overlay.walkingNetwork?.points.firstIndex(where: { $0.id == ids.startID }) {
+            overlay.walkingNetwork?.points[index].position = current
+        }
+        guard overlay.floorName == request.floor,
+              let start = overlay.destinations?.first(where: { $0.id == ids.startID }),
+              let destination = overlay.destinations?.first(where: { $0.id == ids.destinationID }) else { throw NativeOverlayError.invalid }
+        let route = try FloorLandmarkPlanner.plan(overlay: overlay, start: ids.startID, destination: ids.destinationID)
+        guard route.status == "ok", let first = route.path.first, let last = route.path.last else { throw NativeOverlayError.invalid }
+        var goal = FloorARGoal(heading: request.heading, trackingID: request.trackingID, routeRequest: ids,
+            version: 1, floor: overlay.floorName,
+            start: .init(latitude: first.latitude, longitude: first.longitude, name: start.name),
+            destination: .init(latitude: last.latitude, longitude: last.longitude, name: destination.name))
+        goal.route = route.path.map { .init(latitude: $0.latitude, longitude: $0.longitude) }
+        guard goal.isValid else { throw NativeOverlayError.invalid }
+        return goal
+    }
     func save(_ value: GeographicOverlay) throws {
         guard value.isValid else { throw NativeOverlayError.invalid }
         try FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
@@ -644,6 +680,9 @@ private struct FloorDestinationReview: View {
     @State private var pins: [FloorDestination]
     @State private var included: Set<UUID>
     @State private var selected: UUID?
+    @State private var zoom = 1.0
+    @State private var dragging: UUID?
+    @State private var moveHistory: [FloorDestination] = []
     let save: ([FloorDestination]) -> Void
     init(image: UIImage, initial: [FloorDestination], save: @escaping ([FloorDestination]) -> Void) {
         self.image = image; self.save = save
@@ -651,37 +690,74 @@ private struct FloorDestinationReview: View {
         _included = State(initialValue: Set(initial.map(\.id)))
         _selected = State(initialValue: initial.first?.id)
     }
+    private func movePin(_ id: UUID, to point: CGPoint, size: CGSize, remember: Bool) {
+        guard let index = pins.firstIndex(where: { $0.id == id }) else { return }
+        if remember {
+            moveHistory.append(pins[index])
+            if moveHistory.count > 30 { moveHistory.removeFirst() }
+        }
+        pins[index].move(to: point, imageSize: size)
+    }
     private var accepted: [FloorDestination] { pins.filter { included.contains($0.id) } }
     var body: some View {
         NavigationStack {
             VStack(spacing: 8) {
-                Text("Select a numbered pin, then tap its correct spot on the image. Rename labels or uncheck unwanted text below.")
+                Text("Drag a numbered pin to move it, or select one and tap its new spot. Zoom in for precise placement; drag the background to pan.")
                     .font(.footnote).padding(.horizontal)
                 GeometryReader { geometry in
                     let scale = min(geometry.size.width / image.size.width, geometry.size.height / image.size.height)
-                    let size = CGSize(width: image.size.width * scale, height: image.size.height * scale)
-                    Image(uiImage: image).resizable().frame(width: size.width, height: size.height)
-                        .contentShape(Rectangle())
-                        .onTapGesture { point in
-                            guard let index = pins.firstIndex(where: { $0.id == selected }), size.width > 0, size.height > 0 else { return }
-                            pins[index].x = min(1, max(0, point.x / size.width))
-                            pins[index].y = min(1, max(0, point.y / size.height))
-                            pins[index].textBounds = nil
-                        }
-                        .overlay(alignment: .topLeading) {
-                            ForEach(Array(pins.enumerated()), id: \.element.id) { index, pin in
-                                if included.contains(pin.id) {
-                                    Button { selected = pin.id } label: {
-                                        Text("\(index + 1)").font(.caption.bold()).foregroundStyle(.white)
-                                            .padding(6).background(selected == pin.id ? Color.orange : Color.blue, in: Circle())
+                    let size = CGSize(width: image.size.width * scale * zoom, height: image.size.height * scale * zoom)
+                    ScrollView([.horizontal, .vertical]) {
+                        Image(uiImage: image).resizable().frame(width: size.width, height: size.height)
+                            .contentShape(Rectangle())
+                            .onTapGesture { point in
+                                guard let id = selected else { return }
+                                movePin(id, to: point, size: size, remember: true)
+                            }
+                            .overlay(alignment: .topLeading) {
+                                ForEach(Array(pins.enumerated()), id: \.element.id) { index, pin in
+                                    if included.contains(pin.id) {
+                                        Button { selected = pin.id } label: {
+                                            Text("\(index + 1)").font(.caption.bold()).foregroundStyle(.white)
+                                                .frame(width: 32, height: 32)
+                                                .background(selected == pin.id ? Color.orange : Color.blue, in: Circle())
+                                                .overlay(Circle().stroke(.white, lineWidth: 2))
+                                        }
+                                        .buttonStyle(.plain)
+                                        .accessibilityLabel("Move pin \(index + 1), \(pin.name)")
+                                        .accessibilityHint("Drag to reposition, or select and tap a new spot on the floor image")
+                                        .highPriorityGesture(DragGesture(minimumDistance: 2, coordinateSpace: .named("pinReviewImage"))
+                                            .onChanged { gesture in
+                                                selected = pin.id
+                                                let remember = dragging != pin.id
+                                                dragging = pin.id
+                                                movePin(pin.id, to: gesture.location, size: size, remember: remember)
+                                            }
+                                            .onEnded { _ in dragging = nil })
+                                        .position(x: pin.x * size.width, y: pin.y * size.height)
                                     }
-                                    .accessibilityLabel("Select pin \(index + 1), \(pin.name)")
-                                    .position(x: pin.x * size.width, y: pin.y * size.height)
                                 }
                             }
-                        }
-                        .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
+                            .coordinateSpace(name: "pinReviewImage")
+                            .padding(20)
+                            .frame(minWidth: geometry.size.width, minHeight: geometry.size.height)
+                    }
                 }.frame(height: 270).padding(.horizontal)
+                HStack {
+                    Text("Zoom").font(.caption)
+                    Slider(value: $zoom, in: 1...4).accessibilityLabel("Pin review zoom")
+                    Button("Fit") { zoom = 1 }
+                    Button("Undo move") {
+                        if let previous = moveHistory.popLast(), let index = pins.firstIndex(where: { $0.id == previous.id }) {
+                            pins[index].x = previous.x; pins[index].y = previous.y
+                            pins[index].textBounds = previous.textBounds
+                            selected = previous.id; dragging = nil
+                        }
+                    }.disabled(moveHistory.isEmpty)
+                }.padding(.horizontal)
+                if let pin = pins.first(where: { $0.id == selected }) {
+                    Text("Moving: \(pin.name)").font(.caption).foregroundStyle(.secondary).lineLimit(1).padding(.horizontal)
+                }
                 HStack {
                     Button("Add pin") {
                         let pin = FloorDestination(name: "New destination", x: 0.5, y: 0.5)
@@ -714,6 +790,8 @@ private struct FloorDestinationReview: View {
                     }.onDelete { offsets in
                         for index in offsets { included.remove(pins[index].id) }
                         pins.remove(atOffsets: offsets)
+                        moveHistory.removeAll(); dragging = nil
+                        if !pins.contains(where: { $0.id == selected }) { selected = pins.first?.id }
                     }
                 }
                 Text("Pins mark printed labels, not verified entrances. They do not create paths around walls.")
