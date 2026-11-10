@@ -194,7 +194,7 @@ nothing shows which exit, which way, or which classroom to head for.
 \begin{itemize}[leftmargin=1.4em,itemsep=2pt,topsep=4pt]
   \item \textbf{To the evacuation site, fast.} One tap shows the nearest official site.
         SEAR guides you to the nearest exit of the building, then 3D AR arrows on the camera
-        view point the way. When an official alert arrives on Android, SEAR opens by itself
+        view point the way. When an official alert arrives, SEAR opens by itself
         with what to do now and the nearest suitable site.
   \item \textbf{To the classroom, fast.} Pick the building, your starting point and your
         destination, floor by floor, and follow the route on the floor map or with 3D AR.
@@ -253,7 +253,7 @@ Cloud Scheduler + Workflows & Import sites hourly and warnings every minute. & R
 Google Maps JavaScript API & Basemap for sites and campus buildings. & Detailed, familiar map. & Needs the internet. Paid beyond the free tier. \\
 ARCore & Library exit AR with depth-based obstacle checks (Apple ARKit on iPhone). & Uses the phone camera, no extra hardware. & Supported phones only. Depth detection is incomplete. \\
 ML Kit Translation + speech input & Offline translation and voice input. & Works without the internet. & Language models download once first. \\
-Cloud Build + App Distribution & Build the Android app on each push and send it to testers. & One-tap updates for teammates. & iOS builds still need Apple signing. \\
+Cloud Build + App Distribution & Build the app on each push and send it to testers. & One-tap updates for teammates. & Each store needs its own signed release. \\
 \bottomrule
 \end{tabularx}
 
@@ -364,9 +364,8 @@ on a phone or computer for quick testing. The Android and iOS apps have the same
 plus the native camera, sensor and AR features.
 
 \smallskip
-\textbf{Installing the apps:} Android testers install the app through Firebase App
-Distribution (by invitation). The iOS app is built and tested in the simulator but not yet
-distributed.
+\textbf{Installing the apps:} Testers install the app through Firebase App Distribution
+(by invitation).
 \end{answerbox}
 
 % ------------------------------------------------------------
@@ -399,8 +398,8 @@ Korean) with the globe button in the header, or under \textbf{Menu $\rightarrow$
         \textbf{destination} (the 2F exit or the nearest stairs on that floor), then tap
         \textbf{I am at this checkpoint $\cdot$ start}. The route appears on the official
         floor map.
-  \item Back on the card, tap \textbf{3D AR directions}. In the Android app the camera opens
-        straight to arrows towards the 2F Entrance Hall exit; tap the \textbf{Floor guess} or
+  \item Back on the card, tap \textbf{3D AR directions}. In the app the camera opens
+        straight to arrows towards the 2F Entrance Hall exit. Tap the \textbf{Floor guess} or
         \textbf{Start guess} chip to correct it. Other buildings (no floor map yet) show one
         floor and one exit choice.
   \item Drag the grey bar on top of a card down to shrink the cards to one row (name and
@@ -415,11 +414,11 @@ Korean) with the globe button in the header, or under \textbf{Menu $\rightarrow$
   \item On the nearest site's card, tap \textbf{3D AR directions}. When asked
         ``Are you inside a building right now?'', tap \textbf{Yes, I'm inside}.
   \item Choose your \textbf{floor} and tap \textbf{Start}. The exit of the nearest building
-        is assigned (Central Library: 2F Entrance Hall; others: default main entrance) and
+        is assigned (Central Library: 2F Entrance Hall, others: default main entrance) and
         3D AR arrows lead to it. Follow exit signs and staff.
   \item Once outside, tap \textbf{I'm outside $\cdot$ continue}. SEAR continues with
         \textbf{3D AR} arrows to the evacuation site.
-  \item (Android app only) Open the menu and tap \textbf{Test alert}. After a few seconds
+  \item Open the menu and tap \textbf{Test alert}. After a few seconds
         the emergency pop-up should open with what to do now and the nearest site.
 \end{enumerate}
 
@@ -459,7 +458,7 @@ No account or saved data is needed. The app uses:
   \item Real floor plans collected and provided by the university, with more accurate indoor
         positioning, for more campus buildings
   \item Verified walking routes that take hazards and closures into account
-  \item Distribute the iOS app to testers
+  \item Publish the app on Google Play and the App Store
 \end{itemize}
 
 % ------------------------------------------------------------
