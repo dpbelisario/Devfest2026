@@ -9,7 +9,7 @@
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
 \usepackage{lmodern}
-\usepackage[margin=25mm]{geometry}
+\usepackage[margin=25mm,top=22mm,bottom=22mm]{geometry}
 \usepackage{amssymb}
 \usepackage{array}
 \usepackage{tabularx}
@@ -148,7 +148,8 @@ Team Name              & Contour \\
 Member                 & David Belisario Patrick Santos, Le Minh Quang, Bert Jacob Andal Tropicales, Soo Wing Seng \\
 Application Name       & ``SEAR'' (Student Evacuation AR) \\
 Category               & Creative \\
-GitHub Repository URL  & \url{https://github.com/Devfest-Hackathon-2026/df-2026-t113.git} \\
+GitHub Repository URL  & {\small\url{https://github.com/Devfest-Hackathon-2026/df-2026-t113.git}} \\
+Google Drive (docs, APK) & {\small\url{https://drive.google.com/drive/folders/1P9CDJ0kENMENJ_33cHEDn9n9EE8JlPwa}} \\
 \bottomrule
 \end{tabularx}
 
@@ -359,17 +360,28 @@ results return the same way. Steps A--B run on a schedule (evacuation sites hour
 
 \begin{answerbox}
 Application URL: \url{https://gen-lang-client-0467526025.web.app/app/}\\[4pt]
-This is the browser version of the app (Firebase Hosting in front of Cloud Run). It opens
-on a phone or computer for quick testing. The Android and iOS apps have the same interface
-plus the native camera, sensor and AR features.
+Browser version of the app (Firebase Hosting in front of Cloud Run) for quick testing on a
+phone or computer. The Android and iOS apps add the native camera, sensor and AR features.
+\end{answerbox}
+
+\noindent\textbf{\underline{Installing the apps}}\par\vspace{3pt}
+\noindent\textbf{Android:} Download \texttt{SEAR.apk} from the Google Drive folder (Team Information)
+on the phone, open it, allow \textbf{Install unknown apps} when asked, then tap \textbf{Install}.
 
 \smallskip
-\textbf{Installing the apps:} Testers install the app through Firebase App Distribution.
+\noindent\textbf{iPhone (Xcode on a Mac):} (1)~Install Xcode and JDK~17, clone the GitHub repository
+and open \texttt{ios/SEAR.xcodeproj} (scheme \textbf{SEAR}). (2)~Sign in under Xcode
+$\rightarrow$ Settings $\rightarrow$ Accounts. On the \textbf{SEAR} target $\rightarrow$
+\textbf{Signing \& Capabilities}, pick your team and set a unique bundle ID (e.g.\
+\texttt{com.yourname.sear}). (3)~Connect and unlock the iPhone, tap \textbf{Trust}, select it
+as the destination and press \textbf{Run} (\texttt{Cmd+R}). Turn on \textbf{Developer Mode} and
+trust the developer under Settings $\rightarrow$ General $\rightarrow$ VPN \& Device Management
+if iOS asks.
 
-\textbf{Updates:} Shared logic is written once in Kotlin Multiplatform. UI and venue data changes
+\smallskip
+\noindent\textbf{Updates:} Shared logic is written once in Kotlin Multiplatform. UI and venue data changes
 reach testers in minutes from Cloud Run and IndoorAtlas, and Android builds about 8 minutes after
 each merge through Firebase App Distribution.
-\end{answerbox}
 
 % ------------------------------------------------------------
 \section{How to Test}
