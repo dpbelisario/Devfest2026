@@ -104,4 +104,39 @@ class IndoorVenuesTest {
         assertEquals("https://ui.test/api/indoor/venues", IndoorVenueRepository.endpoint("https://example.invalid/", "https://ui.test/app/"))
         assertNull(IndoorVenueRepository.endpoint("https://example.invalid/", ""))
     }
+
+    // SAI Dining shape (synced, rank 1, address) then the Central Library (no IndoorAtlas) and Engineering II.
+    private val numbered = """
+        {"venues":[
+          {"id":"ia-4402be90-dbff-11f1-95cb-e11cd22c6739","name":{"en":"SAI Dining","ja":"生協南部食堂"},
+           "address":"Synthetic address 1-2-3","syncedFrom":"indooratlas","rank":1,"primary":true,
+           "indoorAtlas":{"venueId":"4402be90-dbff-11f1-95cb-e11cd22c6739","floors":[]},
+           "location":{"lat":35.15,"lng":136.96,"radiusM":80},"exits":[],"pois":[],
+           "areas":[{"id":"ia-a","floorLevel":2,"ring":[{"lat":35.15,"lng":136.96},{"lat":35.151,"lng":136.96},{"lat":35.151,"lng":136.961}]}]},
+          {"id":"nu-library","name":{"en":"Central Library","ja":"中央図書館"},"rank":2,"primary":false,
+           "floorLevels":[-1,1,2,3,4],"location":{"lat":35.15507,"lng":136.96378,"radiusM":60},"exits":[],"pois":[]},
+          {"id":"nu-engineering-2","name":{"en":"Engineering Building II","ja":"工学部2号館"},"rank":3,"primary":false,
+           "indoorAtlas":{"venueId":"$engineeringVenueId","floors":[]},
+           "location":{"lat":35.15561139,"lng":136.96476536,"radiusM":100},"exits":[],"pois":[]}
+        ]}
+    """.trimIndent()
+
+    @Test fun venuesWithoutIndoorAtlasAreListedButNeverMatched() {
+        val parsed = IndoorVenueCatalog.parse(numbered, IndoorVenueCatalog.Origin.SERVER)!!
+        // Only IndoorAtlas venues take part in SDK matching, gates and Nearest exit.
+        assertEquals(listOf("ia-4402be90-dbff-11f1-95cb-e11cd22c6739", "nu-engineering-2"), parsed.venues.map { it.id })
+        assertEquals(listOf("nu-library"), parsed.otherVenues.map { it.id })
+        assertTrue(parsed.containing(35.15507, 136.96378).isEmpty())
+        assertEquals("Synthetic address 1-2-3", parsed.venues[0].address)
+        assertEquals("ia-4402be90-dbff-11f1-95cb-e11cd22c6739", parsed.primary()?.id)
+        // The page sees all three in rank order: 01, 02, 03.
+        val rows = parsed.toJson().getJSONArray("venues")
+        assertEquals(listOf(1, 2, 3), (0 until rows.length()).map { rows.getJSONObject(it).getInt("rank") })
+        assertTrue(rows.getJSONObject(1).isNull("indoorAtlas"))
+        assertEquals("Synthetic address 1-2-3", rows.getJSONObject(0).getString("address"))
+        // The cached copy keeps both kinds.
+        val reparsed = IndoorVenueCatalog.parse(parsed.toJson().toString(), IndoorVenueCatalog.Origin.CACHE)!!
+        assertEquals(parsed.venues, reparsed.venues)
+        assertEquals(parsed.otherVenues, reparsed.otherVenues)
+    }
 }

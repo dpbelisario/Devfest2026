@@ -7,12 +7,14 @@
  *   npm run indoor-venues --workspace backend -- upsert path/to/venue.json
  *   npm run indoor-venues --workspace backend -- enable|disable <id>
  *   INDOORATLAS_MAPPING_API_KEY=… npm run indoor-venues --workspace backend -- sync
+ *   INDOORATLAS_ARCHIVE_BUCKET=<project>-indooratlas npm run indoor-venues --workspace backend -- export all ./ia-raw
  *
  * GOOGLE_CLOUD_PROJECT and FIRESTORE_DATABASE_ID are honoured when set.
  * `sync` reads the IndoorAtlas Mapping API key from the environment only.
  */
-import { readFile } from "node:fs/promises";
-import { resolve } from "node:path";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { dirname, resolve } from "node:path";
+import { CloudIndoorAtlasArchiveStore } from "../src/repositories/cloudIndoorAtlasArchiveStore.js";
 import { createIndoorAtlasClient } from "../src/services/indoorAtlasClient.js";
 import { FirestoreIndoorVenuesRepository } from "../src/repositories/firestoreIndoorVenuesRepository.js";
 import {
@@ -26,6 +28,7 @@ const optional = (value: string | undefined) => value?.trim() || undefined;
 const callerDirectory = process.env.INIT_CWD ?? process.cwd();
 
 const mappingApiKey = optional(process.env.INDOORATLAS_MAPPING_API_KEY);
+const archiveBucket = optional(process.env.INDOORATLAS_ARCHIVE_BUCKET);
 
 try {
   const lines = await runIndoorVenuesCommand(process.argv.slice(2), {
@@ -38,6 +41,18 @@ try {
       ? createIndoorAtlasClient({ apiKey: mappingApiKey })
       : null,
     log: (message) => console.warn(message),
+    archive: archiveBucket
+      ? CloudIndoorAtlasArchiveStore.create({
+          bucket: archiveBucket,
+          projectId: optional(process.env.GOOGLE_CLOUD_PROJECT),
+          databaseId: optional(process.env.FIRESTORE_DATABASE_ID),
+        })
+      : null,
+    writeFile: async (path, data) => {
+      const target = resolve(callerDirectory, path);
+      await mkdir(dirname(target), { recursive: true });
+      await writeFile(target, data);
+    },
     readJson: async (path) => {
       const text = await readFile(resolve(callerDirectory, path), "utf8");
       try {

@@ -77,14 +77,14 @@ must tolerate them (see the backend contract below).
 If any branch fails, the other branches still finish. The execution then fails
 with `BRANCH_FAILED`, and the error includes the results that did succeed.
 
-### `indooratlas-sync` (every 15 minutes, enabled)
+### `indooratlas-sync` (every 5 minutes, enabled)
 
-| Step                      | What it does                                                                                 | Backend endpoint              |
-| ------------------------- | -------------------------------------------------------------------------------------------- | ----------------------------- |
-| Scheduler job             | `indooratlas-sync-every-15-minutes` (`*/15 * * * *`, Tokyo), **enabled**                     | none                          |
-| `import_configuration`    | Reads `baseUrl` (argument or `JOBS_BASE_URL`)                                                | none                          |
-| `sync_indooratlas_venues` | Mirrors the IndoorAtlas account into `indoorVenues` (timeout 240 s, 1 retry on 5xx/timeouts) | `POST /jobs/indooratlas/sync` |
-| `sync_summary`            | Returns `{configured, venues, floors, pois, exits, updated, disabled, skipped}`              | none                          |
+| Step                      | What it does                                                                                                     | Backend endpoint              |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------- | ----------------------------- |
+| Scheduler job             | `indooratlas-sync-every-15-minutes` (`*/5 * * * *`, Tokyo; original name kept), **enabled**                      | none                          |
+| `import_configuration`    | Reads `baseUrl` (argument or `JOBS_BASE_URL`)                                                                    | none                          |
+| `sync_indooratlas_venues` | Mirrors the IndoorAtlas account into `indoorVenues` and the raw archive (timeout 240 s, 1 retry on 5xx/timeouts) | `POST /jobs/indooratlas/sync` |
+| `sync_summary`            | Returns `{configured, venues, floors, pois, exits, areas, archived, updated, disabled, skipped}`                 | none                          |
 
 This schedule is created enabled because it is harmless without the key: the
 backend answers `{"configured": false}` until the Secret Manager secret
@@ -205,13 +205,19 @@ The script does the following:
    service keeps its image unless you set `REDEPLOY_JOBS=1`.
 5. Creates the Secret Manager secret `indooratlas-mapping-api-key` (empty) if
    missing, grants `contour-jobs-runtime` `roles/secretmanager.secretAccessor`
-   on it only, and, once the secret has an enabled version, attaches it to
-   `contour-jobs` with
-   `--update-secrets INDOORATLAS_MAPPING_API_KEY=indooratlas-mapping-api-key:latest`.
+   on it only (and the same on it only for the `api` service's runtime account,
+   read with `gcloud run services describe api`), and, once the secret has an
+   enabled version, attaches it to `contour-jobs` and `api` with
+   `--update-secrets INDOORATLAS_MAPPING_API_KEY=indooratlas-mapping-api-key:latest`
+   (`api` uses it only for the floor plan image proxy). It also creates the
+   private bucket `gs://<project>-indooratlas` (uniform access, public access
+   prevention), grants `contour-jobs-runtime` `roles/storage.objectAdmin` and the
+   `api` account `roles/storage.objectViewer` on that bucket only, and sets
+   `INDOORATLAS_ARCHIVE_BUCKET` on both services.
 6. Deploys all workflows with `JOBS_BASE_URL` set to the `contour-jobs` URL.
 7. Creates the Nagoya and JMA Scheduler jobs in the paused state and
    `indooratlas-sync-every-15-minutes` enabled (only on first creation; a later
-   pause is kept).
+   pause is kept). Reruns update its schedule to every 5 minutes in place.
 8. Creates the Cloud Build trigger `contour-jobs-deploy`.
 9. Prints links to the graphs and the resume commands.
 

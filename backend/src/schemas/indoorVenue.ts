@@ -51,13 +51,62 @@ const nullIslandMessage = {
 /** Logical floor level as configured in IndoorAtlas (1 = ground floor, -1 = B1). */
 const floorLevelSchema = z.number().int().min(-5).max(60);
 
+const pointSchema = z
+  .object({ lat: latitudeSchema, lng: longitudeSchema })
+  .strict()
+  .refine(notNullIsland, nullIslandMessage);
+
+/**
+ * Where an IndoorAtlas floor plan image lies on the map (from the Mapping API
+ * floor plan `image` object). The image URL itself expires and is never
+ * stored: the app loads `GET /api/indoor/floorplans/{floorPlanId}/image`.
+ * The corners place the image exactly (any rotation); `bearing` is degrees
+ * clockwise from north, informational.
+ */
+export const indoorFloorPlanPlacementSchema = z
+  .object({
+    topLeft: pointSchema,
+    topRight: pointSchema,
+    bottomLeft: pointSchema,
+    bottomRight: pointSchema,
+    center: pointSchema.optional(),
+    bearing: z.number().min(-360).max(360).optional(),
+    widthPx: z.number().int().positive().max(100_000).optional(),
+    heightPx: z.number().int().positive().max(100_000).optional(),
+    widthM: z.number().positive().max(10_000).optional(),
+    heightM: z.number().positive().max(10_000).optional(),
+  })
+  .strict();
+export type IndoorFloorPlanPlacement = z.infer<
+  typeof indoorFloorPlanPlacementSchema
+>;
+
 export const indoorVenueFloorSchema = z
   .object({
     floorPlanId: indoorAtlasIdSchema,
     floorLevel: floorLevelSchema,
     name: z.string().trim().min(1).max(40),
+    /** Map placement of the floor plan image; synced venues only. */
+    plan: indoorFloorPlanPlacementSchema.optional(),
   })
   .strict();
+
+/**
+ * A geofence polygon drawn in IndoorAtlas, shown as-is on the map. It carries
+ * no evacuation meaning (not a safe area, not a hazard zone). `ring` is the
+ * outer ring without the closing point, at most 64 points (simplified by the sync).
+ */
+export const indoorVenueAreaSchema = z
+  .object({
+    id: venueSlugSchema,
+    name: localizedNameSchema.optional(),
+    description: z.string().trim().min(1).max(500).optional(),
+    floorLevel: floorLevelSchema,
+    indoorAtlasGeofenceId: indoorAtlasIdSchema.optional(),
+    ring: z.array(pointSchema).min(3).max(64),
+  })
+  .strict();
+export type IndoorVenueArea = z.infer<typeof indoorVenueAreaSchema>;
 
 export const indoorVenueExitSchema = z
   .object({
@@ -123,6 +172,15 @@ const venueFields = {
   syncedFrom: z.literal("indooratlas").optional(),
   /** Position in the IndoorAtlas venue list (0 = first); synced documents only. */
   syncOrder: z.number().int().min(0).max(10_000).optional(),
+  /** Street address as entered in IndoorAtlas (synced venues) or by hand. */
+  address: z.string().trim().min(1).max(300).optional(),
+  /** Free-text venue description from IndoorAtlas; display only. */
+  description: z.string().trim().min(1).max(1000).optional(),
+  /**
+   * IndoorAtlas venue. Absent for venues the app knows without IndoorAtlas
+   * (e.g. the Central Library floor maps): such venues are listed and
+   * numbered but never matched against the IndoorAtlas SDK.
+   */
   indoorAtlas: z
     .object({
       venueId: indoorAtlasIdSchema,
@@ -134,7 +192,10 @@ const venueFields = {
         .superRefine(uniqueBy((floor) => floor.floorPlanId, "floorPlanId"))
         .superRefine(uniqueBy((floor) => floor.floorLevel, "floorLevel")),
     })
-    .strict(),
+    .strict()
+    .optional(),
+  /** Floor levels of a venue without IndoorAtlas floor plans (display only). */
+  floorLevels: z.array(floorLevelSchema).max(60).optional(),
   location: z
     .object({
       lat: latitudeSchema,
@@ -152,6 +213,12 @@ const venueFields = {
     .array(indoorVenuePoiSchema)
     .max(500)
     .superRefine(uniqueBy((poi) => poi.id, "poi id")),
+  /** IndoorAtlas geofence polygons (display only); synced venues. */
+  areas: z
+    .array(indoorVenueAreaSchema)
+    .max(100)
+    .superRefine(uniqueBy((area) => area.id, "area id"))
+    .optional(),
   notes: z.string().max(2000).optional(),
 };
 
@@ -192,8 +259,8 @@ export const indoorVenueSeedSchema = z
 /**
  * One venue in `GET /api/indoor/venues`: enabled only, no internal notes.
  * Listed IndoorAtlas-synced first (IndoorAtlas order), then manual Firestore
- * venues, then seed venues; `rank` is the 1-based position and `primary` marks
- * rank 1 (the app shows it as "01").
+ * venues (by id), then seed venues (seed file order); `rank` is the 1-based
+ * position ("01", "02", …) and `primary` marks rank 1.
  */
 export const publicIndoorVenueSchema = z
   .object({ ...venueFields, updatedAt: z.iso.datetime({ offset: true }) })

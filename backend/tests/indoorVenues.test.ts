@@ -22,7 +22,8 @@ import {
 } from "../src/services/indoorVenueService.js";
 
 const seed = loadSeedVenues();
-const engineering = seed[0]!;
+const engineering = seed.find((venue) => venue.id === "nu-engineering-2")!;
+const library = seed.find((venue) => venue.id === "nu-library")!;
 
 // SYNTHETIC TEST VENUE: not a real building or IndoorAtlas venue.
 const synthetic: IndoorVenue = {
@@ -75,10 +76,18 @@ function makeService(
   });
 }
 
-test("seed is the documented Engineering II venue and validates", () => {
-  assert.equal(seed.length, 1);
+test("seed: Central Library (no IndoorAtlas) then the documented Engineering II venue", () => {
+  assert.deepEqual(
+    seed.map((venue) => venue.id),
+    ["nu-library", "nu-engineering-2"],
+  );
+  // The library is listed without an IndoorAtlas venue, floors from backend/data/indoor.json.
+  assert.equal(library.indoorAtlas, undefined);
+  assert.deepEqual(library.name, { en: "Central Library", ja: "中央図書館" });
+  assert.deepEqual(library.floorLevels, [-1, 1, 2, 3, 4]);
+  assert.deepEqual(library.exits, []);
   assert.equal(
-    engineering.indoorAtlas.venueId,
+    engineering.indoorAtlas!.venueId,
     "0d3ece20-da98-11f1-95cb-e11cd22c6739",
   );
   assert.equal(
@@ -86,7 +95,7 @@ test("seed is the documented Engineering II venue and validates", () => {
     "e8679fc0-da9a-11f1-b91e-6591398611dd",
   );
   assert.deepEqual(
-    engineering.indoorAtlas.floors.map((floor) => floor.floorLevel),
+    engineering.indoorAtlas!.floors.map((floor) => floor.floorLevel),
     [2, 3],
   );
   // No surveyed exits exist; none may be invented.
@@ -108,8 +117,8 @@ test("schema rejects bad venues and the template placeholders", () => {
       indoorAtlas: {
         ...synthetic.indoorAtlas,
         floors: [
-          synthetic.indoorAtlas.floors[0]!,
-          synthetic.indoorAtlas.floors[0]!,
+          synthetic.indoorAtlas!.floors[0]!,
+          synthetic.indoorAtlas!.floors[0]!,
         ],
       },
     },
@@ -134,7 +143,14 @@ test("seed is served when Firestore is empty, without notes", async () => {
   assert.equal(result.source, "seed");
   assert.deepEqual(
     result.venues.map((venue) => [venue.id, venue.origin]),
-    [["nu-engineering-2", "seed"]],
+    [
+      ["nu-library", "seed"],
+      ["nu-engineering-2", "seed"],
+    ],
+  );
+  assert.deepEqual(
+    result.venues.map((venue) => venue.rank),
+    [1, 2],
   );
   assert.equal("notes" in result.venues[0]!, false);
   assert.equal("enabled" in result.venues[0]!, false);
@@ -157,6 +173,7 @@ test("stored venues merge with the seed; invalid docs are skipped with a warning
     // Manual Firestore venues are listed before seed venues.
     [
       ["synthetic-hall", "firestore"],
+      ["nu-library", "seed"],
       ["nu-engineering-2", "seed"],
     ],
   );
@@ -170,6 +187,7 @@ test("stored venues merge with the seed; invalid docs are skipped with a warning
     [
       [1, true],
       [2, false],
+      [3, false],
     ],
   );
 });
@@ -178,12 +196,13 @@ test("disabled venues are hidden, including a disabled seed override", async () 
   const repository = new MemoryIndoorVenuesRepository();
   repository.documents.set(synthetic.id, { ...synthetic, enabled: false });
   repository.documents.set(engineering.id, { ...engineering, enabled: false });
+  repository.documents.set(library.id, { ...library, enabled: false });
   const result = await makeService(repository).listEnabledVenues();
   assert.equal(result.source, "firestore");
   assert.deepEqual(result.venues, []);
 });
 
-test("cache is reused for 5 minutes; outages fall back to the last good list", async () => {
+test("cache is reused for 60 seconds; outages fall back to the last good list", async () => {
   const repository = new MemoryIndoorVenuesRepository();
   repository.documents.set(synthetic.id, synthetic);
   const clock = { t: 0 };
@@ -191,17 +210,17 @@ test("cache is reused for 5 minutes; outages fall back to the last good list", a
   const service = makeService(repository, clock, warnings);
   await service.listEnabledVenues();
   repository.documents.delete(synthetic.id);
-  clock.t = 4 * 60_000;
-  assert.equal((await service.listEnabledVenues()).venues.length, 2);
+  clock.t = 59_000;
+  assert.equal((await service.listEnabledVenues()).venues.length, 3);
   assert.equal(repository.reads, 1);
-  clock.t = 5 * 60_000 + 1;
+  clock.t = 60_000 + 1;
   repository.failReads = true;
   const stale = await service.listEnabledVenues();
-  assert.equal(stale.venues.length, 2);
+  assert.equal(stale.venues.length, 3);
   assert.match(warnings.at(-1)!, /last good list/);
   repository.failReads = false;
   clock.t += 31_000;
-  assert.equal((await service.listEnabledVenues()).venues.length, 1);
+  assert.equal((await service.listEnabledVenues()).venues.length, 2);
   assert.equal(repository.reads, 3);
 });
 
@@ -210,7 +229,7 @@ test("an outage before any good read serves the seed", async () => {
   repository.failReads = true;
   const result = await makeService(repository).listEnabledVenues();
   assert.equal(result.source, "seed");
-  assert.equal(result.venues[0]?.id, "nu-engineering-2");
+  assert.equal(result.venues[0]?.id, "nu-library");
 });
 
 test("GET /api/indoor/venues returns the validated public shape", async () => {
@@ -222,7 +241,7 @@ test("GET /api/indoor/venues returns the validated public shape", async () => {
   assert.equal(response.headers["access-control-allow-origin"], "*");
   assert.equal(response.headers["cache-control"], "public, max-age=60");
   const body = indoorVenuesResponseSchema.parse(response.body);
-  assert.equal(body.venues.length, 2);
+  assert.equal(body.venues.length, 3);
   // Existing indoor routes are unaffected by the venues mount.
   const catalog = await request(app).get("/api/indoor/catalog");
   assert.equal(catalog.status, 200);
@@ -239,7 +258,10 @@ test("default app and LIVE_DATA_STORE=off/memory serve the seed", async () => {
   }
   const response = await request(createApp()).get("/api/indoor/venues");
   assert.equal(response.status, 200);
-  assert.equal(response.body.venues[0].id, "nu-engineering-2");
+  assert.deepEqual(
+    response.body.venues.map((venue: { id: string }) => venue.id),
+    ["nu-library", "nu-engineering-2"],
+  );
 });
 
 test("admin commands validate, upsert and toggle venues", async () => {

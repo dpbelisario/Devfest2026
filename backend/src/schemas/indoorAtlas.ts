@@ -36,6 +36,11 @@ export const iaFloorPlanSchema = z.object({
   floorNumber: z.number().int(),
   image: z
     .object({
+      /** Expires; read only by the image proxy, never stored. */
+      url: z.string().nullish(),
+      width: z.number().nullish(),
+      height: z.number().nullish(),
+      bearing: z.number().nullish(),
       widthMeters: z.number().nullish(),
       heightMeters: z.number().nullish(),
       center: iaLatLonSchema.nullish(),
@@ -56,7 +61,7 @@ export const iaFeatureCollectionSchema = z.object({
 
 /**
  * A point of interest from `GET /venues/{venueId}/geofences/geojson`.
- * Polygon features are geofences and are not used.
+ * Polygon features are geofences, see {@link iaPolygonFeatureSchema}.
  */
 export const iaPoiFeatureSchema = z.object({
   type: z.literal("Feature"),
@@ -75,6 +80,44 @@ export const iaPoiFeatureSchema = z.object({
   }),
 });
 export type IaPoiFeature = z.infer<typeof iaPoiFeatureSchema>;
+
+/**
+ * A geofence polygon from `GET /venues/{venueId}/geofences/geojson`. Only the
+ * outer ring is used; coordinates are `[lon, lat]`.
+ */
+export const iaPolygonFeatureSchema = z.object({
+  type: z.literal("Feature"),
+  id: uuid,
+  properties: z.object({
+    floor: z.number().int(),
+    name: z.string().nullish(),
+    description: z.string().nullish(),
+  }),
+  geometry: z.object({
+    type: z.literal("Polygon"),
+    coordinates: z
+      .array(
+        z
+          .array(
+            z
+              .array(z.number())
+              .min(2)
+              .max(3)
+              .refine(
+                ([lon, lat]) =>
+                  lon !== undefined &&
+                  lat !== undefined &&
+                  Math.abs(lon) <= 180 &&
+                  Math.abs(lat) <= 90,
+              ),
+          )
+          .min(4)
+          .max(10_000),
+      )
+      .min(1),
+  }),
+});
+export type IaPolygonFeature = z.infer<typeof iaPolygonFeatureSchema>;
 
 /** A wayfinding graph edge from `GET /venues/{venueId}/wayfinding/geojson`. */
 export const iaWayfindingEdgeSchema = z.object({
@@ -95,6 +138,10 @@ export const indoorAtlasSyncSummarySchema = z
     floors: z.number().int().min(0),
     pois: z.number().int().min(0),
     exits: z.number().int().min(0),
+    /** Geofence polygons kept as display-only `areas`. */
+    areas: z.number().int().min(0),
+    /** Raw snapshots written to the archive this run (content changed). */
+    archived: z.number().int().min(0),
     /** Documents written because their content changed (or are new). */
     updated: z.number().int().min(0),
     /** Synced documents disabled because the venue no longer exists in IndoorAtlas. */

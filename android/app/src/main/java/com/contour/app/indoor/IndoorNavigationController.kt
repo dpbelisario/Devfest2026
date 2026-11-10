@@ -362,7 +362,10 @@ class IndoorNavigationController(
         if (!force && now - lastEmission < 200) return
         lastEmission = now
         val p = position
-        val config = venueConfig
+        // Re-read the detected venue from the current list, so a rename/address change in IndoorAtlas
+        // (refreshed on resume) reaches the page without restarting navigation.
+        val config = venueConfig?.let { current -> venues().venueFor(current.indoorAtlasVenueId) ?: current }
+        venueConfig = config
         // A floor plan listed in the venue configuration must agree with the SDK's floor level.
         val floorPlanAgrees = p?.region?.takeIf { it.type == IARegion.TYPE_FLOOR_PLAN }?.let { region ->
             config?.floorLevelOf(region.id)?.let { it == p.floorLevel }
@@ -380,7 +383,7 @@ class IndoorNavigationController(
             .put("heading", if (now - headingAt <= 2000 && now - declinationAt < 60000) heading ?: JSONObject.NULL else JSONObject.NULL)
             .put("cameraTracking", cameraTracking ?: JSONObject.NULL)
         config?.let { payload.put("venue", JSONObject().put("id", it.id).put("rank", it.rank ?: JSONObject.NULL)
-            .put("name", JSONObject().put("en", it.name.en).put("ja", it.name.ja))) }
+            .put("name", JSONObject().put("en", it.name.en).put("ja", it.name.ja)).put("address", it.address ?: JSONObject.NULL)) }
         payload.put("target", targetJson())
         val destination = exitDestination
         if (trusted && status == "direct" && destination != null) {

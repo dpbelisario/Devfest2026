@@ -6,6 +6,10 @@ import {
 } from "../schemas/indoorVenue.js";
 import type { IndoorAtlasClient } from "./indoorAtlasClient.js";
 import { syncIndoorAtlasVenues } from "./indoorAtlasSync.js";
+import {
+  readRawSnapshot,
+  type IndoorAtlasArchiveStore,
+} from "./indoorAtlasArchive.js";
 import { mergeVenues, parseVenueDocuments } from "./indoorVenueService.js";
 
 export const indoorVenuesUsage = `Usage: npm run indoor-venues --workspace backend -- <command>
@@ -13,7 +17,9 @@ export const indoorVenuesUsage = `Usage: npm run indoor-venues --workspace backe
   upsert <file.json>   Validate and write one venue, an array, or {"venues": [...]}
   enable <id>          Enable a venue (copies a seed venue into Firestore if needed)
   disable <id>         Disable a venue (copies a seed venue into Firestore if needed)
-  sync                 Mirror the IndoorAtlas account (INDOORATLAS_MAPPING_API_KEY) into Firestore`;
+  sync                 Mirror the IndoorAtlas account (INDOORATLAS_MAPPING_API_KEY) into Firestore
+  export <venueId|all> <dir>
+                       Write the raw IndoorAtlas archive (INDOORATLAS_ARCHIVE_BUCKET) to <dir>`;
 
 /** Thrown for bad input; the script prints the message without a stack trace. */
 export class AdminInputError extends Error {}
@@ -63,6 +69,10 @@ export async function runIndoorVenuesCommand(
     indoorAtlasClient?: IndoorAtlasClient | null;
     /** Sync progress/skip messages. */
     log?: (message: string) => void;
+    /** Raw archive for `sync` and `export`; null when INDOORATLAS_ARCHIVE_BUCKET is unset. */
+    archive?: IndoorAtlasArchiveStore | null;
+    /** Writes one export file (creating directories); required for `export`. */
+    writeFile?: (path: string, data: string | Buffer) => Promise<void>;
   },
 ): Promise<string[]> {
   const { repository, seed } = dependencies;
@@ -78,7 +88,7 @@ export async function runIndoorVenuesCommand(
       return [
         ...merged.map(
           ({ venue, origin }) =>
-            `${venue.enabled ? "enabled " : "disabled"}  ${venue.id}  (${venue.syncedFrom === "indooratlas" ? "indooratlas sync" : origin})  ${venue.name.en}  venue=${venue.indoorAtlas.venueId}  floors=${venue.indoorAtlas.floors.length} pois=${venue.pois.length} exits=${venue.exits.length}  updated ${venue.updatedAt}`,
+            `${venue.enabled ? "enabled " : "disabled"}  ${venue.id}  (${venue.syncedFrom === "indooratlas" ? "indooratlas sync" : origin})  ${venue.name.en}  venue=${venue.indoorAtlas?.venueId ?? "none"}  floors=${venue.indoorAtlas?.floors.length ?? venue.floorLevels?.length ?? 0} pois=${venue.pois.length} exits=${venue.exits.length}  updated ${venue.updatedAt}`,
         ),
         ...rejected.map(
           ({ docId, reason }) =>
@@ -95,7 +105,7 @@ export async function runIndoorVenuesCommand(
       for (const venue of venues) await repository.saveVenue(venue);
       return venues.map(
         (venue) =>
-          `Saved indoorVenues/${venue.id} (${venue.enabled ? "enabled" : "disabled"}). The app picks it up within about 5 minutes.`,
+          `Saved indoorVenues/${venue.id} (${venue.enabled ? "enabled" : "disabled"}). The app picks it up within about 2 minutes.`,
       );
     }
     case "enable":
@@ -114,7 +124,7 @@ export async function runIndoorVenuesCommand(
         updatedAt: now().toISOString(),
       });
       return [
-        `${enabled ? "Enabled" : "Disabled"} indoorVenues/${argument}${entry.origin === "seed" ? " (copied from the seed)" : ""}. The app picks it up within about 5 minutes.`,
+        `${enabled ? "Enabled" : "Disabled"} indoorVenues/${argument}${entry.origin === "seed" ? " (copied from the seed)" : ""}. The app picks it up within about 2 minutes.`,
       ];
     }
     case "sync": {
@@ -122,6 +132,7 @@ export async function runIndoorVenuesCommand(
         client: dependencies.indoorAtlasClient ?? null,
         repository,
         now,
+        archive: dependencies.archive ?? null,
         ...(dependencies.log ? { log: dependencies.log } : {}),
       });
       if (!summary.configured)
@@ -129,10 +140,73 @@ export async function runIndoorVenuesCommand(
           "IndoorAtlas sync is not configured: set INDOORATLAS_MAPPING_API_KEY (the IndoorAtlas Mapping API key). Nothing was changed.",
         ];
       return [
-        `IndoorAtlas sync: ${summary.venues} venues (${summary.floors} floors, ${summary.pois} POIs, ${summary.exits} exits), ${summary.updated} written, ${summary.disabled} disabled, ${summary.skipped} skipped. The app picks changes up within about 5 minutes.`,
+        `IndoorAtlas sync: ${summary.venues} venues (${summary.floors} floors, ${summary.pois} POIs, ${summary.exits} exits, ${summary.areas} areas), ${summary.updated} written, ${summary.disabled} disabled, ${summary.skipped} skipped. The app picks changes up within about 2 minutes.`,
       ];
+    }
+    case "export": {
+      const directory = args[2];
+      if (!argument || !directory) throw new AdminInputError(indoorVenuesUsage);
+      const { archive, writeFile } = dependencies;
+      if (!archive || !writeFile)
+        throw new AdminInputError(
+          "Raw archive not configured: set INDOORATLAS_ARCHIVE_BUCKET (e.g. <project>-indooratlas).",
+        );
+      return exportRawArchive(archive, writeFile, argument, directory);
     }
     default:
       throw new AdminInputError(indoorVenuesUsage);
   }
+}
+
+/**
+ * Write the current raw snapshot of one venue (or `all`) as plain files:
+ * `<dir>/<venueId>/{meta,snapshot,venue,floorplans}.json`,
+ * `{geofences,wayfinding,radios}.geojson`, `paths/<floorPlanId>.geojson` and
+ * `images/<floorPlanId>.<ext>`. Contains no API key (none is ever stored).
+ */
+export async function exportRawArchive(
+  archive: IndoorAtlasArchiveStore,
+  writeFile: (path: string, data: string | Buffer) => Promise<void>,
+  target: string,
+  directory: string,
+): Promise<string[]> {
+  const ids =
+    target === "all"
+      ? (await archive.listMeta()).map((meta) => meta.venueId)
+      : [target.trim().toLowerCase()];
+  if (ids.length === 0) return ["The raw archive is empty: run a sync first."];
+  const lines: string[] = [];
+  const json = (value: unknown) => `${JSON.stringify(value, null, 2)}\n`;
+  for (const id of ids) {
+    if (!/^[0-9a-f-]{36}$/.test(id))
+      throw new AdminInputError(`"${id}" is not an IndoorAtlas venue UUID.`);
+    const stored = await readRawSnapshot(archive, id);
+    if (!stored) {
+      lines.push(`No raw snapshot for ${id}.`);
+      continue;
+    }
+    const { meta, snapshot } = stored;
+    const base = `${directory}/${id}`;
+    await writeFile(`${base}/meta.json`, json(meta));
+    await writeFile(`${base}/snapshot.json`, json(snapshot));
+    await writeFile(`${base}/venue.json`, json(snapshot.venue));
+    await writeFile(`${base}/floorplans.json`, json(snapshot.floorPlans));
+    await writeFile(`${base}/geofences.geojson`, json(snapshot.geofences));
+    await writeFile(`${base}/wayfinding.geojson`, json(snapshot.wayfinding));
+    await writeFile(`${base}/radios.geojson`, json(snapshot.radios));
+    for (const [floorPlanId, paths] of Object.entries(snapshot.paths))
+      await writeFile(`${base}/paths/${floorPlanId}.geojson`, json(paths));
+    let images = 0;
+    for (const image of meta.images) {
+      const bytes = await archive.getObject(image.path);
+      if (!bytes) continue;
+      const ext = image.path.split(".").pop() ?? "img";
+      await writeFile(`${base}/images/${image.floorPlanId}.${ext}`, bytes);
+      images++;
+    }
+    lines.push(
+      `Exported ${id} (${meta.name}, snapshot ${meta.contentHash.slice(0, 12)} from ${meta.fetchedAt}, ${images} images) to ${base}`,
+    );
+  }
+  return lines;
 }

@@ -7,12 +7,14 @@ import { defaultRunId, type JobsContext } from "./context.js";
 import { createFcmSender } from "./fcmSender.js";
 import { fetchTextWithTimeout } from "./http.js";
 import { createIndoorAtlasClient } from "../indoorAtlasClient.js";
+import { CloudIndoorAtlasArchiveStore } from "../../repositories/cloudIndoorAtlasArchiveStore.js";
 
 /**
  * Build job dependencies from configuration, or undefined when JOBS_ENABLED
  * is not true (the `/jobs` routes are then not mounted and answer 404).
  * FCM_DELIVERY_ENABLED=true adds the Firebase Cloud Messaging sender;
- * INDOORATLAS_MAPPING_API_KEY enables the IndoorAtlas venue sync.
+ * INDOORATLAS_MAPPING_API_KEY enables the IndoorAtlas venue sync and
+ * INDOORATLAS_ARCHIVE_BUCKET its raw archive (Firestore store only).
  */
 export function createJobsContext(config: AppConfig): JobsContext | undefined {
   if (!config.JOBS_ENABLED) return undefined;
@@ -51,6 +53,14 @@ export function createJobsContext(config: AppConfig): JobsContext | undefined {
               projectId: config.GOOGLE_CLOUD_PROJECT,
               databaseId: config.FIRESTORE_DATABASE_ID,
             }),
+      archive:
+        config.INDOORATLAS_ARCHIVE_BUCKET && config.JOBS_STORE !== "memory"
+          ? CloudIndoorAtlasArchiveStore.create({
+              bucket: config.INDOORATLAS_ARCHIVE_BUCKET,
+              projectId: config.GOOGLE_CLOUD_PROJECT,
+              databaseId: config.FIRESTORE_DATABASE_ID,
+            })
+          : null,
     },
   };
 }

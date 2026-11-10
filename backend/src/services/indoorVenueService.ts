@@ -72,13 +72,14 @@ function group({ venue, origin }: MergedVenue): number {
  * venue with the same `id` (including disabling it); seed venues without a
  * document stay available. Returns every venue, enabled or not, in listing
  * order: IndoorAtlas-synced documents first (by `syncOrder`, then name), then
- * manual Firestore documents, then seed venues (each by id).
+ * manual Firestore documents (by id), then seed venues (in seed file order).
  */
 export function mergeVenues(
   stored: IndoorVenue[],
   seed: IndoorVenue[],
 ): MergedVenue[] {
   const storedIds = new Set(stored.map((venue) => venue.id));
+  const seedOrder = new Map(seed.map((venue, index) => [venue.id, index]));
   return [
     ...stored.map((venue) => ({ venue, origin: "firestore" as const })),
     ...seed
@@ -89,23 +90,20 @@ export function mergeVenues(
       group(a) - group(b) ||
       (a.venue.syncOrder ?? 0) - (b.venue.syncOrder ?? 0) ||
       (group(a) === 0 ? a.venue.name.en.localeCompare(b.venue.name.en) : 0) ||
+      (group(a) === 2
+        ? (seedOrder.get(a.venue.id) ?? 0) - (seedOrder.get(b.venue.id) ?? 0)
+        : 0) ||
       a.venue.id.localeCompare(b.venue.id),
   );
 }
 
 /**
- * Enabled venues as the public list shows them. When at least one enabled
- * IndoorAtlas-synced venue exists, seed venues without a Firestore document
- * are hidden: the seed (Engineering Building II) belongs to another
- * IndoorAtlas account. A Firestore document for a seed venue (e.g. written by
- * `indoor-venues enable nu-engineering-2`) keeps it listed.
+ * Enabled venues as the public list shows them, numbered continuously:
+ * synced venues are 01, 02…, followed by manual and seed venues. A Firestore
+ * document with a seed venue's id can still disable it.
  */
 export function visibleVenues(merged: MergedVenue[]): MergedVenue[] {
-  const enabled = merged.filter(({ venue }) => venue.enabled);
-  const hasSynced = enabled.some((entry) => group(entry) === 0);
-  return hasSynced
-    ? enabled.filter(({ origin }) => origin !== "seed")
-    : enabled;
+  return merged.filter(({ venue }) => venue.enabled);
 }
 
 function toPublic(
@@ -124,12 +122,22 @@ function toPublic(
   return { ...rest, origin, rank: index + 1, primary: index === 0 };
 }
 
+/**
+ * Server cache of the venue list. Chosen over a Firestore "version" document:
+ * one collection read (at most 200 small documents) per minute per instance is
+ * cheap, needs no extra write path in the sync and cannot get out of step.
+ */
+export const defaultVenueCacheMs = 60_000;
+
 export interface IndoorVenueServiceOptions {
   /** Omit for seed-only operation (LIVE_DATA_STORE=off). */
   repository?: IndoorVenuesRepository;
   seed?: IndoorVenue[];
   now?: () => number;
-  /** How long a successful read is reused; default 5 minutes. */
+  /**
+   * How long a successful read is reused; default {@link defaultVenueCacheMs}
+   * (60 s), so an IndoorAtlas sync reaches the API within about a minute.
+   */
   ttlMs?: number;
   /** How long to wait before retrying after a failed read; default 30 seconds. */
   retryMs?: number;
@@ -153,7 +161,7 @@ export class IndoorVenueService {
 
   constructor(private readonly options: IndoorVenueServiceOptions = {}) {
     this.now = options.now ?? Date.now;
-    this.ttlMs = options.ttlMs ?? 5 * 60_000;
+    this.ttlMs = options.ttlMs ?? defaultVenueCacheMs;
     this.retryMs = options.retryMs ?? 30_000;
     this.seed = options.seed ?? loadSeedVenues();
     this.warn = options.warn ?? ((message) => console.warn(message));

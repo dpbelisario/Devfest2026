@@ -3,15 +3,22 @@ import {
   iaFeatureCollectionSchema,
   iaFloorPlanSchema,
   iaPoiFeatureSchema,
+  iaPolygonFeatureSchema,
   iaVenueSchema,
   iaWayfindingEdgeSchema,
   type IaFloorPlan,
   type IaPoiFeature,
+  type IaPolygonFeature,
   type IaVenue,
   type IndoorAtlasSyncSummary,
 } from "../schemas/indoorAtlas.js";
 import { indoorVenueSchema, type IndoorVenue } from "../schemas/indoorVenue.js";
 import type { IndoorAtlasClient } from "./indoorAtlasClient.js";
+import {
+  archiveVenue,
+  type IndoorAtlasArchiveStore,
+} from "./indoorAtlasArchive.js";
+import type { ImageFetch } from "./floorPlanImageService.js";
 import { parseVenueDocuments } from "./indoorVenueService.js";
 import { JobError } from "./jobs/errors.js";
 
@@ -20,13 +27,19 @@ import { JobError } from "./jobs/errors.js";
  * ("whatever is on IndoorAtlas is 01"). See docs/indoor-venues.md#indooratlas-sync.
  *
  * Mapping rules (each IndoorAtlas venue → one document `ia-<venue UUID>`):
- * - floors: every floor plan → `{ floorPlanId, floorLevel: floorNumber, name: "2F" | "B1" }`;
+ * - address, description: copied from the venue (trimmed, clipped to 300/1000 chars).
+ * - floors: every floor plan → `{ floorPlanId, floorLevel: floorNumber, name: "2F" | "B1", plan }`;
  *   floor numbers outside -5..60 and duplicate floor numbers (first plan wins) are skipped.
+ *   `plan` is the image placement (four corners, center, bearing, size); the
+ *   image URL expires and is never stored (see floorPlanImageService.ts).
  * - location: venue coordinates; `radiusM` = farthest floor-plan corner from them + 20 m
  *   (clamped to 50..2000), else {@link defaultVenueRadiusM}.
  * - pois: every GeoJSON Point → `{ id: ia-<feature UUID>, indoorAtlasPoiId, lat, lng, floorLevel }`.
  * - exits: POIs whose name or description matches {@link classifyExit} keywords, with
  *   `source: "indooratlas"` (owner-marked, not independently verified).
+ * - areas: every GeoJSON Polygon (geofence) → `{ id: ia-<feature UUID>, name?, description?,
+ *   floorLevel, ring }`, outer ring only, simplified to at most {@link maxAreaPoints}
+ *   points, at most {@link maxAreas} areas. Display only: no evacuation meaning.
  * - names: one IndoorAtlas name for both `en` and `ja`, unless it contains " / " (`en / ja`).
  * - `indoorAtlas.hasWayfinding`: whether the venue's wayfinding graph has edges.
  */
@@ -39,6 +52,10 @@ const maxRadiusM = 2000;
 const radiusMarginM = 20;
 const maxPois = 500;
 const maxExits = 200;
+/** Most geofence polygons kept per venue. */
+export const maxAreas = 100;
+/** Most points kept per geofence ring. */
+export const maxAreaPoints = 64;
 
 export interface IndoorAtlasSyncDependencies {
   /** Null when INDOORATLAS_MAPPING_API_KEY is not configured. */
@@ -48,6 +65,13 @@ export interface IndoorAtlasSyncDependencies {
   now: () => Date;
   /** Receives skipped-item and progress messages; never receives the API key. */
   log?: (message: string) => void;
+  /**
+   * Raw archive (indoorAtlasArchive.ts); null or absent: no raw snapshots or
+   * image copies are kept. Archive failures are logged and never fail the sync.
+   */
+  archive?: IndoorAtlasArchiveStore | null;
+  /** Image download for the archive; tests pass a fake. */
+  fetchImage?: ImageFetch;
 }
 
 /** Venue ID used for the synced document of an IndoorAtlas venue. */
@@ -92,6 +116,107 @@ export function classifyExit(
 
 function floorName(level: number): string {
   return level < 0 ? `B${-level}` : `${level}F`;
+}
+
+function clipText(value: string | null | undefined, max: number) {
+  const text = (value ?? "").replace(/\s+/g, " ").trim().slice(0, max).trim();
+  return text || undefined;
+}
+
+/** Floor plan image placement, or undefined when a corner is missing or 0,0. */
+export function floorPlanPlacement(
+  plan: IaFloorPlan,
+): NonNullable<IndoorVenue["indoorAtlas"]>["floors"][number]["plan"] {
+  const image = plan.image;
+  if (!image) return undefined;
+  const point = (value: { lat: number; lon: number } | null | undefined) =>
+    value && !(value.lat === 0 && value.lon === 0)
+      ? { lat: value.lat, lng: value.lon }
+      : undefined;
+  const topLeft = point(image.topLeft);
+  const topRight = point(image.topRight);
+  const bottomLeft = point(image.bottomLeft);
+  const bottomRight = point(image.bottomRight);
+  if (!topLeft || !topRight || !bottomLeft || !bottomRight) return undefined;
+  const positiveInt = (value: number | null | undefined) =>
+    value != null && Number.isInteger(value) && value > 0 && value <= 100_000
+      ? value
+      : undefined;
+  const positive = (value: number | null | undefined) =>
+    value != null && Number.isFinite(value) && value > 0 && value <= 10_000
+      ? value
+      : undefined;
+  const placement = {
+    topLeft,
+    topRight,
+    bottomLeft,
+    bottomRight,
+    center: point(image.center),
+    bearing:
+      image.bearing != null &&
+      Number.isFinite(image.bearing) &&
+      Math.abs(image.bearing) <= 360
+        ? image.bearing
+        : undefined,
+    widthPx: positiveInt(image.width),
+    heightPx: positiveInt(image.height),
+    widthM: positive(image.widthMeters),
+    heightM: positive(image.heightMeters),
+  };
+  // Drop absent optional fields so stored documents compare stably.
+  return Object.fromEntries(
+    Object.entries(placement).filter(([, value]) => value !== undefined),
+  ) as typeof placement;
+}
+
+/**
+ * Outer ring of a polygon as points, closing point removed, simplified by even
+ * sampling to at most `maxPoints` (first point kept). Null when fewer than 3
+ * distinct points remain.
+ */
+export function simplifyRing(
+  coordinates: number[][],
+  maxPoints = maxAreaPoints,
+): { lat: number; lng: number }[] | null {
+  const points = coordinates
+    .map(([lng, lat]) => ({ lat: lat!, lng: lng! }))
+    .filter((point) => !(point.lat === 0 && point.lng === 0));
+  const first = points[0];
+  const last = points[points.length - 1];
+  if (
+    first &&
+    last &&
+    points.length > 1 &&
+    first.lat === last.lat &&
+    first.lng === last.lng
+  )
+    points.pop();
+  if (points.length < 3) return null;
+  if (points.length <= maxPoints) return points;
+  const step = points.length / maxPoints;
+  return Array.from(
+    { length: maxPoints },
+    (_, index) => points[Math.floor(index * step)]!,
+  );
+}
+
+function mapArea(
+  feature: IaPolygonFeature,
+): NonNullable<IndoorVenue["areas"]>[number] | null {
+  const floorLevel = feature.properties.floor;
+  const ring = simplifyRing(feature.geometry.coordinates[0] ?? []);
+  if (!ring || floorLevel < -5 || floorLevel > 60) return null;
+  const id = feature.id.toLowerCase();
+  const name = splitName(feature.properties.name ?? "");
+  const description = clipText(feature.properties.description, 500);
+  return {
+    id: `ia-${id}`,
+    ...(name ? { name } : {}),
+    ...(description ? { description } : {}),
+    floorLevel,
+    indoorAtlasGeofenceId: id,
+    ring,
+  };
 }
 
 function distanceM(
@@ -171,7 +296,7 @@ export function mapIndoorAtlasVenue(
         `IndoorAtlas venue ${venue.id}: floor plan #${index} malformed, skipped`,
       );
   });
-  const floors: IndoorVenue["indoorAtlas"]["floors"] = [];
+  const floors: NonNullable<IndoorVenue["indoorAtlas"]>["floors"] = [];
   for (const plan of plans) {
     if (plan.floorNumber < -5 || plan.floorNumber > 60) {
       log(
@@ -185,16 +310,19 @@ export function mapIndoorAtlasVenue(
       );
       continue;
     }
+    const placement = floorPlanPlacement(plan);
     floors.push({
       floorPlanId: plan.id.toLowerCase(),
       floorLevel: plan.floorNumber,
       name: floorName(plan.floorNumber),
+      ...(placement ? { plan: placement } : {}),
     });
   }
   floors.sort((a, b) => a.floorLevel - b.floorLevel);
 
   const pois: IndoorVenue["pois"] = [];
   const exits: IndoorVenue["exits"] = [];
+  const areas: NonNullable<IndoorVenue["areas"]> = [];
   (data.geofenceFeatures ?? []).forEach((raw, index) => {
     if (
       typeof raw === "object" &&
@@ -204,8 +332,28 @@ export function mapIndoorAtlasVenue(
       raw.geometry !== null &&
       "type" in raw.geometry &&
       raw.geometry.type !== "Point"
-    )
-      return; // geofence polygon: not used
+    ) {
+      if (raw.geometry.type !== "Polygon") return; // other geometry: not used
+      const polygon = iaPolygonFeatureSchema.safeParse(raw);
+      const area = polygon.success ? mapArea(polygon.data) : null;
+      if (!area) {
+        log(
+          `IndoorAtlas venue ${venue.id}: geofence #${index} malformed, null island or floor out of range, skipped`,
+        );
+        return;
+      }
+      if (
+        areas.length >= maxAreas ||
+        areas.some((other) => other.id === area.id)
+      ) {
+        log(
+          `IndoorAtlas geofence ${area.id}: duplicate or over ${maxAreas} areas, skipped`,
+        );
+        return;
+      }
+      areas.push(area);
+      return;
+    }
     const parsed = iaPoiFeatureSchema.safeParse(raw);
     if (!parsed.success) {
       log(
@@ -249,9 +397,13 @@ export function mapIndoorAtlasVenue(
       (feature) => iaWayfindingEdgeSchema.safeParse(feature).success,
     );
 
+  const address = clipText(venue.address, 300);
+  const description = clipText(venue.description, 1000);
   const candidate = {
     id: syncedVenueId(venue.id),
     name,
+    ...(address ? { address } : {}),
+    ...(description ? { description } : {}),
     enabled: true,
     syncedFrom: "indooratlas" as const,
     syncOrder: data.order,
@@ -267,6 +419,7 @@ export function mapIndoorAtlasVenue(
     },
     exits,
     pois,
+    areas,
     updatedAt: options.updatedAt,
     notes:
       "Synced from IndoorAtlas by contour-jobs. Exits are POIs whose name or description matched exit keywords (source indooratlas); they are not verified on site.",
@@ -308,10 +461,11 @@ function sameContent(a: IndoorVenue, b: IndoorVenue): boolean {
   return JSON.stringify(strip(a)) === JSON.stringify(strip(b));
 }
 
+/** The verbatim FeatureCollection and its features; null on 404. */
 async function fetchFeatures(
   client: IndoorAtlasClient,
   path: string,
-): Promise<unknown[] | null> {
+): Promise<{ body: unknown; features: unknown[] } | null> {
   const result = await client.get(path);
   if (result.status === "notFound") return null;
   const parsed = iaFeatureCollectionSchema.safeParse(result.body);
@@ -321,7 +475,7 @@ async function fetchFeatures(
       502,
       `IndoorAtlas ${path} is not a FeatureCollection`,
     );
-  return parsed.data.features;
+  return { body: result.body, features: parsed.data.features };
 }
 
 /**
@@ -330,6 +484,8 @@ async function fetchFeatures(
  *
  * - Not configured (no client): returns `configured: false` and touches nothing.
  * - `GET /venues` fails or is not a list: throws JobError (nothing written).
+ * - With an `archive`, every fetched venue (also manually covered ones) gets a
+ *   raw snapshot and floor plan image copies (indoorAtlasArchive.ts).
  * - A venue whose floor plans/geofences/wayfinding cannot be fetched, or that
  *   does not map to a valid document, is skipped; its existing document is kept.
  * - A venue already covered by a manual document (same IndoorAtlas venue ID, or
@@ -349,6 +505,8 @@ export async function syncIndoorAtlasVenues(
     floors: 0,
     pois: 0,
     exits: 0,
+    areas: 0,
+    archived: 0,
     updated: 0,
     disabled: 0,
     skipped: 0,
@@ -364,10 +522,10 @@ export async function syncIndoorAtlasVenues(
       502,
       "IndoorAtlas /venues did not return a list",
     );
-  const venues: IaVenue[] = [];
+  const venues: { venue: IaVenue; raw: unknown }[] = [];
   list.body.forEach((raw, index) => {
     const parsed = iaVenueSchema.safeParse(raw);
-    if (parsed.success) venues.push(parsed.data);
+    if (parsed.success) venues.push({ venue: parsed.data, raw });
     else log(`IndoorAtlas venue #${index} malformed, skipped`);
   });
 
@@ -383,7 +541,7 @@ export async function syncIndoorAtlasVenues(
   const updatedAt = dependencies.now().toISOString();
   const seenIds = new Set<string>();
 
-  for (const [order, venue] of venues.entries()) {
+  for (const [order, { venue, raw }] of venues.entries()) {
     const id = syncedVenueId(venue.id);
     if (seenIds.has(id)) {
       log(`IndoorAtlas venue ${venue.id}: listed twice, second copy skipped`);
@@ -391,19 +549,11 @@ export async function syncIndoorAtlasVenues(
     }
     seenIds.add(id);
     const current = existing.get(id);
-    const manualCover = manual.find(
-      (doc) =>
-        doc.id === id ||
-        doc.indoorAtlas.venueId.toLowerCase() === venue.id.toLowerCase(),
-    );
-    if (manualCover || rejectedIds.has(id)) {
-      log(
-        `IndoorAtlas venue ${venue.id}: ${manualCover ? `manual document indoorVenues/${manualCover.id} covers it` : `indoorVenues/${id} is invalid`}, not synced`,
-      );
-      summary.skipped++;
-      continue;
-    }
-    let mapped: IndoorVenue | null;
+    let fetched: {
+      floorPlans: unknown[];
+      geofences: { body: unknown; features: unknown[] } | null;
+      wayfinding: { body: unknown; features: unknown[] } | null;
+    };
     try {
       const plans = await client.get(`/venues/${venue.id}/floorplans`);
       const floorPlans =
@@ -412,18 +562,17 @@ export async function syncIndoorAtlasVenues(
         log(
           `IndoorAtlas venue ${venue.id}: floor plans are not a list, ignored`,
         );
-      const geofenceFeatures = await fetchFeatures(
-        client,
-        `/venues/${venue.id}/geofences/geojson`,
-      );
-      const wayfindingFeatures = await fetchFeatures(
-        client,
-        `/venues/${venue.id}/wayfinding/geojson`,
-      );
-      mapped = mapIndoorAtlasVenue(
-        { venue, order, floorPlans, geofenceFeatures, wayfindingFeatures },
-        { updatedAt, log },
-      );
+      fetched = {
+        floorPlans,
+        geofences: await fetchFeatures(
+          client,
+          `/venues/${venue.id}/geofences/geojson`,
+        ),
+        wayfinding: await fetchFeatures(
+          client,
+          `/venues/${venue.id}/wayfinding/geojson`,
+        ),
+      };
     } catch (error) {
       if (!(error instanceof JobError)) throw error;
       log(
@@ -432,6 +581,52 @@ export async function syncIndoorAtlasVenues(
       summary.skipped++;
       continue;
     }
+    if (dependencies.archive) {
+      try {
+        const result = await archiveVenue({
+          client,
+          store: dependencies.archive,
+          venueId: venue.id,
+          name: venue.name,
+          venue: raw,
+          floorPlans: fetched.floorPlans,
+          geofences: fetched.geofences?.body ?? null,
+          wayfinding: fetched.wayfinding?.body ?? null,
+          now: dependencies.now,
+          ...(dependencies.fetchImage
+            ? { fetchImage: dependencies.fetchImage }
+            : {}),
+          log,
+        });
+        if (result === "written") summary.archived++;
+      } catch (error) {
+        log(
+          `IndoorAtlas venue ${venue.id}: raw archive failed (${error instanceof JobError ? error.code : error instanceof Error ? error.message : "error"}); previous snapshot kept`,
+        );
+      }
+    }
+    const manualCover = manual.find(
+      (doc) =>
+        doc.id === id ||
+        doc.indoorAtlas?.venueId.toLowerCase() === venue.id.toLowerCase(),
+    );
+    if (manualCover || rejectedIds.has(id)) {
+      log(
+        `IndoorAtlas venue ${venue.id}: ${manualCover ? `manual document indoorVenues/${manualCover.id} covers it` : `indoorVenues/${id} is invalid`}, not synced`,
+      );
+      summary.skipped++;
+      continue;
+    }
+    const mapped = mapIndoorAtlasVenue(
+      {
+        venue,
+        order,
+        floorPlans: fetched.floorPlans,
+        geofenceFeatures: fetched.geofences?.features ?? null,
+        wayfindingFeatures: fetched.wayfinding?.features ?? null,
+      },
+      { updatedAt, log },
+    );
     if (!mapped) {
       summary.skipped++;
       continue;
@@ -444,9 +639,10 @@ export async function syncIndoorAtlasVenues(
       summary.updated++;
     }
     summary.venues++;
-    summary.floors += next.indoorAtlas.floors.length;
+    summary.floors += next.indoorAtlas?.floors.length ?? 0;
     summary.pois += next.pois.length;
     summary.exits += next.exits.length;
+    summary.areas += next.areas?.length ?? 0;
   }
 
   for (const doc of parsedDocs.venues) {
