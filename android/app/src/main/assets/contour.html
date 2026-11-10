@@ -447,6 +447,7 @@ html[lang="ko"] { --f-body: "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans K
   --accent: #178049; --accent-deep: #0f5e36; --accent-wash: rgba(23,128,73,.10);
   --green: #dff0e5; --green-deep: #b5d8c3; --green-ink: #12452a;
   --shadow: 0 1px 2px rgba(32,35,33,.07); --shadow-lg: 0 -6px 30px rgba(32,35,33,.14);
+  --f-display: "Barlow Condensed", "Arial Narrow", "Hiragino Sans", "Yu Gothic UI", "Noto Sans JP", sans-serif;
   --f-body: "Noto Sans JP", "Hiragino Sans", "Yu Gothic UI", system-ui, sans-serif;
   --f-jp: "Noto Sans JP", "Hiragino Sans", "Yu Gothic UI", sans-serif;
 }
@@ -455,7 +456,7 @@ body { font-family: var(--f-body); }
 
 /* header + tabs */
 .bar-date { font: 400 13px/1.2 var(--f-body); }
-.logo span { font: 600 22px/1 var(--f-display); letter-spacing: .02em; margin-right: 0; }
+.logo span { font: 700 23px/1 var(--f-display); letter-spacing: .16em; margin-right: -.16em; }
 .lang-btn { font: 400 13px/1 var(--f-body); }
 .pg-head h2 { font: 600 32px/1.05 var(--f-display); text-transform: none; letter-spacing: .005em; }
 .langpop { border-radius: 12px; }
@@ -1130,6 +1131,7 @@ html.native .ar-near { background: var(--accent-wash); color: var(--accent-deep)
         <button class="ar-x" id="arClose" type="button" aria-label="Close"><svg viewBox="0 0 14 14" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round"><path d="M2 2l10 10M12 2 2 12"/></svg></button>
         <h2 data-i18n="ar.title">3D AR directions</h2><span></span>
       </header>
+      <div class="ar-guess" id="arGuess" hidden></div>
       <div class="indoor-ar-controls" id="indoorEstimateControls" hidden><button type="button" id="indoorFloorMinus" aria-label="Lower current floor">−</button><span id="indoorFloorEstimate" aria-live="polite"></span><button type="button" id="indoorFloorPlus" aria-label="Raise current floor">+</button></div>
       <div class="ar-guide" id="arGuide" aria-live="polite"></div>
       <div id="indoorArFloor" hidden aria-hidden="true"></div>
@@ -1149,6 +1151,8 @@ html.native .ar-near { background: var(--accent-wash); color: var(--accent-deep)
         <p class="ar-note" id="arNote"></p>
       <div class="indoor-ar-controls" id="indoorArControls" hidden><button type="button" id="indoorArAlign">Align here</button><button type="button" id="indoorArNext">Next landmark</button><button type="button" id="indoorArReset">I'm elsewhere</button></div>
         <p class="ar-note ar-warn" id="arCamNote" data-i18n="ar.nocam" hidden>Camera unavailable, showing a plain background.</p>
+        <p class="ar-note" id="arGuessNote" hidden></p>
+        <button type="button" class="ar-next" id="arNext" hidden></button>
         <button type="button" class="ar-near" id="arNear" data-i18n="ar.neardemo" hidden>Demo: I'm near the building</button>
       </div>
     </section>
@@ -1192,6 +1196,15 @@ html.native .ar-near { background: var(--accent-wash); color: var(--accent-deep)
       <h2 id="qTitle"></h2>
       <p id="qBody"></p>
       <div class="ta-btns"><button type="button" id="qNo"></button><button type="button" id="qYes"></button></div>
+    </section>
+
+    <!-- Guess picker: floor / exit choice for 3D AR (same card as the native Library exit AR screen) -->
+    <div class="ta-dim" id="gDim" hidden></div>
+    <section class="g-pick" id="gPick" hidden role="dialog" aria-modal="true" aria-labelledby="gTitle">
+      <h2 id="gTitle"></h2>
+      <p id="gBody"></p>
+      <div class="g-opts" id="gOpts" role="radiogroup" aria-labelledby="gTitle"></div>
+      <div class="g-btns"><button type="button" id="gCancel"></button><button type="button" id="gGo"></button></div>
     </section>
 
     <!-- Hamburger menu: everything that is not the map -->
@@ -1801,6 +1814,25 @@ window.contourIndoorDirectGuidance = data => {
     "q.inside.b": ["If yes, SEAR first guides you to the nearest exit of the building, then on to {s} with 3D AR.", "「はい」の場合、まず建物の最寄りの出口まで案内し、その後3D ARで{s}へ案内します。", "如果是，SEAR 会先引导你到建筑物最近的出口，然后用 3D AR 带你前往{s}。", "예를 누르면 먼저 건물에서 가장 가까운 출구로 안내한 뒤, 3D AR로 {s}까지 안내합니다."],
     "q.inside.yes": ["Yes, I'm inside", "はい、中にいます", "是，我在室内", "예, 안에 있어요"],
     "q.inside.no": ["No, I'm outside", "いいえ、外です", "不，我在室外", "아니요, 밖이에요"],
+    "g.floor": ["Floor guess", "推定階", "推测楼层", "추정 층"],
+    "g.exit": ["Exit guess", "推定出口", "推测出口", "추정 출구"],
+    "g.edit": ["Edit", "編集", "编辑", "수정"],
+    "g.mainexit": ["Main entrance (default)", "正面入口（既定）", "正门（默认）", "정문 (기본값)"],
+    "g.libexit": ["2F Entrance Hall", "2F エントランスホール", "2F 入口大厅", "2F 입구 홀"],
+    "g.floorq": ["Which floor are you on?", "今いる階は？", "您在几楼？", "지금 몇 층에 있나요?"],
+    "g.floorq.b": ["Nearest building: {b}. SEAR then guides you to its exit.", "最寄りの建物：{b}。続けて出口まで案内します。", "最近的建筑：{b}。SEAR 随后引导您前往出口。", "가장 가까운 건물: {b}. 이어서 출구까지 안내합니다."],
+    "g.exitq": ["Exit", "出口", "出口", "출구"],
+    "g.nomap": ["No floor map for this building yet, so there is one choice.", "この建物のフロアマップはまだないため、選択肢は1つです。", "此建筑暂无楼层地图，因此只有一个选项。", "이 건물은 아직 층별 지도가 없어 선택지가 하나입니다."],
+    "g.exitnote": ["Exit position not checked on site. Follow exit signs and staff.", "出口の位置は現地で未確認です。出口の表示と係員の指示に従ってください。", "出口位置未经实地核实。请遵循出口标识和工作人员指示。", "출구 위치는 현장 확인 전입니다. 출구 표시와 직원 안내를 따르세요."],
+    "g.down": ["Take the stairs down to 1F first, then follow the arrow.", "まず階段で1Fへ下りてから、矢印に従ってください。", "请先走楼梯下到 1F，再跟随箭头。", "먼저 계단으로 1층까지 내려간 뒤 화살표를 따라가세요."],
+    "g.go": ["Start", "開始", "开始", "시작"],
+    "g.done": ["Done", "決定", "确定", "확인"],
+    "g.cancel": ["Cancel", "キャンセル", "取消", "취소"],
+    "g.next": ["I'm outside · continue to {s}", "外に出た · {s}へ進む", "已到室外 · 继续前往{s}", "밖으로 나왔어요 · {s}(으)로 계속"],
+    "g.cont": ["Continue to {s}?", "{s}へ進みますか？", "继续前往{s}？", "{s}(으)로 계속할까요?"],
+    "g.cont.b": ["Once you are outside, 3D AR guides you on to the evacuation site.", "外に出たら、3D ARで避難場所まで案内します。", "到室外后，3D AR 会继续引导您前往避难场所。", "밖으로 나오면 3D AR이 대피 장소까지 안내합니다."],
+    "g.cont.yes": ["Continue", "進む", "继续", "계속"],
+    "g.cont.no": ["Not now", "あとで", "稍后", "나중에"],
     "q.near": ["You're near {b}", "{b}の近くです", "你已接近{b}", "{b} 근처입니다"],
     "q.near.b": ["Find your classroom with indoor navigation?", "屋内ナビで教室を探しますか？", "要用室内导航查找教室吗？", "실내 내비로 강의실을 찾을까요?"],
     "q.near.yes": ["Yes, find a classroom", "はい、教室を探す", "是，查找教室", "예, 강의실 찾기"],
@@ -2884,7 +2916,7 @@ window.contourIndoorDirectGuidance = data => {
     $("arDist").innerHTML = fmtDist(arPoint.m) + (arPoint.live ? `<small>${t("ar.straight")}</small>` : "");
     $("arWalk").textContent = t("card.walk", { n: arPoint.walk });
     if (hereSource === "gps") $("arNote").textContent = t(hereAcc > 50 ? "ar.weak" : "ar.gps", { a: Math.round(hereAcc) });
-    $("arNear").hidden = !(arPoint.building && hereSource !== "gps" && window.ContourIndoorDemo);
+    $("arNear").hidden = !(arPoint.building && !arPoint.exitAR && hereSource !== "gps" && window.ContourIndoorDemo);
     arUpdate();
     checkNear();
   }
@@ -2924,7 +2956,7 @@ window.contourIndoorDirectGuidance = data => {
   function openLibraryExitAR(p) {
     const exitName = { en: " · 2F exit", ja: " · 2F出口", zh: " · 2F出口", ko: " · 2F 출구" };
     const names = p.names ? Object.fromEntries(Object.entries(p.names).map(([k, v]) => [k, v + (exitName[k] || exitName.en)])) : p.names;
-    openAR({ ...p, names, ll: LIB_EXIT_LL, m: dist(HERE, LIB_EXIT_LL) });
+    openAR({ ...p, names, exitAR: true, ll: LIB_EXIT_LL, m: dist(HERE, LIB_EXIT_LL), guess: { floors: LIBRARY_FLOORS, floor: "2F", exits: buildingExits(p), exit: 0 } });
     useGps({ quiet: true }).then(() => { if (arPoint) { arPoint.m = dist(HERE, arPoint.ll); arPlace(); } }).catch(() => {});
   }
   async function openAR(p) {
@@ -2940,6 +2972,7 @@ window.contourIndoorDirectGuidance = data => {
     arHead = (p.brg - 40 + 360) % 360; arRel = 40; arUpdate();
     arTurn.value = Math.round(arHead); arTurn.hidden = false; $("arNote").textContent = hereSource === "gps" ? t(hereAcc > 50 ? "ar.weak" : "ar.gps", { a: Math.round(hereAcc) }) : t("ar.demo");
     if(p.indoor){$('arNear').hidden=true;ar.classList.add('indoor');$('indoorArControls').hidden=false;renderIndoorAR();}
+    renderGuess();
     // Real position for real sites: ask for location now that AR is in use (falls back to the demo position).
     if (p.live && hereSource !== "gps") useGps({ quiet: true }).then(() => { if (arPoint) { arPoint.m = dist(HERE, arPoint.ll); arPlace(); if (!arSeen) $("arNote").textContent = hereSource === "gps" ? t("ar.gps", { a: Math.round(hereAcc) }) : t("ar.demo"); } });
     // ARCore owns the camera until it explicitly reports fallback; permission/install may remain pending.
@@ -2965,6 +2998,7 @@ window.contourIndoorDirectGuidance = data => {
     window.removeEventListener("deviceorientation", onOri);
     if (arStream) { arStream.getTracks().forEach(tr => tr.stop()); arStream = null; }
     arVideo.srcObject = null; arPath.style.transform=''; arHead=0; arRel=0; arPoint = null;
+    closeGuessPicker(); $("arGuess").hidden = true; $("arGuessNote").hidden = true; $("arNext").hidden = true;
   }
   arTurn.addEventListener("input", () => { arHead = +arTurn.value; arUpdate(); });
   $("arClose").addEventListener("click", closeAR);
@@ -2996,19 +3030,90 @@ window.contourIndoorDirectGuidance = data => {
   function goAR(p) {
     if (!p) return;
     if (p.id === "library") { closeAR(); if (typeof window.ContourBridge?.startLibraryExitAR === "function") return ContourBridge.startLibraryExitAR(); if (typeof window.ContourBridge?.startObstacleScan === "function") return ContourBridge.startObstacleScan(); return openLibraryExitAR(p); }
-    if (mode !== "evac" || p.building || !hasIndoor()) return openAR(p);
+    if (p.building) return openAR({ ...p, guess: { floors: ["1F"], floor: "1F", exits: buildingExits(p), exit: 0 } });
+    if (mode !== "evac") return openAR(p);
     askQ({
       title: t("q.inside"), body: t("q.inside.b", { s: pTitle(p) }), yes: t("q.inside.yes"), no: t("q.inside.no"),
-      onYes: () => ContourIndoorDemo.open("evac", { after: { label: pTitle(p), run: () => openAR(p) } }),
+      onYes: () => evacFromInside(p),
       onNo: () => openAR(p),
     });
+  }
+
+  // ----- guess chips + picker: the same design as the native Library exit AR screen.
+  // Buildings without a floor map get one floor choice and one exit choice; nothing here is a surveyed route.
+  const pencilSvg = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.6 2.6l2.8 2.8L5.2 13.6H2.4v-2.8z"/></svg>';
+  const LIBRARY_FLOORS = ["B1", "1F", "2F", "3F", "4F"];
+  const buildingFloors = b => b.id === "library" ? LIBRARY_FLOORS : Array.from({ length: Math.max(1, b.floors || 1) }, (_, i) => `${i + 1}F`);
+  // shortcut: one default exit per building at its map position (library: 2F Entrance Hall doors from the saved plan).
+  const buildingExits = b => b.id === "library" ? [{ key: "g.libexit", ll: LIB_EXIT_LL }] : [{ key: "g.mainexit", ll: b.ll }];
+  const nearestBuilding = () => BUILDINGS.reduce((a, b) => dist(HERE, b.ll) < dist(HERE, a.ll) ? b : a);
+  let gDone = null, afterExitSite = null;
+  function pickGuess({ title, body, options, value, go, onPick }) {
+    let chosen = Math.max(0, value);
+    const draw = () => {
+      $("gOpts").innerHTML = options.map((o, i) => `<button type="button" role="radio" aria-checked="${i === chosen}" data-i="${i}"><span>${esc(o)}</span><svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 7.5 5.5 10.5 11.5 3.5"/></svg></button>`).join("");
+    };
+    $("gTitle").textContent = title; $("gBody").textContent = body; $("gGo").textContent = go; $("gCancel").textContent = t("g.cancel");
+    draw();
+    $("gOpts").onclick = e => { const b = e.target.closest("button[data-i]"); if (b) { chosen = +b.dataset.i; draw(); } };
+    gDone = ok => {
+      gDone = null; if (document.activeElement) document.activeElement.blur();
+      $("gDim").hidden = true; $("gPick").hidden = true;
+      if (ok) setTimeout(() => onPick(chosen), 60);
+    };
+    $("gDim").hidden = false; $("gPick").hidden = false;
+  }
+  function closeGuessPicker() { if (gDone) gDone(false); }
+  $("gGo").addEventListener("click", () => gDone && gDone(true));
+  $("gCancel").addEventListener("click", () => gDone && gDone(false));
+  $("gDim").addEventListener("click", () => gDone && gDone(false));
+
+  function renderGuess() {
+    const g = arPoint?.guess;
+    $("arGuess").hidden = !g; $("arGuessNote").hidden = !g; $("arNext").hidden = !(g && g.site);
+    if (!g) return;
+    const chip = (kind, label, value) => `<button type="button" class="g-chip" data-g="${kind}" aria-label="${esc(label + " · " + value + " · " + t("g.edit"))}"><span><small>${esc(label)}</small><b>${esc(value)}</b></span>${pencilSvg}</button>`;
+    $("arGuess").innerHTML = chip("floor", t("g.floor"), g.floor) + chip("exit", t("g.exit"), t(g.exits[g.exit].key));
+    $("arGuessNote").textContent = (g.floor !== "1F" && g.site ? t("g.down") + " " : "") + t("g.exitnote");
+    if (g.site) $("arNext").textContent = t("g.next", { s: pTitle(g.site) });
+  }
+  $("arGuess").addEventListener("click", e => {
+    const kind = e.target.closest(".g-chip")?.dataset.g, g = arPoint?.guess;
+    if (!kind || !g) return;
+    const one = kind === "floor" ? g.floors.length < 2 : g.exits.length < 2;
+    if (kind === "floor") pickGuess({ title: t("g.floorq"), body: one ? t("g.nomap") : "", options: g.floors, value: g.floors.indexOf(g.floor), go: t("g.done"),
+      onPick: i => { if (arPoint?.guess === g) { g.floor = g.floors[i]; renderGuess(); } } });
+    else pickGuess({ title: t("g.exitq"), body: one ? t("g.nomap") : "", options: g.exits.map(x => t(x.key)), value: g.exit, go: t("g.done"),
+      onPick: i => { if (arPoint?.guess === g) { g.exit = i; renderGuess(); } } });
+  });
+  $("arNext").addEventListener("click", () => { const site = arPoint?.guess?.site; if (!site) return; closeAR(); openAR(site); });
+
+  // Evacuation, "I'm inside": the user sets the floor; the exit is assigned (library: 2F Entrance Hall, others: default).
+  function evacFromInside(site) {
+    // Use a real position when one arrives within a few seconds; otherwise the current (possibly demo) position.
+    if (hereSource !== "gps") return void Promise.race([useGps({ quiet: true }), new Promise(r => setTimeout(r, 4000))]).catch(() => {}).then(() => askFloor(site));
+    askFloor(site);
+  }
+  function askFloor(site) {
+    const b = nearestBuilding(), floors = buildingFloors(b);
+    pickGuess({ title: t("g.floorq"), body: t("g.floorq.b", { b: pTitle(b) }), options: floors, value: floors.indexOf(b.id === "library" ? "2F" : "1F"), go: t("g.go"),
+      onPick: i => {
+        const floor = floors[i];
+        if (b.id === "library" && typeof window.ContourBridge?.startLibraryExitARFrom === "function") { afterExitSite = site; return ContourBridge.startLibraryExitARFrom(floor); }
+        openExitAR(b, floor, site);
+      } });
+  }
+  function openExitAR(b, floor, site) {
+    const exits = buildingExits(b), ex = exits[0];
+    const names = Object.fromEntries(Object.keys(LANGS).map(k => [k, (b.names[k] || b.names.en) + " · " + D[ex.key][LANGS[k].i]]));
+    openAR({ ...b, names, exitAR: true, ll: ex.ll, m: dist(HERE, ex.ll), brg: bearing(HERE, ex.ll), guess: { floors: buildingFloors(b), floor, exits, exit: 0, site } });
   }
   // Student: within 10 m of the building (GPS) during 3D AR, offer indoor navigation once per building.
   // Without GPS (demo position), the AR card shows a "Demo: I'm near the building" button instead.
   const NEAR_M = 10, nearAsked = new Set();
   function checkNear(force = false) {
     const p = arPoint;
-    if (!p || !p.building || !hasIndoor() || !$("qBox").hidden) return;
+    if (!p || !p.building || p.exitAR || !hasIndoor() || !$("qBox").hidden) return;
     if (!force && (hereSource !== "gps" || p.m > NEAR_M || nearAsked.has(p.id))) return;
     nearAsked.add(p.id);
     askQ({
@@ -3928,6 +4033,10 @@ window.contourIndoorDirectGuidance = data => {
     ContourBridge.startObstacleScan();
   });
   window.contourObstacle = result => {
+    if (afterExitSite) {
+      const site = afterExitSite; afterExitSite = null;
+      return askQ({ title: t("g.cont", { s: pTitle(site) }), body: t("g.cont.b"), yes: t("g.cont.yes"), no: t("g.cont.no"), onYes: () => openAR(site) });
+    }
     if ($("libraryMaps").hidden || libraryScanGeneration !== libraryPhotoGeneration || !libraryRoute) return;
     libraryStopSensors(); libraryScanGeneration = -1;
     if (result?.status === "blocked") {
@@ -5418,5 +5527,32 @@ button.logo:active { background: rgba(20,23,20,.06); }
 .phone.rail-down .card .cta svg { width: 14px; height: 14px; }
 .phone.rail-down .card .cta-l { display: none; }
 .phone.rail-down .card .cta-s { display: inline; white-space: nowrap; }
+
+/* Guess chips + picker: shared with the native Library exit AR screen (dark header, light chip row, option-list card) */
+.ar-guess { position: absolute; z-index: 3; left: 0; right: 0; top: 105px; display: flex; gap: 8px; padding: 8px 12px 10px; overflow-x: auto; background: var(--wash); border-bottom: 1px solid var(--wash-line); scrollbar-width: none; }
+.ar-guess::-webkit-scrollbar { display: none; }
+.ar-guess[hidden] { display: none; }
+.g-chip { flex: none; display: flex; align-items: center; gap: 10px; padding: 7px 10px 7px 12px; border: 1px solid var(--wash-line); border-radius: 10px; background: var(--paper); color: var(--ink); text-align: left; }
+.g-chip:active { background: #eef0ee; }
+.g-chip small { display: block; font: 400 11.5px/1.2 var(--f-body); color: var(--ink-3); }
+.g-chip b { display: block; margin-top: 1px; font: 700 17px/1.1 var(--f-display); letter-spacing: .01em; }
+.g-chip svg { width: 14px; height: 14px; flex: none; color: var(--ink-3); }
+.ar:has(.ar-guess:not([hidden])) .ar-guide { top: 186px; }
+.ar-next { display: block; width: 100%; height: 46px; margin-top: 12px; border-radius: 10px; background: var(--ink); color: #fff; font: 500 14.5px/1 var(--f-body); }
+.ar-next[hidden], .ar-note[hidden] { display: none; }
+.g-pick { position: absolute; z-index: 105; left: 16px; right: 16px; bottom: calc(var(--bot) + 24px); padding: 18px 20px 16px; border-radius: 12px; background: var(--paper); box-shadow: 0 20px 50px rgba(20,22,28,.25); }
+.g-pick[hidden] { display: none; }
+.g-pick h2 { margin: 0; font: 700 26px/1.1 var(--f-display); color: var(--ink); }
+.g-pick p { margin: 4px 0 0; font: 400 14px/1.45 var(--f-body); color: var(--ink-2); }
+.g-pick p:empty { display: none; }
+.g-opts { display: grid; gap: 6px; margin-top: 12px; max-height: 46vh; overflow-y: auto; }
+.g-opts button { display: flex; align-items: center; justify-content: space-between; min-height: 48px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--wash-line); background: var(--paper); font: 500 15px/1.2 var(--f-body); color: var(--ink); text-align: left; }
+.g-opts button[aria-checked="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); font-weight: 600; }
+.g-opts button svg { width: 14px; height: 14px; flex: none; visibility: hidden; }
+.g-opts button[aria-checked="true"] svg { visibility: visible; }
+.g-btns { display: flex; gap: 10px; margin-top: 14px; }
+.g-btns button { flex: 1; height: 48px; border-radius: 10px; font: 600 15px/1 var(--f-body); }
+#gCancel { border: 1px solid var(--wash-line); background: var(--paper); color: var(--ink); }
+#gGo { background: var(--ink); color: #fff; }
 </style>
 </body></html>
