@@ -1,19 +1,19 @@
-# Contour iPhone foundation
+# SEAR iPhone foundation
 
-Open `Contour.xcodeproj`, scheme **Contour**. The current home remains the shared
+Open `SEAR.xcodeproj`, scheme **SEAR**. The current home remains the shared
 HTML experience; this layout separates existing app code from planned indoor
 features without adding an SDK or claiming LiDAR scanning is implemented.
 
-- `Contour/App`: entry, lifecycle and alert handling.
-- `Contour/Networking`: HTTPS origin validation for the native bridge.
-- `Contour/Features/Home`: current WKWebView controller and device bridges.
-- `Contour/Features/FloorPlanImport`, `Calibration`, `IndoorNavigation`:
+- `SEAR/App`: entry, lifecycle and alert handling.
+- `SEAR/Networking`: HTTPS origin validation for the native bridge.
+- `SEAR/Features/Home`: current WKWebView controller and device bridges.
+- `SEAR/Features/FloorPlanImport`, `Calibration`, `IndoorNavigation`:
   tracked feature boundaries; implementations are pending.
-- `Contour/Positioning`, `Routing`: integration boundaries; existing GPS remains
+- `SEAR/Positioning`, `Routing`: integration boundaries; existing GPS remains
   in Home and the indoor graph/demo remain in HTML/backend.
-- `Contour/Resources`: privacy descriptions, bridge script and app icon. The
+- `SEAR/Resources`: privacy descriptions, bridge script and app icon. The
   Android HTML asset is referenced directly by the Xcode project.
-- `ContourTests`: native tests; full Xcode is required to run them.
+- `SEARTests`: native tests; full Xcode is required to run them.
 
 ```sh
 node --test ios/tests/*.test.cjs

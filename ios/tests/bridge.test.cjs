@@ -3,7 +3,7 @@ const assert = require("node:assert/strict");
 const { readFileSync } = require("node:fs");
 const vm = require("node:vm");
 const source = readFileSync(
-  require("node:path").join(__dirname, "../Contour/Resources/bridge.js"),
+  require("node:path").join(__dirname, "../SEAR/Resources/bridge.js"),
   "utf8",
 );
 function page() {
@@ -248,7 +248,7 @@ test("Details demo AR and Floor Maps AR remain separate native entry points", ()
   const controller = readFileSync(
     require("node:path").join(
       __dirname,
-      "../Contour/Features/Home/ContourViewController.swift",
+      "../SEAR/Features/Home/ContourViewController.swift",
     ),
     "utf8",
   );

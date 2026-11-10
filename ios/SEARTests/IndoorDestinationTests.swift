@@ -1,6 +1,6 @@
 import XCTest
 import ARKit
-@testable import Contour
+@testable import SEAR
 
 final class IndoorDestinationTests: XCTestCase {
     func testDirectionOnlyARDoesNotRequestObstacleGeometry() {

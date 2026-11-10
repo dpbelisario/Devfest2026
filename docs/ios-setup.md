@@ -1,8 +1,8 @@
-# Contour iOS setup and TestFlight
+# SEAR iOS setup and TestFlight
 
 Contour keeps the HTML interface in a UIKit/WKWebView app. The Xcode build embeds
 the `ContourShared` Kotlin framework from `android/shared`; it does not replace the
-interface with Compose. Use `ios/Contour.xcodeproj`, scheme **Contour**.
+interface with Compose. Use `ios/SEAR.xcodeproj`, scheme **SEAR**.
 
 Apple requirements checked on 7 November 2026. This guide describes manual setup;
 the simulator build and four native XCTest tests have passed. A signed archive,
@@ -81,7 +81,7 @@ Check the active tools from the repository root:
 xcode-select -p
 xcodebuild -version
 xcodebuild -showsdks
-xcodebuild -list -project ios/Contour.xcodeproj
+xcodebuild -list -project ios/SEAR.xcodeproj
 ```
 
 Select the intended Xcode in Xcode → Settings → Locations → Command Line Tools.
@@ -91,11 +91,11 @@ raising the minimum supported iOS version to 26.
 ## Run on your own iPhone with Personal Team
 
 1. In Xcode → Settings → Accounts, sign in to your Apple Account yourself.
-2. Open `ios/Contour.xcodeproj`. Select the **Contour** app target → Signing &
+2. Open `ios/SEAR.xcodeproj`. Select the **SEAR** app target → Signing &
    Capabilities, enable **Automatically manage signing**, and select your
    **Personal Team**. Choose a unique bundle identifier, for example
    `com.dpbelisario.contour.weekend`. The committed `com.contour.app` is a placeholder.
-3. If running XCTest, give **ContourTests** the same team and a matching unique
+3. If running XCTest, give **SEARTests** the same team and a matching unique
    identifier such as `com.dpbelisario.contour.weekend.tests`.
 4. Connect and unlock the iPhone, accept Trust prompts, and select it as the run
    destination. Enable Settings → Privacy & Security → Developer Mode when prompted;
@@ -134,8 +134,8 @@ The owner completes these steps in their own Apple account:
 1. Confirm active Apple Developer Program membership and current agreements.
    Obtain the paid **Team ID** from the developer account membership page.
 2. Choose a permanent, unique app bundle identifier owned by that team, for example
-   `com.dpbelisario.contour`. Set it on **Contour** for Debug and Release, select the
-   paid team and leave automatic signing enabled. Configure **ContourTests** under
+   `com.dpbelisario.contour`. Set it on **SEAR** for Debug and Release, select the
+   paid team and leave automatic signing enabled. Configure **SEARTests** under
    the same team with the app identifier plus `.tests`. Do not commit a personal
    Team ID or substitute someone else's identifier.
 3. Ensure the matching explicit App ID exists under Certificates, Identifiers &
@@ -160,7 +160,7 @@ and [Apple's distribution workflow](https://developer.apple.com/documentation/xc
 1. Run the simulator tests (**⌘U**) and the physical-device checks in `ios.md`.
    Verify the hosted HTML/backend used by this build, permission denial recovery,
    camera, GPS, speech and notification/haptic behavior.
-2. Select **Contour** and **Any iOS Device (arm64)**, then Product → **Archive**.
+2. Select **SEAR** and **Any iOS Device (arm64)**, then Product → **Archive**.
    The scheme's Archive action must use **Release**. Resolve Kotlin compilation,
    signing, app-icon and validation errors before uploading.
 3. In Window → Organizer → Archives, select the archive and click **Distribute App**.

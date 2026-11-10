@@ -88,7 +88,7 @@ automatically validate them.
 
 ## Folder ownership — proposed, not implemented
 
-Paths below are within `ios/Contour/`. Add concrete code only when the feature is
+Paths below are within `ios/SEAR/`. Add concrete code only when the feature is
 implemented; no positioning protocol or routing wrapper is required now.
 
 | Folder                       | Intended responsibility                                                                             |

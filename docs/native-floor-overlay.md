@@ -43,7 +43,7 @@ also need moving.
 ## Saved and bundled plans
 
 The user-authorized export from the iPhone is bundled as
-`ios/Contour/Resources/default-floor-overlay.json`. It contains the 2F Central
+`ios/SEAR/Resources/default-floor-overlay.json`. It contains the 2F Central
 Library image and the exact saved position, dimensions, rotation, opacity and
 visibility. See [floor-overlay-snapshot.md](floor-overlay-snapshot.md) for provenance.
 Fresh iPhone installs use this default. A local saved plan always takes precedence;
@@ -176,7 +176,7 @@ route planning or verified evacuation guidance.
 
 ## Build and verification
 
-Sources live under `ios/Contour/Features/FloorPlanImport/`. Build the Contour scheme
+Sources live under `ios/SEAR/Features/FloorPlanImport/`. Build the SEAR scheme
 with the existing Kotlin shared-framework phase and an installed JDK. Distribution
 keeps `com.contour.app` and display name Contour. Local signing uses command-line
 team/bundle overrides; no credentials or signing profiles belong in the repository.

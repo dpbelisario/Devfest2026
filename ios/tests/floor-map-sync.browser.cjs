@@ -6,7 +6,7 @@ const assert = require("node:assert/strict");
 (async () => {
   const html = readFileSync("android/app/src/main/assets/contour.html", "utf8");
   const adapter = readFileSync(
-    "ios/Contour/Resources/native-floor-overlay.js",
+    "ios/SEAR/Resources/native-floor-overlay.js",
     "utf8",
   );
   const server = createServer((req, res) => {
@@ -766,7 +766,7 @@ const assert = require("node:assert/strict");
     // Visual fixture only: use the bundled image and illustrative aisle points to
     // inspect long labels and dense floor-plan artwork, not to verify a real route.
     const libraryPlan = JSON.parse(
-      readFileSync("ios/Contour/Resources/default-floor-overlay.json", "utf8"),
+      readFileSync("ios/SEAR/Resources/default-floor-overlay.json", "utf8"),
     );
     const visualPlan = {
       ...libraryPlan,

@@ -11,11 +11,11 @@ cd "$(dirname "$0")/.."
 npm run build
 node --test ios/tests/bridge.test.cjs ios/tests/build-shared.test.cjs
 contour_derived_data="${CONTOUR_DERIVED_DATA:-$PWD/ios/DerivedData}"
-xcodebuild -quiet -project ios/Contour.xcodeproj -scheme Contour -configuration Debug \
+xcodebuild -quiet -project ios/SEAR.xcodeproj -scheme SEAR -configuration Debug \
   -destination "platform=iOS,id=$IOS_DEVICE_UDID" -derivedDataPath "$contour_derived_data" \
   "DEVELOPMENT_TEAM=$IOS_TEAM_ID" "PRODUCT_BUNDLE_IDENTIFIER=$IOS_BUNDLE_ID" \
   -allowProvisioningUpdates build
-contour_app="$contour_derived_data/Build/Products/Debug-iphoneos/Contour.app"
+contour_app="$contour_derived_data/Build/Products/Debug-iphoneos/SEAR.app"
 cmp android/app/src/main/assets/contour.html "$contour_app/contour.html"
 xcrun devicectl device install app --device "$IOS_DEVICE_UDID" "$contour_app"
 xcrun devicectl device process launch --device "$IOS_DEVICE_UDID" "$IOS_BUNDLE_ID"

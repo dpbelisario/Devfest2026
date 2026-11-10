@@ -13,11 +13,11 @@ UIKit/WKWebView handles iOS location, speech, camera permissions and foreground 
 3. Connect and unlock the iPhone. Choose Trust on the phone if prompted.
    In iPhone Settings → Privacy & Security → Developer Mode, enable it and
    restart/confirm if prompted. It may appear after Xcode first pairs the device.
-4. Open `ios/Contour.xcodeproj`. Select the blue Contour project, then the
-   **Contour** app target → Signing & Capabilities. Enable Automatically manage
+4. Open `ios/SEAR.xcodeproj`. Select the blue SEAR project, then the
+   **SEAR** app target → Signing & Capabilities. Enable Automatically manage
    signing, select your Personal Team, and change the bundle identifier to
    a unique value, such as `com.dpbelisario.contour.weekend`.
-5. At the top of Xcode choose scheme **Contour**, then your physical iPhone as
+5. At the top of Xcode choose scheme **SEAR**, then your physical iPhone as
    the run destination. Press **⌘R**. The first Kotlin build downloads its toolchain.
 6. If the iPhone says Untrusted Developer, go to Settings → General → VPN &
    Device Management, select your developer profile, and trust it. Run again.
