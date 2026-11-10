@@ -1670,7 +1670,8 @@ window.contourIndoorDirectGuidance = data => {
   const DEMO = RAW.map(p => ({ ...p, ll: [USER[0] + p.d[0], USER[1] + p.d[1]] }));
   const siteRaw = s => ({ id: s.id, name: s.name, jp: s.address, ll: [s.latitude, s.longitude], cap: null, loc: s.address, haz: s.disasters.map(d => HAZ_API[d]).filter(Boolean), live: true });
   const placePoints = list => list.map(p => { const m = dist(HERE, p.ll); return { ...p, m, brg: bearing(HERE, p.ll), walk: walkMin(m) }; })
-    .sort((a, b) => (hereSource === "demo" ? (a.demoOrder ?? 2) - (b.demoOrder ?? 2) : 0) || a.m - b.m).map((p, i) => ({ ...p, n: i + 1 }));
+    .sort((a, b) => (a.pin ?? 9) - (b.pin ?? 9) || (hereSource === "demo" ? (a.demoOrder ?? 2) - (b.demoOrder ?? 2) : 0) || a.m - b.m)
+    .map((p, i, all) => ({ ...p, n: i + 1, nearest: hereSource !== "demo" && p.m === Math.min(...all.map(q => q.m)) }));
   let POINTS = placePoints(DEMO);
   async function getJson(url, { body, timeout = 9000 } = {}) {
     const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), timeout);
@@ -1958,6 +1959,10 @@ window.contourIndoorDirectGuidance = data => {
     "g.edit": ["Edit", "編集", "编辑", "수정"],
     "g.mainexit": ["Main entrance (default)", "正面入口（既定）", "正门（默认）", "정문 (기본값)"],
     "g.libexit": ["2F Entrance Hall", "2F エントランスホール", "2F 入口大厅", "2F 입구 홀"],
+    "g.saiexit": ["2F Exit (出口)", "2F 出口", "2F 出口", "2F 출구 (出口)"],
+    "g.saientr": ["2F Entrance (入口)", "2F 入口", "2F 入口", "2F 입구 (入口)"],
+    "g.saistairs": ["2F Stairs and elevator (階段・EV)", "2F 階段・EV", "2F 楼梯和电梯", "2F 계단·엘리베이터"],
+    "sai.level": ["Inside SAI Dining · exit on 2F", "生協南部食堂内 · 出口は2F", "SAI Dining 内 · 出口在2F", "SAI Dining 내부 · 출구는 2F"],
     "g.floorq": ["Which floor are you on?", "今いる階は？", "您在几楼？", "지금 몇 층에 있나요?"],
     "g.floorq.b": ["Nearest building: {b}. SEAR then guides you to its exit.", "最寄りの建物：{b}。続けて出口まで案内します。", "最近的建筑：{b}。SEAR 随后引导您前往出口。", "가장 가까운 건물: {b}. 이어서 출구까지 안내합니다."],
     "g.exitq": ["Exit", "出口", "出口", "출구"],
@@ -2391,10 +2396,10 @@ window.contourIndoorDirectGuidance = data => {
   const cardHTML = (p, i) => `
     <span class="card-grab" aria-hidden="true"></span>
     <div class="card-body">
-      <div class="eyebrow"><span><span class="num">${String(p.n).padStart(2, "0")}</span>${t(i === 0 && !(p.demoOrder && hereSource === "demo") ? "card.nearest" : p.building ? "b.eyebrow" : "card.point")}</span><button class="det" type="button" tabindex="-1">${t("card.det")}<svg viewBox="0 0 8 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m1.5 1.5 5 5-5 5"/></svg></button></div>
+      <div class="eyebrow"><span><span class="num">${String(p.n).padStart(2, "0")}</span>${t(p.nearest || (i === 0 && !p.pin && !(p.demoOrder && hereSource === "demo")) ? "card.nearest" : p.building ? "b.eyebrow" : "card.point")}</span><button class="det" type="button" tabindex="-1">${t("card.det")}<svg viewBox="0 0 8 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m1.5 1.5 5 5-5 5"/></svg></button></div>
       <h3 class="name">${esc(pTitle(p))}</h3>
       <div class="jp">${esc(pSub(p))}</div>
-      <div class="meta">${p.id === "library" ? esc(t("lib.level")) : `<span class="dist">${arrowSvg(p.brg)}${fmtDist(p.m)}</span><span class="sep"></span><span>${t("card.walk", { n: p.walk })}</span>`}</div>
+      <div class="meta">${p.id === "library" || p.id === "south" ? esc(t(p.id === "library" ? "lib.level" : "sai.level")) : `<span class="dist">${arrowSvg(p.brg)}${fmtDist(p.m)}</span><span class="sep"></span><span>${t("card.walk", { n: p.walk })}</span>`}</div>
       <div class="facts">${p.building ? (p.hours && p.hours !== "Unknown" ? `${t("b.k." + p.kind)} · ${p.hours}` : t("b.k." + p.kind)) : p.live ? t("card.live", { h: hazList(p) }) : t("card.facts", { n: p.cap.toLocaleString("en-US") })}</div>
       <button class="cta" type="button" tabindex="-1"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="4.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 15 24 4l14 11" opacity=".4"/><path d="M10 28 24 17l14 11" opacity=".7"/><path d="M10 41 24 30l14 11"/></svg><span class="cta-l">${t("card.ar")}</span><span class="cta-s">3D AR</span></button>
     </div>`;
@@ -2966,7 +2971,7 @@ window.contourIndoorDirectGuidance = data => {
   function renderPick() {
     $("pickList").innerHTML = POINTS.map((p, i) => `<li><button type="button" data-i="${i}">
         <span class="pk-n">${String(p.n).padStart(2, "0")}</span>
-        <span class="pk-t"><b>${esc(pTitle(p))}</b><small>${i === 0 && !(p.demoOrder && hereSource === "demo") ? t("card.nearest") + " · " : ""}${esc(pSub(p))}</small></span>
+        <span class="pk-t"><b>${esc(pTitle(p))}</b><small>${p.nearest || (i === 0 && !p.pin && !(p.demoOrder && hereSource === "demo")) ? t("card.nearest") + " · " : ""}${esc(pSub(p))}</small></span>
         <span class="pk-d">${fmtDist(p.m)}<small>${t("card.walk", { n: p.walk })}</small></span></button></li>`).join("");
   }
   function openPick() {
@@ -3169,6 +3174,7 @@ window.contourIndoorDirectGuidance = data => {
   function goAR(p) {
     if (!p) return;
     if (p.id === "library") { closeAR(); if (typeof window.ContourBridge?.startLibraryExitAR === "function") return ContourBridge.startLibraryExitAR(); if (typeof window.ContourBridge?.startObstacleScan === "function") return ContourBridge.startObstacleScan(); return openLibraryExitAR(p); }
+    if (p.id === "south") { closeAR(); return openExitAR(p, "2F", null); }
     if (p.building) return openAR({ ...p, guess: { floors: ["1F"], floor: "1F", exits: buildingExits(p), exit: 0 } });
     if (mode !== "evac") return openAR(p);
     askQ({
@@ -3184,7 +3190,19 @@ window.contourIndoorDirectGuidance = data => {
   const LIBRARY_FLOORS = ["B1", "1F", "2F", "3F", "4F"];
   const buildingFloors = b => b.id === "library" ? LIBRARY_FLOORS : Array.from({ length: Math.max(1, b.floors || 1) }, (_, i) => `${i + 1}F`);
   // shortcut: one default exit per building at its map position (library: 2F Entrance Hall doors from the saved plan).
-  const buildingExits = b => b.id === "library" ? [{ key: "g.libexit", ll: LIB_EXIT_LL }] : [{ key: "g.mainexit", ll: b.ll }];
+  // SAI Dining (IndoorAtlas venue 01): exits marked in IndoorAtlas (backend/data/floorplans/sai-dining-2f.json),
+  // taken from the live venue list when the map has loaded it. Traced from an event map: not verified on site.
+  const SAI_EXITS = [
+    { key: "g.saiexit", ll: [35.1533381, 136.9628716], kind: "exit" },
+    { key: "g.saientr", ll: [35.1531926, 136.9626341], kind: "entrance" },
+    { key: "g.saistairs", ll: [35.1531479, 136.9626253], kind: "stairs" },
+  ];
+  function saiExits() {
+    const v = (window.ContourIndoorAtlasMap?.state?.venues || []).find(x => x.indoorAtlas?.venueId === "4402be90-dbff-11f1-95cb-e11cd22c6739");
+    return SAI_EXITS.map(x => { const live = (v?.exits || []).find(e => e.kind === x.kind && e.floorLevel === 2 && Number.isFinite(e.lat) && Number.isFinite(e.lng)); return live ? { ...x, ll: [live.lat, live.lng] } : x; });
+  }
+  const buildingExits = b => b.id === "library" ? [{ key: "g.libexit", ll: LIB_EXIT_LL }] : b.id === "south" ? saiExits() : [{ key: "g.mainexit", ll: b.ll }];
+  const insideFloor = b => b.id === "library" || b.id === "south" ? "2F" : "1F";
   const nearestBuilding = () => BUILDINGS.reduce((a, b) => dist(HERE, b.ll) < dist(HERE, a.ll) ? b : a);
   let gDone = null, afterExitSite = null;
   function pickGuess({ title, body, options, value, go, onPick }) {
@@ -3223,7 +3241,7 @@ window.contourIndoorDirectGuidance = data => {
     if (kind === "floor") pickGuess({ title: t("g.floorq"), body: one ? t("g.nomap") : "", options: g.floors, value: g.floors.indexOf(g.floor), go: t("g.done"),
       onPick: i => { if (arPoint?.guess === g) { g.floor = g.floors[i]; renderGuess(); } } });
     else pickGuess({ title: t("g.exitq"), body: one ? t("g.nomap") : "", options: g.exits.map(x => t(x.key)), value: g.exit, go: t("g.done"),
-      onPick: i => { if (arPoint?.guess === g) { g.exit = i; renderGuess(); } } });
+      onPick: i => { if (arPoint?.guess === g) { g.exit = i; if (arPoint.exitAR && g.base) retargetExit(g); renderGuess(); } } });
   });
   $("arNext").addEventListener("click", () => { const site = arPoint?.guess?.site; if (!site) return; closeAR(); openAR(site); });
 
@@ -3235,17 +3253,25 @@ window.contourIndoorDirectGuidance = data => {
   }
   function askFloor(site) {
     const b = nearestBuilding(), floors = buildingFloors(b);
-    pickGuess({ title: t("g.floorq"), body: t("g.floorq.b", { b: pTitle(b) }), options: floors, value: floors.indexOf(b.id === "library" ? "2F" : "1F"), go: t("g.go"),
+    pickGuess({ title: t("g.floorq"), body: t("g.floorq.b", { b: pTitle(b) }), options: floors, value: floors.indexOf(insideFloor(b)), go: t("g.go"),
       onPick: i => {
         const floor = floors[i];
         if (b.id === "library" && typeof window.ContourBridge?.startLibraryExitARFrom === "function") { afterExitSite = site; return ContourBridge.startLibraryExitARFrom(floor); }
         openExitAR(b, floor, site);
       } });
   }
+  const exitNames = (b, ex) => Object.fromEntries(Object.keys(LANGS).map(k => [k, (b.names[k] || b.names.en) + " · " + D[ex.key][LANGS[k].i]]));
   function openExitAR(b, floor, site) {
-    const exits = buildingExits(b), ex = exits[0];
-    const names = Object.fromEntries(Object.keys(LANGS).map(k => [k, (b.names[k] || b.names.en) + " · " + D[ex.key][LANGS[k].i]]));
-    openAR({ ...b, names, exitAR: true, ll: ex.ll, m: dist(HERE, ex.ll), brg: bearing(HERE, ex.ll), guess: { floors: buildingFloors(b), floor, exits, exit: 0, site } });
+    const exits = buildingExits(b);
+    // Several exits (SAI Dining): start with the nearest one; the exit chip switches between them.
+    const i = exits.reduce((best, x, j) => dist(HERE, x.ll) < dist(HERE, exits[best].ll) ? j : best, 0), ex = exits[i];
+    openAR({ ...b, names: exitNames(b, ex), exitAR: true, ll: ex.ll, m: dist(HERE, ex.ll), brg: bearing(HERE, ex.ll), guess: { floors: buildingFloors(b), floor, exits, exit: i, site, base: b } });
+    if (hereSource !== "gps") useGps({ quiet: true }).then(() => { if (arPoint) arPlace(); }).catch(() => {});
+  }
+  function retargetExit(g) {
+    const ex = g.exits[g.exit];
+    arPoint.ll = ex.ll; arPoint.names = exitNames(g.base, ex);
+    $("arName").textContent = pTitle(arPoint); arPlace();
   }
   // Student: within 10 m of the building (GPS) during 3D AR, offer indoor navigation once per building.
   // Without GPS (demo position), the AR card shows a "Demo: I'm near the building" button instead.
@@ -4024,7 +4050,7 @@ window.contourIndoorDirectGuidance = data => {
     { id: "humanities", ll: [35.15381, 136.96409], names: { en: "Humanities & Social Sciences Building", ja: "文系総合館", zh: "文科综合馆", ko: "문과 종합관" }, kind: "faculty", floors: 7, hours: "8:30–21:00", inside: ["lecture", "study"], keys: ["humanities", "social sciences", "文系", "law", "economics", "法学", "経済", "经济", "법학", "경제"] },
     { id: "gensai", ll: [35.15634, 136.96681], names: { en: "Disaster Mitigation Research Building", ja: "減災館", zh: "减灾馆", ko: "재해경감관(減災館)" }, kind: "research", floors: 4, hours: "13:00–16:00", inside: ["exhibit", "labs"], keys: ["gensai", "disaster mitigation", "減災", "减灾", "防災", "재해경감"] },
     { id: "north", ll: [35.15668, 136.96582], names: { en: "North Co-op (Cafeteria & Shop)", ja: "北部生協（食堂・購買）", zh: "北部生协（食堂·商店）", ko: "북부 생협 (식당·매점)" }, kind: "food", floors: 2, hours: "8:00–20:00", inside: ["food", "shop", "books"], keys: ["north co-op", "north cafeteria", "北部生協", "北部食堂", "北部生协", "북부 생협"] },
-    { id: "south", ll: [35.15329, 136.96268], names: { en: "South Cafeteria", ja: "南部食堂（生協）", zh: "南部食堂（生协）", ko: "남부 식당 (생협)" }, kind: "food", floors: 1, hours: "8:00–20:00", inside: ["food", "shop"], keys: ["south cafeteria", "south co-op", "南部食堂", "南部生協", "南部生协", "남부 식당"] },
+    { id: "south", pin: 1, ll: [35.15329, 136.96268], names: { en: "SAI Dining (South Cafeteria)", ja: "生協南部食堂（SAI Dining）", zh: "SAI Dining（南部食堂）", ko: "SAI Dining (남부 식당)" }, kind: "food", floors: 2, hours: "8:00–20:00", inside: ["food", "shop"], keys: ["sai dining", "sai", "south cafeteria", "south co-op", "生協南部食堂", "南部食堂", "南部生協", "南部生协", "남부 식당"] },
     { id: "studenthall", ll: [35.15722, 136.96576], names: { en: "Student Hall", ja: "学生会館", zh: "学生会馆", ko: "학생회관" }, kind: "student", floors: 2, hours: "8:30–21:00", inside: ["info", "study"], keys: ["student hall", "club", "サークル", "社团", "동아리"] },
     { id: "gym", ll: [35.15000, 136.96960], names: { en: "Gymnasium", ja: "総合体育館", zh: "综合体育馆", ko: "종합체육관" }, kind: "sports", floors: 4, hours: "9:00–21:00", inside: ["gym"], keys: ["gym", "gymnasium", "sports", "体育館", "体育馆", "체육관", "運動", "运动", "운동"] },
     { id: "informatics", ll: [35.15451, 136.96157], names: { en: "Graduate School of Informatics", ja: "情報学研究科棟", zh: "信息学研究科楼", ko: "정보학연구과동" }, kind: "faculty", floors: 8, hours: "8:30–21:00", inside: ["lecture", "labs", "pcs"], keys: ["informatics", "computer science", "情報学", "信息学", "정보학"] },
