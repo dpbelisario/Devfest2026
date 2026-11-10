@@ -98,8 +98,11 @@
   \draw[extD, line width=0.8pt, fill=white] (0,0) -- (0.5,0) -- (0.5,0.5) -- (0.36,0.64) -- (0,0.64) -- cycle;
   \foreach \y in {0.15,0.27,0.39} \draw[extD, line width=0.6pt] (0.1,\y) -- (0.4,\y);}}
 \newcommand{\pinicon}{\tikz[baseline={([yshift=-3pt]current bounding box.center)}]{%
-  \fill[gcpD] (0,0) -- (-0.16,0.26) arc[start angle=180, end angle=0, radius=0.16] -- cycle;
-  \fill[white] (0,0.29) circle (0.065);}}
+  % teardrop map pin: tip at the origin, sides tangent to the round head (Google Maps red)
+  \fill[mapsRed] (0,0) -- (-0.161,0.319) arc[start angle=206.7, end angle=-26.7, radius=0.18] -- cycle;
+  \fill[mapsDot] (0,0.40) circle (0.068);}}
+\definecolor{mapsRed}{HTML}{EA4335}
+\definecolor{mapsDot}{HTML}{A50E0E}
 \newcommand{\png}[1]{\raisebox{-0.5\height}{\includegraphics[width=0.68cm]{#1}}}
 
 % Box content: icon on the left, title + subtitle on the right
@@ -375,7 +378,7 @@ Open the URL above, ideally on a phone. Choose a language (English, Japanese, Ch
 Korean) with the globe button in the header, or under \textbf{Menu $\rightarrow$ Settings}.
 
 \medskip
-\noindent\textbf{Student version}
+\noindent\textbf{\underline{Student version}}
 \begin{enumerate}[leftmargin=1.6em,itemsep=2pt,topsep=4pt]
   \item Tap \textbf{Student} at the top. Nagoya University buildings appear as blue pins
         with cards at the bottom.
@@ -386,24 +389,25 @@ Korean) with the globe button in the header, or under \textbf{Menu $\rightarrow$
         \textbf{I am at this checkpoint $\cdot$ start}. The route appears on the official
         floor map.
   \item Back on the card, tap \textbf{3D AR directions}. In the Android app the camera opens
-        and asks \textbf{Where are you now?} Choose your starting point and tap \textbf{Start}.
-        3D AR arrows then guide you to the library exit.
+        straight to arrows towards the 2F Entrance Hall exit; tap the \textbf{Floor guess} or
+        \textbf{Start guess} chip to correct it. Other buildings (no floor map yet) show one
+        floor and one exit choice.
   \item Drag the grey bar on top of a card down to shrink the cards to one row (name and
         \textbf{3D AR}), and drag it up to bring the full cards back.
 \end{enumerate}
 
 \medskip
-\noindent\textbf{Evacuation version}
+\noindent\textbf{\underline{Evacuation version}}
 \begin{enumerate}[leftmargin=1.6em,itemsep=2pt,topsep=4pt]
   \item Tap \textbf{Evacuation} at the top. Official Nagoya evacuation sites appear as green
         pins, nearest first.
   \item On the nearest site's card, tap \textbf{3D AR directions}. When asked
         ``Are you inside a building right now?'', tap \textbf{Yes, I'm inside}.
-  \item Choose your \textbf{starting room and floor}. The destination is the
-        \textbf{nearest exit}. Tap \textbf{Start} and follow the indoor directions to the exit
-        (stairs only, no elevators, sample floor plan).
-  \item After the exit, SEAR continues with \textbf{3D AR} arrows on the camera view to
-        the evacuation site.
+  \item Choose your \textbf{floor} and tap \textbf{Start}. The exit of the nearest building
+        is assigned (Central Library: 2F Entrance Hall; others: default main entrance) and
+        3D AR arrows lead to it. Follow exit signs and staff.
+  \item Once outside, tap \textbf{I'm outside $\cdot$ continue}. SEAR continues with
+        \textbf{3D AR} arrows to the evacuation site.
   \item (Android app only) Open the menu and tap \textbf{Test alert}. After a few seconds
         the emergency pop-up should open with what to do now and the nearest site.
 \end{enumerate}
