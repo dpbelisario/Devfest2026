@@ -3673,7 +3673,9 @@ window.contourIndoorDirectGuidance = data => {
     text = text.trim(); if (!text || askBusy) return;
     if (mode === "student") {
       if(indoorQuestion(text)) { await sendIndoorAsk(text); return; }
-      clearIndoorNavigation();indoorContext={};$("askInput").value = ""; addAsk("u", text); campusReply(text); return;
+      // A known campus building gets the local answer (photo, AR, map); anything else goes to Gemini.
+      const fb = findBuilding(text);
+      if (fb && fb.b) { clearIndoorNavigation();indoorContext={};$("askInput").value = ""; addAsk("u", text); campusReply(text); return; }
     }
     askBusy = true; $("askSend").disabled = true; $("askInput").value = "";
     addAsk("u", text);
