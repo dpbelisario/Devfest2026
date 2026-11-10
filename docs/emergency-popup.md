@@ -67,5 +67,7 @@ shows the alert screen over the lock screen; Back closes the alert, then leaves 
 - Android only (iOS does not allow this).
 - The first alert may ask for location permission if it was never granted, so the nearest site can use
   GPS.
-- Planned next: a push from the backend (JMA data) for phones without the setup, or when the official
-  alert is missed (needs Firebase Cloud Messaging).
+- A separate, opt-in push from the backend (JMA warnings for Nagoya and Aichi-related bulletins, via
+  Firebase Cloud Messaging) is on the same setup page as **Warning notifications**; see
+  [push-notifications.md](push-notifications.md). It is off until the build has `google-services.json`
+  and the backend has `FCM_DELIVERY_ENABLED=true`.

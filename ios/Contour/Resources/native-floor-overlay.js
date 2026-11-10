@@ -90,7 +90,7 @@
       ? "Choose your starting point above or tap a pin on the map."
       : !destination
         ? "Choose where you want to go."
-        : "Route preview based on saved walls and floor-plan locations.";
+        : "";
     ui.directionsSection.dataset.state = landmarkRequest
       ? "loading"
       : landmarkRoute?.status || "idle";
@@ -1438,19 +1438,19 @@
         ? "Update my position here"
         : "Set my position here";
     ui.confirmHint.textContent = target
-      ? `Moves your indoor position dot to ${target.pin.name}. Keeps your compass direction.`
+      ? `Sets your position to ${target.pin.name}.`
       : "Choose a numbered pin, then set your position here.";
     ui.resetPosition.hidden = !confirmedStart;
     ui.wallToggleLabel.hidden = !pending.wallGeometry;
     ui.startStatus.textContent =
       (confirmedStart
         ? indoorPose?.status === "tracking"
-          ? `Indoor position · ${indoorPose.steps} steps · approximately ${indoorPose.distance.toFixed(1)} m. ${indoorPose.wallBlocked ? "Movement held at a mapped wall. Check your position, heading or doorway geometry. " : ""}${pending.wallGeometry?.reviewed && pending.wallGeometry.walls.length ? "Reviewed wall constraints active. " : ""}Phone held in front; GPS does not move this dot. `
+          ? `${indoorPose.steps} steps · ${indoorPose.distance.toFixed(1)} m. ${indoorPose.wallBlocked ? "Stopped at a wall. Check your position. " : ""}`
           : indoorPose?.status === "motion-unavailable"
-            ? "Motion tracking unavailable. Allow Motion & Fitness in Settings, then set your position again. "
+            ? "Allow Motion & Fitness in Settings, then set your position again. "
             : indoorPose && indoorPose.status !== "starting"
               ? "Motion tracking paused. Set your position again before continuing. "
-              : "Starting step tracking. Allow Motion & Fitness access if requested; waiting for heading/motion. "
+              : "Starting tracking… "
         : locationStatus) +
       (target
         ? `${chosenStartID ? "Chosen" : "Suggested"} start: ${number}. ${target.pin.name}${fresh && !confirmedStart ? ` · ${Math.round(target.distance)} m from reported position` : ""}. Check floor ${pending.floor || "2F"}.`

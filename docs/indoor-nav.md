@@ -1,9 +1,11 @@
 # Indoor navigation (demo)
 
-Indoor navigation guides you through a **fictional** two-floor building ("Sample Hall"). Central Library instead uses its official five floor maps with manually confirmed
-exit/stairs route previews; see [library-demo.md](library-demo.md). Engineering II
-and ILAS A also have schematic route catalogs. Other buildings still use Sample Hall,
-which is explicitly labelled fictional.
+The generic indoor navigation demo guides you through a **fictional** two-floor
+building ("Sample Hall"). Central Library instead uses its official five floor
+maps with manually confirmed exit/stairs route previews; see
+[library-demo.md](library-demo.md). Engineering Building II and ILAS Building A
+use the separate catalog flows described below. Other buildings still use
+Sample Hall, which is explicitly labelled fictional.
 
 ## Where it opens
 
@@ -17,7 +19,11 @@ GPS is often off by 5–10 m near buildings, so the 10 m prompt may come a littl
 
 Buildings that have a real floor plan in the indoor catalog (Engineering Building II, ILAS Building A; see
 [indoor-pilot.md](indoor-pilot.md)) do not use the sample plan: their Details button and 10 m prompt open
-**Ask** with that building's indoor directions (Engineering Building II starts the Room 221 demo).
+**Ask** with that building's indoor directions. Engineering Building II starts
+room 221: Android uses the [IndoorAtlas integration](indooratlas.md) when the new
+native bridge is available; other clients retain the labeled checkpoint demo.
+Native floor/camera estimation can operate without SDK credentials, but live
+corridor routes still require those credentials and a mapped venue.
 
 ## What it does
 
@@ -56,7 +62,7 @@ estimate; the floor plan keeps it in check.
 
 **Simulated walk** moves a "true" walker along the route. The engine only gets what a phone would
 report: noisy step headings with a compass drift of up to ±12°, a real step of ~0.72 m against the
-assumed 0.70 m, and air pressure with noise. `ContourIndoor._runSim({ seed, from, to, student })` runs
+assumed 0.70 m, and air pressure with noise. `ContourIndoorDemo._runSim({ seed, from, to, student })` runs
 it without timers and returns the error between the true and estimated position.
 
 Results for 7 routes × 12 seeds (headless Chrome, 2026-11-07):
@@ -77,12 +83,22 @@ while running, and magnetic disturbance from steel, will do worse.
 ## Code
 
 - Page: the "Indoor navigation" block at the end of `android/app/src/main/assets/contour.html`
-  (`window.ContourIndoor`: `open(mode, { building, after })`, `close()`, `back()`, `relang()`; `after.run()`
+  (`window.ContourIndoorDemo`: `open(mode, { building, after })`, `close()`, `back()`, `relang()`; `after.run()`
   starts once the exit is reached). The entry points are `goAR()`, `checkNear()` and the `#indoorBtn`
   handler in the main script. The 3D view uses bundled Three.js r128; its MIT notice is included in the shared HTML.
-- App: `android/app/src/main/java/com/contour/app/indoor/IndoorSensors.kt` (barometer) and the bridge
-  calls `ContourBridge.startIndoor()` / `stopIndoor()` in `WebUiActivity.kt`. The page receives
-  `window.contourIndoor({ p: hPa })`. Readings stop while the app is in the background.
+- App: `android/app/src/main/java/com/contour/app/indoor/IndoorSensors.kt` (barometer)
+  uses the guarded `ContourIndoor.postMessage` transport in `WebUiActivity.kt`.
+  Commands are `{ type: "demoSensorsStart" | "demoSensorsStop", navigationId: "sample-<session>" }`.
+  Only the trusted main frame/current page can start collection, and stop targets
+  the same session. The page receives `window.contourIndoor({ p: hPa })` about
+  four times per second. Readings stop while the app is in the background and
+  resume with the same active request. Missing barometers yield no samples.
+  Older `ContourBridge.startIndoor()` / `stopIndoor()` entry points are harmless
+  compatibility stubs because they cannot attest the caller's frame.
+
+`ContourIndoorDemo` is the fictional sample engine. `ContourIndoor.postMessage`
+is reserved for the trusted native positioning/camera bridge; the demo must not
+replace it. They retain separate sensor callbacks and route state.
 
 ## Using a real building later
 

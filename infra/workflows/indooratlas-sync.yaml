@@ -1,0 +1,68 @@
+# Cloud Workflows: IndoorAtlas venue sync.
+# Mirrors the venue owner's IndoorAtlas account (venues, floor plans, POIs,
+# exits marked as POIs, wayfinding presence) into Firestore `indoorVenues`, so
+# the app's venue list follows IndoorAtlas without a rebuild.
+# All IndoorAtlas calls (GET only), mapping and Firestore writes live in the
+# contour-jobs backend (POST /jobs/indooratlas/sync). Without the
+# INDOORATLAS_MAPPING_API_KEY secret on contour-jobs the call answers
+# {"configured": false} and changes nothing.
+# Base URL: runtime argument {"baseUrl": "https://..."} or the deploy-time
+# environment variable JOBS_BASE_URL (set by infra/deploy-workflows.sh).
+# Trigger: Cloud Scheduler job indooratlas-sync-every-15-minutes (created enabled).
+# Docs: docs/indoor-venues.md#indooratlas-sync and docs/cloud-jobs.md.
+
+main:
+  params: [args]
+  steps:
+    - import_configuration:
+        assign:
+          - noArgs: {}
+          - input: ${default(args, noArgs)}
+          - baseUrl: ${default(map.get(input, "baseUrl"), sys.get_env("JOBS_BASE_URL", ""))}
+    - check_configuration:
+        switch:
+          - condition: ${baseUrl == ""}
+            raise:
+              error: MISSING_CONFIGURATION
+              message: Set JOBS_BASE_URL on the workflow or pass {"baseUrl"} as the argument.
+
+    # Sync is idempotent (unchanged venues are not rewritten), so a retry is safe.
+    - sync_indooratlas_venues:
+        try:
+          call: http.post
+          args:
+            url: ${baseUrl + "/jobs/indooratlas/sync"}
+            auth:
+              type: OIDC
+              audience: ${baseUrl}
+            body: {}
+            timeout: 240
+          result: syncResponse
+        retry:
+          predicate: ${retry_server_error_or_timeout}
+          max_retries: 1
+          backoff:
+            initial_delay: 10
+            max_delay: 30
+            multiplier: 2
+
+    - sync_summary:
+        return: ${syncResponse.body}
+
+# Retry on HTTP 5xx, timeouts and connection failures. Never retries 4xx.
+retry_server_error_or_timeout:
+  params: [e]
+  steps:
+    - read_error:
+        assign:
+          - noTags: []
+          - code: ${default(map.get(e, "code"), 0)}
+          - tags: ${default(map.get(e, "tags"), noTags)}
+    - classify_error:
+        switch:
+          - condition: ${code >= 500 and code <= 599}
+            return: true
+          - condition: ${"TimeoutError" in tags or "ConnectionError" in tags or "ConnectionFailedError" in tags}
+            return: true
+    - do_not_retry:
+        return: false

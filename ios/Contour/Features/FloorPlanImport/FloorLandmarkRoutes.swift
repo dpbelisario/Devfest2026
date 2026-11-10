@@ -190,6 +190,7 @@ enum FloorLandmarkPlanner {
         }
         let names = Dictionary(uniqueKeysWithValues: (overlay.destinations ?? []).map { ($0.id, $0.name) })
         var value = result("ok", "Map route preview · shortest mapped length, then fewest intermediate pins. Avoids reviewed walls; check actual passages and furniture.")
+        var value = result("ok", "Fewest stops, shortest walk.")
         var path: [FloorPlanPoint] = [], incoming: (Double, Double)?
         for (index, hop) in hops.enumerated() {
             let segments = zip(hop.path, hop.path.dropFirst()).map { (($0.1.x - $0.0.x) * overlay.width, ($0.1.y - $0.0.y) * overlay.height) }

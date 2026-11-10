@@ -8,6 +8,8 @@ import { webAppRouter } from "./routes/webApp.js";
 import { createLibraryLocalizationRouter } from "./routes/libraryLocalization.js";
 import { RateLimiter } from "./services/rateLimiter.js";
 import { indoorRouter } from "./routes/indoor.js";
+import { createIndoorVenuesRouter } from "./routes/indoorVenues.js";
+import { IndoorVenueService } from "./services/indoorVenueService.js";
 import type { JobsContext } from "./services/jobs/context.js";
 
 const noStore = "no-store";
@@ -16,9 +18,15 @@ const noStore = "no-store";
  * Build the Express app. `/jobs` is mounted only when job dependencies are
  * supplied (JOBS_ENABLED=true on the private jobs service). `/api` (live
  * sites, alerts and the assistant) is mounted when live data is supplied.
+ * `/api/indoor/venues` is always mounted; without `indoorVenues` it serves
+ * the bundled seed only.
  */
 export function createApp(
-  options: { jobs?: JobsContext; live?: LiveContext } = {},
+  options: {
+    jobs?: JobsContext;
+    live?: LiveContext;
+    indoorVenues?: IndoorVenueService;
+  } = {},
 ): Express {
   const app = express();
   app.disable("x-powered-by");
@@ -38,6 +46,10 @@ export function createApp(
   app.use("/destinations", destinationsRouter);
   app.use("/directions", directionsRouter);
   app.use("/app", webAppRouter);
+  app.use(
+    "/api/indoor/venues",
+    createIndoorVenuesRouter(options.indoorVenues ?? new IndoorVenueService()),
+  );
   app.use("/api/indoor", indoorRouter);
   if (options.live) app.use("/api", createLiveRouter(options.live));
   if (options.jobs) app.use("/jobs", createJobsRouter(options.jobs));

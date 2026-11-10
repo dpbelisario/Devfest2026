@@ -3,6 +3,7 @@ import { z } from "zod";
 import { sha256Hex } from "../services/jobs/payloadCodec.js";
 import {
   collections,
+  isClaimable,
   type ConditionalWriteResult,
   type EqvolBulletinRecord,
   type JobsRepository,
@@ -76,6 +77,20 @@ const eqvolSchema = z.object({
   aichiMentioned: z.boolean().nullable(),
   storedAt: z.string(),
   payloadGzip: bytes,
+});
+
+const outboxSchema = z.object({
+  deliveryKey: z.string(),
+  sourceUrl: z.string(),
+  publishedAt: z.string(),
+  bulletinType: z.string(),
+  deliveryStatus: z.enum(["pending", "excluded", "sent", "skipped"]),
+  acknowledgedAt: z.string(),
+  createdAt: z.string(),
+  payloadGzip: bytes,
+  claimId: z.string().default(""),
+  claimedAt: z.string().default(""),
+  deliveryNote: z.string().optional(),
 });
 
 /** Firestore document IDs may not contain "/"; outbox keys contain URLs. */
@@ -256,6 +271,112 @@ export class FirestoreJobsRepository implements JobsRepository {
       .count()
       .get();
     return result.data().count;
+  }
+
+  /*
+   * The two queries below filter on deliveryStatus and order by createdAt, so
+   * they need the composite index (deliveryStatus ASC, createdAt ASC) that
+   * infra/setup-cloud-jobs.sh creates. They only run with delivery enabled.
+   */
+
+  async listPendingOutbox(input: { createdFrom: string; limit: number }) {
+    const result = await this.db
+      .collection(collections.warningOutbox)
+      .where("deliveryStatus", "==", "pending")
+      .where("createdAt", ">=", input.createdFrom)
+      .orderBy("createdAt", "asc")
+      .limit(input.limit)
+      .get();
+    return result.docs.map((doc) => outboxSchema.parse(doc.data()));
+  }
+
+  async skipStalePendingOutbox(input: {
+    createdBefore: string;
+    liveClaimAfter: string;
+    acknowledgedAt: string;
+    limit: number;
+  }) {
+    const query = this.db
+      .collection(collections.warningOutbox)
+      .where("deliveryStatus", "==", "pending")
+      .where("createdAt", "<", input.createdBefore)
+      .orderBy("createdAt", "asc")
+      .limit(input.limit);
+    return this.db.runTransaction(async (transaction) => {
+      const result = await transaction.get(query);
+      let skipped = 0;
+      for (const doc of result.docs) {
+        const entry = outboxSchema.parse(doc.data());
+        if (!isClaimable(entry, input.liveClaimAfter)) continue;
+        transaction.update(doc.ref, {
+          deliveryStatus: "skipped",
+          acknowledgedAt: input.acknowledgedAt,
+          deliveryNote: "skipped:stale",
+          claimId: "",
+          claimedAt: "",
+        });
+        skipped += 1;
+      }
+      return skipped;
+    });
+  }
+
+  private outboxRef(deliveryKey: string) {
+    return this.doc(collections.warningOutbox, outboxDocumentId(deliveryKey));
+  }
+
+  async claimOutboxEntry(input: {
+    deliveryKey: string;
+    claimId: string;
+    claimedAt: string;
+    liveClaimAfter: string;
+  }) {
+    const ref = this.outboxRef(input.deliveryKey);
+    return this.db.runTransaction(async (transaction) => {
+      const snapshot = await transaction.get(ref);
+      if (!snapshot.exists) return false;
+      const entry = outboxSchema.parse(snapshot.data());
+      if (!isClaimable(entry, input.liveClaimAfter)) return false;
+      transaction.update(ref, {
+        claimId: input.claimId,
+        claimedAt: input.claimedAt,
+      });
+      return true;
+    });
+  }
+
+  async completeOutboxEntry(input: {
+    deliveryKey: string;
+    claimId: string;
+    deliveryStatus: "sent" | "skipped";
+    acknowledgedAt: string;
+    deliveryNote: string;
+  }) {
+    const ref = this.outboxRef(input.deliveryKey);
+    return this.db.runTransaction(async (transaction) => {
+      const snapshot = await transaction.get(ref);
+      if (
+        !snapshot.exists ||
+        snapshot.get("deliveryStatus") !== "pending" ||
+        snapshot.get("claimId") !== input.claimId
+      )
+        return false;
+      transaction.update(ref, {
+        deliveryStatus: input.deliveryStatus,
+        acknowledgedAt: input.acknowledgedAt,
+        deliveryNote: input.deliveryNote,
+      });
+      return true;
+    });
+  }
+
+  async releaseOutboxClaim(input: { deliveryKey: string; claimId: string }) {
+    const ref = this.outboxRef(input.deliveryKey);
+    await this.db.runTransaction(async (transaction) => {
+      const snapshot = await transaction.get(ref);
+      if (!snapshot.exists || snapshot.get("claimId") !== input.claimId) return;
+      transaction.update(ref, { claimId: "", claimedAt: "" });
+    });
   }
 }
 

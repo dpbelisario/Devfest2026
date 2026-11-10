@@ -11,6 +11,9 @@ const optionalText = z
   .transform((value) => (value === "" ? undefined : value))
   .optional();
 
+/** Must match WARNING_TOPIC in android/app/build.gradle.kts. */
+export const defaultFcmTopic = "contour-aichi-warnings";
+
 const environmentSchema = z.object({
   PORT: z.coerce.number().int().min(1).max(65535).default(8080),
   HOST: z.string().min(1).default("0.0.0.0"),
@@ -39,6 +42,27 @@ const environmentSchema = z.object({
   GOOGLE_CLOUD_LOCATION: z.string().trim().min(1).default("global"),
   /** Assistant requests allowed per client IP per minute, per instance. */
   ASSISTANT_PER_CLIENT_PER_MINUTE: z.coerce.number().int().min(1).default(8),
+  /**
+   * Send pending warning handoffs to the FCM topic from `/jobs/outbox/deliver`
+   * (jobs service only). Off by default; the runtime service account needs
+   * roles/firebasecloudmessaging.admin. Strictly `true` or `false`.
+   */
+  FCM_DELIVERY_ENABLED: booleanFlag,
+  /** FCM topic the Android app subscribes to (FCM topic name characters only). */
+  FCM_TOPIC: z
+    .string()
+    .trim()
+    .default("")
+    .transform((value) => value || defaultFcmTopic)
+    .pipe(
+      z.string().regex(/^[A-Za-z0-9\-_.~%]{1,900}$/, "Invalid FCM topic name"),
+    ),
+  /**
+   * IndoorAtlas Mapping REST API key for `/jobs/indooratlas/sync` (jobs
+   * service only; from Secret Manager `indooratlas-mapping-api-key`). Unset:
+   * the sync reports `configured: false` and does nothing. Never logged.
+   */
+  INDOORATLAS_MAPPING_API_KEY: optionalText,
   /** Assistant requests allowed per minute in total, per instance. */
   ASSISTANT_TOTAL_PER_MINUTE: z.coerce.number().int().min(1).default(60),
 });

@@ -47,8 +47,9 @@ Shell, or in any terminal where `gcloud` is logged in, after
 ### 1. Register the Android app in Firebase
 
 1. Firebase console → Project settings → **Add app** → Android.
-   Package name: `com.contour.app`. Skip the `google-services.json` download, because
-   the app does not use the Firebase SDK.
+   Package name: `com.contour.app`. The `google-services.json` download is only needed
+   for warning push notifications ([push-notifications.md](push-notifications.md));
+   the APK builds without it.
 2. Copy the **App ID**. It looks like `1:1234567890:android:abc123`.
 3. Open **App Distribution** and select Get started. Under **Testers & Groups**,
    create a group with the alias `team` and add the teammates' emails.
@@ -115,6 +116,32 @@ Add these substitution variables:
 | `_FIREBASE_APP_ID` | the App ID from step 1                                              |
 | `_API_BASE_URL`    | the deployed backend URL, ending in `/`; the app loads `<that>app/` |
 | `_TESTER_GROUPS`   | `team`, or a comma-separated list of group aliases                  |
+
+Optional: `_GOOGLE_SERVICES_JSON_B64` (output of `base64 -w0 google-services.json`)
+adds Firebase to builds whose checkout has no `android/app/google-services.json`.
+Leave it unset if the file is committed or push is not wanted; see
+[push-notifications.md](push-notifications.md).
+
+### 4b. IndoorAtlas credentials (optional)
+
+The APK includes the IndoorAtlas SDK (Engineering II room 221 pilot, see
+[indooratlas.md](indooratlas.md)). To enable positioning in CI builds, store the
+mobile SDK key and secret once, in Cloud Shell:
+
+```bash
+bash android/setup-indooratlas-secrets.sh
+```
+
+It prompts for both values (hidden), creates `indooratlas-api-key` and
+`indooratlas-api-secret` in Secret Manager and lets the build service account read
+them. Without them the build still succeeds and the app reports IndoorAtlas as not
+configured. Supported venues are runtime data served by the backend
+(`GET /api/indoor/venues`, see [indoor-venues.md](indoor-venues.md)), so adding or
+changing a venue needs no new APK. The venue and POI IDs in `android/cloudbuild.yaml`
+(`_INDOORATLAS_VENUE_ID` / `_INDOORATLAS_ROOM221_POI_ID`) are only the fallback used
+when neither the server list nor the on-device cache is available.
+The key and secret end up inside the APK, as with any mobile SDK key, so use mobile SDK
+credentials, never IndoorAtlas admin/server keys.
 
 ### 5. Test it
 

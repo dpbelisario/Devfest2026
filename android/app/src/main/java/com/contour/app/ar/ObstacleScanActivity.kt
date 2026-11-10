@@ -28,7 +28,6 @@ import com.contour.app.navigation.LibraryWaypointGuidance
 import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
-import android.app.AlertDialog
 import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.LinearLayout
@@ -58,6 +57,7 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer, Sensor
     companion object {
         const val EXTRA_STATUS = "obstacle_status"
         const val EXTRA_REASON = "obstacle_reason"
+        const val EXTRA_FLOOR = "floor"
     }
 
     private lateinit var surface: GLSurfaceView
@@ -66,13 +66,13 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer, Sensor
     private lateinit var chevrons: View
     private var usesDepth = false
     private lateinit var headingLabel: TextView
-    private lateinit var floorBubble: Button
-    private lateinit var headingBubble: Button
+    private lateinit var floorBubble: GuessChip
+    private lateinit var headingBubble: GuessChip
     @Volatile private var manualGoalHeading = Float.NaN
     @Volatile private var currentHeading = Float.NaN
     @Volatile private var guessedFloor = "2F"
     private val waypointGuide = LibraryWaypointGuidance()
-    private lateinit var startBubble: Button
+    private lateinit var startBubble: GuessChip
     @Volatile private var pendingStartId: String? = null
     @Volatile private var manualRouteHeading = false
     @Volatile private var locationFix: Location? = null
@@ -86,6 +86,7 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer, Sensor
     private var previewReady = true
     /** False while the library-exit start picker is open: no arrows until a start is chosen. */
     @Volatile private var startConfirmed = true
+    private val askStartFirst = false
     private lateinit var review: Button
     @Volatile private var session: Session? = null
     @Volatile private var running = false
@@ -164,6 +165,8 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer, Sensor
         WindowCompat.setDecorFitsSystemWindows(window, false)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         setResult(RESULT_CANCELED)
+        // Floor the user chose in the web app (evacuation: "I'm inside a building"); defaults to 2F.
+        intent.getStringExtra(EXTRA_FLOOR)?.takeIf { it in setOf("B1", "1F", "2F", "3F", "4F") }?.let { guessedFloor = it }
         val root = FrameLayout(this).apply { setBackgroundColor(Color.BLACK) }
         surface = GLSurfaceView(this).apply {
             setEGLContextClientVersion(2)
@@ -201,12 +204,15 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer, Sensor
             }
         }
         root.addView(chevrons,FrameLayout.LayoutParams(-1,-1))
-        // Same look as the web 3D AR screen: light header with a close button, white
-        // direction pill over the camera, white card at the bottom.
+        // Same design as the web app's 3D AR screen: dark header with a close button, a light row of
+        // "guess" chips (small label over a bold value, pencil to edit), a white direction pill over the
+        // camera and a white card at the bottom. Pickers use the app's option-list card, not a system dialog.
         val dp = resources.displayMetrics.density
         fun px(v: Float) = (v * dp).toInt()
-        val ink = 0xFF141714.toInt(); val ink2 = 0xFF55575D.toInt()
+        val ink = 0xFF141714.toInt(); val ink2 = 0xFF565A57.toInt(); val ink3 = 0xFF8A8E89.toInt()
         val wash = 0xFFF3F5F3.toInt(); val line = 0xFFDFE4E0.toInt()
+        val display = Typeface.create("sans-serif-condensed", Typeface.BOLD)
+        val medium = Typeface.create("sans-serif-medium", Typeface.NORMAL)
         val enabledStates = arrayOf(intArrayOf(-android.R.attr.state_enabled), intArrayOf())
         fun rounded(fill: ColorStateList, radius: Float, stroke: Int? = null, strokeDp: Float = 1f) = GradientDrawable().apply {
             setColor(fill); setCornerRadius(radius * dp)
@@ -215,22 +221,22 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer, Sensor
         fun styleButton(button: Button, primary: Boolean) = button.apply {
             isAllCaps = false; stateListAnimator = null
             minHeight = 0; minimumHeight = 0; minWidth = 0; minimumWidth = 0
-            textSize = if (primary) 15f else 13.5f
+            textSize = 15f; typeface = medium
             setTextColor(ColorStateList(enabledStates, if (primary) intArrayOf(Color.WHITE, Color.WHITE) else intArrayOf(0x66141714, ink)))
-            background = if (primary) rounded(ColorStateList(enabledStates, intArrayOf(0xFFC9CCC9.toInt(), ink)), 8f)
-                else rounded(ColorStateList.valueOf(Color.WHITE), 8f, line)
-            setPadding(px(12f), px(if (primary) 13f else 8f), px(12f), px(if (primary) 13f else 8f))
+            background = if (primary) rounded(ColorStateList(enabledStates, intArrayOf(0xFFC9CCC9.toInt(), ink)), 10f)
+                else rounded(ColorStateList.valueOf(Color.WHITE), 10f, line)
+            setPadding(px(14f), px(14f), px(14f), px(14f))
         }
         val topBar = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        val header = FrameLayout(this).apply { setBackgroundColor(wash) }
+        val header = FrameLayout(this).apply { setBackgroundColor(ink) }
         header.addView(TextView(this).apply {
-            text = "✕"; textSize = 18f; setTextColor(ink); gravity = Gravity.CENTER
+            text = "✕"; textSize = 17f; setTextColor(Color.WHITE); gravity = Gravity.CENTER
             contentDescription = "Close"
             setOnClickListener { finishObservation("unknown", reason) }
         }, FrameLayout.LayoutParams(px(48f), px(48f), Gravity.START or Gravity.CENTER_VERTICAL).apply { leftMargin = px(4f) })
         headingLabel = TextView(this).apply {
-            text = "Library exit AR"; textSize = 16f; setTextColor(ink); gravity = Gravity.CENTER
-            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+            text = "Library exit AR"; textSize = 16f; setTextColor(Color.WHITE); gravity = Gravity.CENTER
+            typeface = medium
         }
         header.addView(headingLabel, FrameLayout.LayoutParams(-2, -2, Gravity.CENTER))
         topBar.addView(header, LinearLayout.LayoutParams(-1, px(56f)))
@@ -244,50 +250,110 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer, Sensor
         }
         topBar.addView(guessScroll, LinearLayout.LayoutParams(-1, -2))
         topBar.addView(View(this).apply { setBackgroundColor(line) }, LinearLayout.LayoutParams(-1, px(1f)))
-        floorBubble = Button(this).apply {
-            text = "Floor guess · 2F · Edit"
-            setOnClickListener {
-                val floors = arrayOf("B1","1F","2F","3F","4F")
-                AlertDialog.Builder(this@ObstacleScanActivity).setTitle("Current floor")
-                    .setItems(floors) { _, index ->
-                        guessedFloor = floors[index]
-                        text = "Floor · $guessedFloor · Edit"
-                        startBubble.isEnabled = guessedFloor == "2F"
-                        pendingStartId = waypointGuide.startId
-                    }.setNegativeButton("Cancel",null).show()
+
+        // Picker card over a dim layer: title, short note, option rows (selected = dark border + check), Cancel / confirm.
+        fun showPicker(title: String, note: String, options: List<String>, selected: Int, confirm: String,
+                       cancelable: Boolean = true, onPick: (Int) -> Unit) {
+            var chosen = selected.coerceIn(0, options.lastIndex)
+            val dim = FrameLayout(this).apply { setBackgroundColor(0x73141714); isClickable = true }
+            val card = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                background = rounded(ColorStateList.valueOf(Color.WHITE), 12f)
+                setPadding(px(20f), px(18f), px(20f), px(16f)); elevation = 8f * dp; isClickable = true
+            }
+            card.addView(TextView(this).apply { text = title; textSize = 24f; setTextColor(ink); typeface = display })
+            card.addView(TextView(this).apply {
+                text = note; textSize = 14f; setTextColor(ink2); setPadding(0, px(4f), 0, px(12f))
+            })
+            val rows = options.map { label ->
+                TextView(this).apply {
+                    text = label; textSize = 15f; setTextColor(ink); gravity = Gravity.CENTER_VERTICAL
+                    setPadding(px(14f), 0, px(14f), 0); minHeight = px(48f)
+                }
+            }
+            fun refresh() = rows.forEachIndexed { index, row ->
+                val on = index == chosen
+                row.background = rounded(ColorStateList.valueOf(Color.WHITE), 10f, if (on) ink else line, if (on) 2f else 1f)
+                row.typeface = if (on) Typeface.create("sans-serif-medium", Typeface.BOLD) else Typeface.DEFAULT
+                row.text = if (on) "${options[index]}   ✓" else options[index]
+            }
+            rows.forEachIndexed { index, row ->
+                row.setOnClickListener { chosen = index; refresh() }
+                card.addView(row, LinearLayout.LayoutParams(-1, -2).apply { if (index > 0) topMargin = px(6f) })
+            }
+            refresh()
+            val buttons = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+            fun close() { root.removeView(dim) }
+            if (cancelable) {
+                buttons.addView(Button(this).apply {
+                    text = "Cancel"; styleButton(this, primary = false); setOnClickListener { close() }
+                }, LinearLayout.LayoutParams(0, -2, 1f).apply { rightMargin = px(10f) })
+                dim.setOnClickListener { close() }
+            }
+            buttons.addView(Button(this).apply {
+                text = confirm; styleButton(this, primary = true)
+                setOnClickListener { close(); onPick(chosen) }
+            }, LinearLayout.LayoutParams(0, -2, 1f))
+            card.addView(buttons, LinearLayout.LayoutParams(-1, -2).apply { topMargin = px(14f) })
+            dim.addView(card, FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM).apply {
+                leftMargin = px(16f); rightMargin = px(16f); bottomMargin = px(24f)
+            })
+            root.addView(dim, FrameLayout.LayoutParams(-1, -1))
+        }
+
+        // Guess chip: small grey label over a bold value, pencil on the right. Same look as the web chips.
+        fun chip(label: String, value: String, onEdit: () -> Unit): GuessChip {
+            val box = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+                background = rounded(ColorStateList.valueOf(Color.WHITE), 10f, line)
+                setPadding(px(12f), px(7f), px(10f), px(7f)); isClickable = true; isFocusable = true
+            }
+            val texts = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+            texts.addView(TextView(this).apply { text = label; textSize = 11.5f; setTextColor(ink3) })
+            val valueView = TextView(this).apply {
+                text = value; textSize = 16f; setTextColor(ink); typeface = display; setPadding(0, px(1f), 0, 0)
+            }
+            texts.addView(valueView)
+            box.addView(texts)
+            box.addView(TextView(this).apply { text = "✎"; textSize = 15f; setTextColor(ink3) },
+                LinearLayout.LayoutParams(-2, -2).apply { leftMargin = px(10f) })
+            box.setOnClickListener { onEdit() }
+            return GuessChip(box, label, valueView)
+        }
+        val floors = listOf("B1", "1F", "2F", "3F", "4F")
+        floorBubble = chip("Floor guess", guessedFloor) {
+            showPicker("Which floor are you on?", "Only 2F has a mapped exit route. On other floors, take the stairs to 2F.",
+                floors, floors.indexOf(guessedFloor), "Done") { index ->
+                guessedFloor = floors[index]
+                floorBubble.value = guessedFloor
+                startBubble.enabled = guessedFloor == "2F"
+                pendingStartId = waypointGuide.startId
             }
         }
-        startBubble = Button(this).apply {
-            text = "Start guess · North-east aisle · Edit"
-            setOnClickListener {
-                val starts = waypointGuide.starts
-                AlertDialog.Builder(this@ObstacleScanActivity).setTitle("Assumed 2F start")
-                    .setItems(starts.map {it.label}.toTypedArray()) { _, index ->
-                        pendingStartId = starts[index].id
-                        text = "Start guess · ${starts[index].label} · Edit"
-                    }.setNegativeButton("Cancel",null).show()
+        startBubble = chip("Start guess", waypointGuide.starts.firstOrNull { it.id == waypointGuide.startId }?.label ?: "North-east aisle") {
+            val starts = waypointGuide.starts
+            showPicker("Where are you now?", "Pick the spot on 2F closest to you.", starts.map { it.label },
+                starts.indexOfFirst { it.label == startBubble.value }.coerceAtLeast(0), "Done") { index ->
+                pendingStartId = starts[index].id
+                startBubble.value = starts[index].label
             }
         }
-        headingBubble = Button(this).apply {
-            text = "Next direction · Edit"
-            isEnabled = false
-            setOnClickListener {
-                val labels = arrayOf("Ahead","Right","Left","Behind","Reset route estimate")
-                val offsets = floatArrayOf(0f,Math.PI.toFloat()/2,-Math.PI.toFloat()/2,Math.PI.toFloat())
-                AlertDialog.Builder(this@ObstacleScanActivity).setTitle("Next waypoint from where you face")
-                    .setItems(labels) { _, index ->
-                        if(index == 4) { pendingStartId = waypointGuide.startId; manualRouteHeading = false }
-                        else { manualGoalHeading = offsets[index]; manualRouteHeading = true }
-                    }.setNegativeButton("Cancel",null).show()
+        startBubble.enabled = guessedFloor == "2F"
+        headingBubble = chip("Next direction", "Unknown") {
+            val labels = listOf("Ahead", "Right", "Left", "Behind", "Reset route estimate")
+            val offsets = floatArrayOf(0f, Math.PI.toFloat() / 2, -Math.PI.toFloat() / 2, Math.PI.toFloat())
+            showPicker("Next waypoint", "Where is the next waypoint from where you face?", labels, 0, "Done") { index ->
+                if (index == 4) { pendingStartId = waypointGuide.startId; manualRouteHeading = false }
+                else { manualGoalHeading = offsets[index]; manualRouteHeading = true }
             }
         }
-        for ((index, chip) in listOf(floorBubble, startBubble, headingBubble).withIndex()) {
-            styleButton(chip, primary = false)
-            guesses.addView(chip, LinearLayout.LayoutParams(-2, -2).apply { if (index > 0) leftMargin = px(8f) })
+        headingBubble.enabled = false
+        for ((index, item) in listOf(floorBubble, startBubble, headingBubble).withIndex()) {
+            guesses.addView(item.view, LinearLayout.LayoutParams(-2, -2).apply { if (index > 0) leftMargin = px(8f) })
         }
         arrow = TextView(this).apply {
-            text = "Hold"; textSize = 16f; gravity = Gravity.CENTER; setTextColor(ink)
-            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+            text = "Hold"; textSize = 15f; gravity = Gravity.CENTER; setTextColor(ink)
+            typeface = medium
             background = rounded(ColorStateList.valueOf(Color.WHITE), 8f)
             setPadding(px(16f), px(10f), px(16f), px(10f)); elevation = 6f * dp
             contentDescription = "Hold"
@@ -300,15 +366,14 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer, Sensor
             setPadding(px(20f), px(18f), px(20f), px(16f))
         }
         panel.addView(TextView(this).apply {
-            text = "Central Library"; textSize = 24f; setTextColor(ink)
-            typeface = Typeface.create("sans-serif-condensed", Typeface.BOLD)
+            text = "Central Library"; textSize = 25f; setTextColor(ink); typeface = display
         })
         panel.addView(TextView(this).apply {
-            text = "Library exit · 2F Entrance Hall (demo)"; textSize = 14f; setTextColor(ink2)
+            text = "Exit guess · 2F Entrance Hall (demo)"; textSize = 14f; setTextColor(ink2)
             setPadding(0, px(4f), 0, 0)
         })
         message = TextView(this).apply {
-            text = "Starting camera…"; setTextColor(ink2); textSize = 14f
+            text = "Starting camera…"; setTextColor(ink3); textSize = 12.5f
             setPadding(0, px(10f), 0, 0)
         }
         review = Button(this).apply {
@@ -330,59 +395,18 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer, Sensor
         root.addView(panel, FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM).apply {
             leftMargin = px(16f); rightMargin = px(16f); bottomMargin = px(24f)
         })
-        // Library exit: ask where the user is before showing arrows. The camera keeps running
-        // behind this card; the chips at the top still allow changes later.
-        if (intent.getBooleanExtra("exitDemo", false)) {
-            val picker = LinearLayout(this).apply {
-                orientation = LinearLayout.VERTICAL
-                background = rounded(ColorStateList.valueOf(Color.WHITE), 12f)
-                setPadding(px(20f), px(18f), px(20f), px(16f)); elevation = 8f * dp
-                isClickable = true
-            }
-            picker.addView(TextView(this).apply {
-                text = "Where are you now?"; textSize = 22f; setTextColor(ink)
-                typeface = Typeface.create("sans-serif-condensed", Typeface.BOLD)
-            })
-            picker.addView(TextView(this).apply {
-                text = "Pick the spot on 2F closest to you. You can change it later."
-                textSize = 14f; setTextColor(ink2); setPadding(0, px(4f), 0, px(12f))
-            })
-            var chosen = waypointGuide.startId
-            val options = waypointGuide.starts.map { start ->
-                Button(this).apply {
-                    text = start.label; gravity = Gravity.START or Gravity.CENTER_VERTICAL
-                    styleButton(this, primary = false); textSize = 15f
-                    setPadding(px(14f), px(12f), px(14f), px(12f))
-                }
-            }
-            fun refresh() = options.forEachIndexed { index, button ->
-                val selected = waypointGuide.starts[index].id == chosen
-                button.background = rounded(ColorStateList.valueOf(Color.WHITE), 8f, if (selected) ink else line, if (selected) 2f else 1f)
-                button.typeface = Typeface.create("sans-serif-medium", if (selected) Typeface.BOLD else Typeface.NORMAL)
-            }
-            options.forEachIndexed { index, button ->
-                button.setOnClickListener { chosen = waypointGuide.starts[index].id; refresh() }
-                picker.addView(button, LinearLayout.LayoutParams(-1, -2).apply { if (index > 0) topMargin = px(8f) })
-            }
-            refresh()
-            picker.addView(TextView(this).apply {
-                text = "Destination · Library exit (2F Entrance Hall)"; textSize = 14f; setTextColor(ink2)
-                setPadding(0, px(14f), 0, 0)
-            })
-            picker.addView(Button(this).apply {
-                text = "Start"; styleButton(this, primary = true)
-                setOnClickListener {
-                    val start = waypointGuide.starts.first { it.id == chosen }
-                    pendingStartId = start.id
-                    startBubble.text = "Start guess · ${start.label} · Edit"
-                    picker.visibility = View.GONE; panel.visibility = View.VISIBLE
-                    arrow.visibility = View.VISIBLE; startConfirmed = true; chevrons.invalidate()
-                }
-            }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = px(12f) })
+        // Optional: ask where the user is before showing arrows (off: the library exit opens straight into
+        // arrows and the start chip allows a correction). The camera keeps running behind the card.
+        if (askStartFirst && intent.getBooleanExtra("exitDemo", false)) {
             panel.visibility = View.GONE; arrow.visibility = View.GONE; startConfirmed = false
-            root.addView(picker, FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM).apply {
-                leftMargin = px(16f); rightMargin = px(16f); bottomMargin = px(24f)
-            })
+            val starts = waypointGuide.starts
+            showPicker("Where are you now?", "Pick the spot on 2F closest to you. You can change it later.",
+                starts.map { it.label }, starts.indexOfFirst { it.id == waypointGuide.startId }.coerceAtLeast(0),
+                "Start", cancelable = false) { index ->
+                pendingStartId = starts[index].id
+                startBubble.value = starts[index].label
+                panel.visibility = View.VISIBLE; arrow.visibility = View.VISIBLE; startConfirmed = true; chevrons.invalidate()
+            }
         }
         ViewCompat.setOnApplyWindowInsetsListener(root) { view, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
@@ -433,7 +457,7 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer, Sensor
             session?.resume()
             classifier.reset()
             waypointGuide.reset()
-            manualGoalHeading=Float.NaN;manualRouteHeading=false;currentHeading=Float.NaN;headingBubble.isEnabled=false
+            manualGoalHeading=Float.NaN;manualRouteHeading=false;currentHeading=Float.NaN;headingBubble.enabled=false
             previewReady = true;arrowSupported = false;arrowStopped = false;arrowRadians = 0f
             possibleObstacle = false
             lastFrameTimestamp = 0L
@@ -655,9 +679,9 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer, Sensor
             runOnUiThread {
                 if (!unavailable && !isFinishing) {
                     message.text = if (intent.getBooleanExtra("exitDemo",false) && !relative.isFinite()) "Finding location/compass · obstacle scan active. Exit direction unavailable." else text
-                    headingBubble.isEnabled = poseReady
+                    headingBubble.enabled = poseReady
                     val guessedDirection = if(!relative.isFinite()) "Unknown" else if(kotlin.math.abs(relative) < Math.PI/6) "Ahead" else "${Math.toDegrees(kotlin.math.abs(relative).toDouble()).toInt()}° ${if(relative > 0) "right" else "left"}"
-                    headingBubble.text = "Next ${if(manualRouteHeading) "direction" else "guess"} · $guessedDirection · Edit"
+                    headingBubble.value = if (manualRouteHeading && guessedDirection != "Unknown") "$guessedDirection (set)" else guessedDirection
                     previewReady = true
                     arrowSupported = direction in listOf(DepthObstacleClassifier.Direction.FORWARD,DepthObstacleClassifier.Direction.CHECK_LEFT,DepthObstacleClassifier.Direction.CHECK_RIGHT)
                     arrowStopped = direction == DepthObstacleClassifier.Direction.STOP || (blocked && direction == DepthObstacleClassifier.Direction.SCAN)
@@ -679,7 +703,7 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer, Sensor
                         DepthObstacleClassifier.Direction.SCAN -> "Hold"
                     }
                     if(intent.getBooleanExtra("exitDemo",false) && waypointGuide.complete) arrow.text = "Check exit doors"
-                    else if(intent.getBooleanExtra("exitDemo",false) && guessedFloor != "2F") arrow.text = "2F demo only"
+                    else if(intent.getBooleanExtra("exitDemo",false) && guessedFloor != "2F") arrow.text = "Take the stairs to 2F"
                     arrow.contentDescription = arrow.text
                     review.isEnabled = possibleObstacle
                 }
@@ -732,4 +756,15 @@ class ObstacleScanActivity : ComponentActivity(), GLSurfaceView.Renderer, Sensor
 
     private fun floatBuffer(values: FloatArray): FloatBuffer = ByteBuffer.allocateDirect(values.size * 4)
         .order(ByteOrder.nativeOrder()).asFloatBuffer().apply { put(values); rewind() }
+}
+
+/** A "guess" chip on the AR screen: grey label, bold value, tap to edit. Disabled chips are dimmed. */
+private class GuessChip(val view: View, private val label: String, private val valueView: TextView) {
+    init { view.contentDescription = "$label · ${valueView.text} · Edit" }
+    var value: String
+        get() = valueView.text.toString()
+        set(v) { valueView.text = v; view.contentDescription = "$label · $v · Edit" }
+    var enabled: Boolean
+        get() = view.isEnabled
+        set(v) { view.isEnabled = v; view.alpha = if (v) 1f else 0.45f }
 }

@@ -94,8 +94,13 @@ export const eqvolProcessResponseSchema = z.object({
   queued: z.boolean(),
 });
 
+const count = z.number().int().nonnegative();
+/** Small summary only; message contents and keys stay in Firestore/logs. */
 export const outboxDeliverResponseSchema = z.object({
-  deliveryEnabled: z.literal(false),
-  pending: z.number().int().nonnegative(),
-  attempted: z.literal(0),
+  deliveryEnabled: z.boolean(),
+  pending: count,
+  attempted: count.max(3),
+  sent: count.max(3),
+  skipped: count,
+  failed: count.max(3),
 });

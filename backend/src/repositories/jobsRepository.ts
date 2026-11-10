@@ -86,16 +86,43 @@ export interface EqvolBulletinRecord {
   payloadGzip: Uint8Array;
 }
 
-/** Durable warning handoff (`warningOutbox`), keyed by `jma:<sourceUrl>`. */
+/**
+ * Durable warning handoff (`warningOutbox`), keyed by `jma:<sourceUrl>`.
+ * `pending` rows are delivered to FCM by `/jobs/outbox/deliver` and end as
+ * `sent` or `skipped`; `excluded` (training/test) rows are never delivered.
+ */
 export interface OutboxEntry {
   deliveryKey: string;
   sourceUrl: string;
   publishedAt: string;
   bulletinType: string;
-  deliveryStatus: "pending" | "excluded" | "acknowledged";
+  deliveryStatus: OutboxStatus;
+  /** When the row left `pending` (ISO), or "" while pending/excluded. */
   acknowledgedAt: string;
   createdAt: string;
   payloadGzip: Uint8Array;
+  /** Delivery claim held by one deliver call; "" when unclaimed. */
+  claimId?: string;
+  /** When the claim was taken (ISO); "" when unclaimed. */
+  claimedAt?: string;
+  /** Short machine-readable outcome, e.g. `fcm:<message id>` or `skipped:stale`. */
+  deliveryNote?: string;
+}
+
+export type OutboxStatus = "pending" | "excluded" | "sent" | "skipped";
+
+/**
+ * True when a deliver call may claim the entry: still pending and not held by
+ * a claim taken at or after `liveClaimAfter` (ISO timestamps compare as text).
+ */
+export function isClaimable(
+  entry: Pick<OutboxEntry, "deliveryStatus" | "claimId" | "claimedAt">,
+  liveClaimAfter: string,
+): boolean {
+  return (
+    entry.deliveryStatus === "pending" &&
+    (!entry.claimId || !entry.claimedAt || entry.claimedAt < liveClaimAfter)
+  );
 }
 
 export interface JobsRepository {
@@ -138,4 +165,47 @@ export interface JobsRepository {
   /** Create the entry unless its deliveryKey exists. Returns true when created. */
   enqueueOutbox(entry: OutboxEntry): Promise<boolean>;
   countPendingOutbox(): Promise<number>;
+  /** Pending entries created at or after `createdFrom`, oldest `createdAt` first. */
+  listPendingOutbox(input: {
+    createdFrom: string;
+    limit: number;
+  }): Promise<OutboxEntry[]>;
+  /**
+   * Atomically mark up to `limit` pending entries created before
+   * `createdBefore` as `skipped` (note `skipped:stale`), leaving entries with
+   * a live claim (claimedAt ≥ `liveClaimAfter`) alone. Returns the count.
+   */
+  skipStalePendingOutbox(input: {
+    createdBefore: string;
+    liveClaimAfter: string;
+    acknowledgedAt: string;
+    limit: number;
+  }): Promise<number>;
+  /**
+   * Atomically claim a pending entry for delivery. Succeeds only when the row
+   * is still pending and unclaimed, or its claim is older than
+   * `liveClaimAfter` (an abandoned attempt). Returns true when claimed.
+   */
+  claimOutboxEntry(input: {
+    deliveryKey: string;
+    claimId: string;
+    claimedAt: string;
+    liveClaimAfter: string;
+  }): Promise<boolean>;
+  /**
+   * Atomically finish a claimed entry (`sent` or `skipped`). Returns false
+   * when the row is no longer pending or the claim was taken over.
+   */
+  completeOutboxEntry(input: {
+    deliveryKey: string;
+    claimId: string;
+    deliveryStatus: "sent" | "skipped";
+    acknowledgedAt: string;
+    deliveryNote: string;
+  }): Promise<boolean>;
+  /** Drop our claim so a later run can retry; the row stays pending. */
+  releaseOutboxClaim(input: {
+    deliveryKey: string;
+    claimId: string;
+  }): Promise<void>;
 }

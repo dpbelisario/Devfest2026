@@ -12,7 +12,7 @@ struct ContourAlert {
               AlertKind.companion.fromId(id: kind) != nil else { return nil }
         let alert = (payload["aps"] as? [String: Any])?["alert"] as? [String: Any]
         self.kind = kind
-        title = String(((payload["title"] as? String) ?? (alert?["title"] as? String) ?? "Contour").prefix(256))
+        title = String(((payload["title"] as? String) ?? (alert?["title"] as? String) ?? "SEAR").prefix(256))
         text = String(((payload["text"] as? String) ?? (alert?["body"] as? String) ?? "").prefix(2000))
     }
 

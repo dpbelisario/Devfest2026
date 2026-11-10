@@ -365,7 +365,7 @@ const assert = require("node:assert/strict");
       .click();
     assert.match(
       await page.locator(".contour-start-status").textContent(),
-      /Starting step tracking/,
+      /Starting tracking/,
       "A start-pin tap immediately sets the indoor position",
     );
     await toolClick("Use uncorrected phone position");
@@ -1445,7 +1445,7 @@ const assert = require("node:assert/strict");
     );
     assert.match(
       await page.locator(".contour-start-status").innerText(),
-      /Movement held at a mapped wall/,
+      /Stopped at a wall/,
     );
     assert.equal(
       await apply({
