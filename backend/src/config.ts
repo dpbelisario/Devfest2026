@@ -58,11 +58,21 @@ const environmentSchema = z.object({
       z.string().regex(/^[A-Za-z0-9\-_.~%]{1,900}$/, "Invalid FCM topic name"),
     ),
   /**
-   * IndoorAtlas Mapping REST API key for `/jobs/indooratlas/sync` (jobs
-   * service only; from Secret Manager `indooratlas-mapping-api-key`). Unset:
-   * the sync reports `configured: false` and does nothing. Never logged.
+   * IndoorAtlas Mapping REST API key (Secret Manager
+   * `indooratlas-mapping-api-key`). On contour-jobs it runs
+   * `/jobs/indooratlas/sync`; on the public `api` service it fetches fresh
+   * floor plan image URLs for `/api/indoor/floorplans/:id/image`. Unset: the
+   * sync reports `configured: false` and the image route answers 503. Never
+   * logged or returned.
    */
   INDOORATLAS_MAPPING_API_KEY: optionalText,
+  /**
+   * Private Cloud Storage bucket of the raw IndoorAtlas archive
+   * (indoorAtlasArchive.ts), e.g. `<project>-indooratlas`. On contour-jobs
+   * the sync writes snapshots and floor plan images; on `api` the image route
+   * reads images from it first. Unset: no archive.
+   */
+  INDOORATLAS_ARCHIVE_BUCKET: optionalText,
   /** Assistant requests allowed per minute in total, per instance. */
   ASSISTANT_TOTAL_PER_MINUTE: z.coerce.number().int().min(1).default(60),
 });

@@ -671,6 +671,7 @@ html.native .ar-x svg { stroke: var(--ink); }
 .ask-form button { flex: none; height: 46px; padding: 0 16px; border-radius: 10px; background: var(--ink); color: #fff; font: 500 15px/1 var(--f-body); }
 .ask-form button:disabled { opacity: .5; }
 .ask-note { margin: 0; padding: 2px 18px 4px; font: 400 11.5px/1.4 var(--f-body); color: var(--ink-3); }
+.ask-note[data-atlas] { white-space: pre-line; }
 .ar-meta small { margin-left: 8px; opacity: .8; font-weight: 400; }
 .alert-chip[hidden], .ask[hidden], .search .s-clear[hidden], .toggle[hidden] { display: none; }
 .ar-haz { margin-top: 6px; font: 400 12.5px/1.4 var(--f-body); opacity: .85; }
@@ -1439,6 +1440,144 @@ window.ContourGoogleMaps = {
   }
 };
 
+</script>
+<script id="indoorAtlasMapOverlay">
+// IndoorAtlas venue layers on the Google map (docs/indoor-venues.md#map-overlay): the synced venue's floor
+// plan image placed by its four corners, geofence polygons (faint, name on tap), POIs and exits marked in
+// IndoorAtlas. Data: GET /api/indoor/venues; images: GET /api/indoor/floorplans/{id}/image (server proxy,
+// the IndoorAtlas image URLs expire). Display only: areas and POIs carry no evacuation meaning, exits are
+// "marked in IndoorAtlas", not verified. Without Google Maps (offline Leaflet map) nothing is drawn.
+(() => {
+  const API = /^https?:$/.test(location.protocol) && location.hostname && location.hostname !== 'appassets.androidplatform.net'
+    ? location.origin : 'https://gen-lang-client-0467526025.web.app';
+  const S = { map: null, venues: [], focusId: null, sdkVenue: null, sdkFloor: null, userFloor: null, loadedAt: 0, loading: false, layers: [], info: null, switcher: null };
+  const ok = p => p && Number.isFinite(p.lat) && Number.isFinite(p.lng) && Math.abs(p.lat) <= 90 && Math.abs(p.lng) <= 180;
+  const label = n => !n ? '' : (document.documentElement.lang === 'ja' ? n.ja : n.en) || n.en || '';
+  const marked = { en: 'marked in IndoorAtlas', ja: 'IndoorAtlasで登録', zh: 'IndoorAtlas中标记', ko: 'IndoorAtlas에 표시' };
+  const floorName = level => level < 0 ? 'B' + -level : level + 'F';
+
+  function focus() {
+    const vs = S.venues;
+    return vs.find(v => v.id === S.sdkVenue) || vs.find(v => v.indoorAtlas.floors.some(f => f.plan)) || vs[0] || null;
+  }
+  function floors(v) { return [...v.indoorAtlas.floors].sort((a, b) => a.floorLevel - b.floorLevel); }
+  function currentFloor(v) {
+    const levels = floors(v).map(f => f.floorLevel);
+    for (const f of [S.userFloor, v.id === S.sdkVenue ? S.sdkFloor : null]) if (levels.includes(f)) return f;
+    return levels[0] ?? null;
+  }
+  function popup(position, title, text) {
+    const gm = google.maps, box = document.createElement('div');
+    box.style.cssText = 'font:400 13px/1.35 var(--f-body);max-width:220px';
+    const b = document.createElement('b'); b.textContent = title; box.appendChild(b);
+    if (text) { const p = document.createElement('div'); p.textContent = text; p.style.cssText = 'color:#555;margin-top:2px'; box.appendChild(p); }
+    S.info ??= new gm.InfoWindow();
+    S.info.setContent(box); S.info.setPosition(position); S.info.open({ map: S.map.native });
+  }
+  // Places the image so its top-left, top-right and bottom-left corners land on the IndoorAtlas corner
+  // coordinates. The affine matrix carries any rotation (IndoorAtlas `bearing`) and scale, so one code path
+  // serves rotated and north-up plans alike; bottom-right follows from the other three.
+  function planOverlay(plan, src) {
+    const gm = google.maps;
+    const W = plan.widthPx || 1000, H = plan.heightPx || (plan.widthM && plan.heightM ? Math.round(W * plan.heightM / plan.widthM) : 1000);
+    class PlanOverlay extends gm.OverlayView {
+      onAdd() {
+        const img = this.img = document.createElement('img');
+        img.src = src; img.alt = ''; img.decoding = 'async'; img.draggable = false; img.dataset.indoorPlan = '1';
+        img.style.cssText = `position:absolute;left:0;top:0;width:${W}px;height:${H}px;max-width:none;transform-origin:0 0;opacity:.82;pointer-events:none`;
+        img.onerror = () => { img.style.display = 'none'; };
+        this.getPanes().overlayLayer.appendChild(img);
+      }
+      draw() {
+        const pr = this.getProjection(); if (!pr || !this.img) return;
+        const px = p => pr.fromLatLngToDivPixel(new gm.LatLng(p.lat, p.lng));
+        const o = px(plan.topLeft), r = px(plan.topRight), d = px(plan.bottomLeft);
+        this.img.style.transform = `matrix(${(r.x - o.x) / W},${(r.y - o.y) / W},${(d.x - o.x) / H},${(d.y - o.y) / H},${o.x},${o.y})`;
+      }
+      onRemove() { this.img?.remove(); this.img = null; }
+    }
+    return new PlanOverlay();
+  }
+  function dot(position, color, scale, title, text) {
+    const gm = google.maps;
+    const m = new gm.Marker({ position, title, zIndex: color === '#178049' ? 3 : 2,
+      icon: { path: gm.SymbolPath.CIRCLE, scale, fillColor: color, fillOpacity: 1, strokeColor: '#fff', strokeWeight: 1.5 } });
+    m.addListener('click', () => popup(position, title, text));
+    return m;
+  }
+  function renderSwitcher(v, floor) {
+    const gm = google.maps, list = v ? floors(v) : [];
+    if (!S.switcher) {
+      S.switcher = document.createElement('div'); S.switcher.className = 'ia-floors'; S.switcher.setAttribute('role', 'group');
+      S.switcher.style.cssText = 'margin:10px;display:flex;flex-direction:column;gap:4px;background:#fff;border-radius:12px;padding:4px;box-shadow:0 1px 4px rgba(0,0,0,.25)';
+      S.map.native.controls[gm.ControlPosition.RIGHT_CENTER].push(S.switcher);
+    }
+    S.switcher.hidden = list.length < 2;
+    S.switcher.setAttribute('aria-label', label(v?.name) || 'Floors');
+    S.switcher.replaceChildren(...list.map(f => {
+      const b = document.createElement('button'); b.type = 'button'; b.textContent = f.name || floorName(f.floorLevel);
+      const on = f.floorLevel === floor;
+      b.setAttribute('aria-pressed', String(on));
+      b.style.cssText = `min-width:36px;height:32px;border:0;border-radius:9px;font:600 12px var(--f-body);cursor:pointer;background:${on ? '#1f5fd1' : 'transparent'};color:${on ? '#fff' : '#1c1b18'}`;
+      b.onclick = () => { S.userFloor = f.floorLevel; render(); };
+      return b;
+    }));
+  }
+  function render() {
+    if (!S.map || !window.google?.maps) return;
+    S.layers.forEach(l => l.setMap(null)); S.layers = []; S.info?.close();
+    const v = focus(); S.focusId = v?.id ?? null;
+    const floor = v ? currentFloor(v) : null;
+    renderSwitcher(v, floor);
+    if (!v || floor === null) return;
+    const gm = google.maps, add = l => { l.setMap(S.map.native); S.layers.push(l); };
+    const plan = v.indoorAtlas.floors.find(f => f.floorLevel === floor)?.plan;
+    if (plan && [plan.topLeft, plan.topRight, plan.bottomLeft].every(ok))
+      add(planOverlay(plan, `${API}/api/indoor/floorplans/${encodeURIComponent(v.indoorAtlas.floors.find(f => f.floorLevel === floor).floorPlanId)}/image`));
+    for (const a of v.areas || []) {
+      if (a.floorLevel !== floor || !Array.isArray(a.ring) || !a.ring.every(ok)) continue;
+      const poly = new gm.Polygon({ paths: a.ring, strokeColor: '#1f5fd1', strokeOpacity: .45, strokeWeight: 1, fillColor: '#1f5fd1', fillOpacity: .06, clickable: true, zIndex: 1 });
+      const at = a.ring[0];
+      poly.addListener('click', e => popup(e?.latLng || at, label(a.name) || floorName(floor), a.description || ''));
+      add(poly);
+    }
+    const exitIds = new Set();
+    const lang = document.documentElement.lang;
+    for (const x of v.exits || []) {
+      if (x.floorLevel !== floor || !ok(x)) continue;
+      exitIds.add(x.id);
+      add(dot({ lat: x.lat, lng: x.lng }, '#178049', 6, label(x.name), x.source === 'verified' ? '' : (marked[lang] || marked.en)));
+    }
+    for (const p of v.pois || []) if (p.floorLevel === floor && ok(p) && !exitIds.has(p.id)) add(dot({ lat: p.lat, lng: p.lng }, '#5b6470', 4, label(p.name), ''));
+  }
+  async function load(force = false) {
+    if (!S.map || S.loading || (!force && Date.now() - S.loadedAt < 60000)) return;
+    S.loading = true;
+    const controller = new AbortController(), timer = setTimeout(() => controller.abort(), 8000);
+    try {
+      const response = await fetch(`${API}/api/indoor/venues`, { signal: controller.signal, headers: { accept: 'application/json' } });
+      const body = response.ok ? await response.json() : null;
+      if (Array.isArray(body?.venues)) {
+        S.venues = body.venues.filter(v => v && v.syncedFrom === 'indooratlas' && Array.isArray(v.indoorAtlas?.floors));
+        S.loadedAt = Date.now();
+        render();
+      }
+    } catch (_) { /* keep the last layers */ } finally { clearTimeout(timer); S.loading = false; }
+  }
+  window.addEventListener('contour-map-ready', e => { if (e.detail?.provider === 'google' && e.detail.map?.native) { S.map = e.detail.map; load(true); } });
+  window.addEventListener('contour-indoor-venues', () => load(true));
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') load(); });
+  window.addEventListener('contour-indoor', e => {
+    // Floor from IndoorAtlas positioning (or the user's correction), not the barometer estimate.
+    const d = e.detail || {}, venueId = d.venue?.id ?? null, floor = Number.isInteger(d.floor) && (d.floorSource === 'indooratlas' || d.floorSource === 'corrected') ? d.floor : null;
+    if (venueId === S.sdkVenue && floor === S.sdkFloor) return;
+    const venueChanged = venueId !== S.sdkVenue;
+    S.sdkVenue = venueId; S.sdkFloor = floor;
+    if (venueChanged) S.userFloor = null;
+    if (S.userFloor === null || venueChanged) render();
+  });
+  window.ContourIndoorAtlasMap = { state: S, render, load };
+})();
 </script>
 <script id="libraryNavigationCore">
 window.ContourLibrary = {
@@ -4142,7 +4281,9 @@ window.contourIndoorDirectGuidance = data => {
   function atlasVenueNote() {
     const vs = atlasVenueList(), v = vs.find(x => x.primary) || vs.find(x => (x.pois || []).some(p => p.id === "room-221")) || vs[0];
     const name = v?.name?.en ? (lang === "ja" ? v.name.ja : v.name.en) : "Engineering Building II";
-    return (Number.isInteger(v?.rank) && v.rank > 0 ? String(v.rank).padStart(2, "0") : "IndoorAtlas") + " · " + name;
+    // Address from IndoorAtlas on its own line under "01 · <name>" (CSS pre-line).
+    const address = typeof v?.address === "string" ? v.address.trim() : "";
+    return (Number.isInteger(v?.rank) && v.rank > 0 ? String(v.rank).padStart(2, "0") : "IndoorAtlas") + " · " + name + (address ? "\n" + address : "");
   }
   window.addEventListener("contour-indoor-venues", () => {
     const an = document.querySelector(".ask-note"); if (an && an.dataset.atlas) an.textContent = atlasVenueNote();

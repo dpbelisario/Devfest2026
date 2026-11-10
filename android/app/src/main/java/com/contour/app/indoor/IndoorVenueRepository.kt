@@ -69,7 +69,8 @@ class IndoorVenueRepository(context: Context) {
 
     companion object {
         private const val CACHE_KEY = "indoorVenues"
-        private const val MAX_BYTES = 512 * 1024
+        /** Synced venues carry floor plan placements and geofence areas; 1 MiB leaves room. */
+        private const val MAX_BYTES = 1024 * 1024
 
         /**
          * `${API_BASE_URL}api/indoor/venues`; when the API URL is the unset placeholder, the origin

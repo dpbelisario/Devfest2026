@@ -4,7 +4,7 @@ Owner: Minh (@Deadspree). Status: proposed. Tracking issue: see "Floor-plan inge
 
 ## Why
 
-The app now takes its indoor venues from the IndoorAtlas account. Every 5–15 minutes
+The app now takes its indoor venues from the IndoorAtlas account. Every 5 minutes
 the `indooratlas-sync` job copies each venue's name, address, location, floors,
 points of interest (POIs), geofences and wayfinding status into Firestore
 `indoorVenues`, and the app picks the changes up without a code change or new APK
@@ -36,6 +36,40 @@ floor plan (PNG/JPEG/PDF page, or a photo of a 避難経路図)
   → 5. sync      existing indooratlas-sync job pulls it into indoorVenues
   → app          venue list, map overlay, Nearest exit
 ```
+
+## Data available
+
+Everything the Mapping API key can read is already archived by every sync
+(read-only, GET only), separate from the app-facing `indoorVenues` documents.
+Details: [indoor-venues.md#raw-indooratlas-archive](indoor-venues.md#raw-indooratlas-archive).
+
+| Data                                                                                                                                                                    | Where                                                                       |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| Venue list entry: id, name, description, address, coordinates                                                                                                           | snapshot `venue`                                                            |
+| Every floor plan object: id, name, floorNumber, image width/height (px and m), metersToPixels, pixelsToMeters, center, bearing, four corners (no image URL: it expires) | snapshot `floorPlans[]`                                                     |
+| Floor plan images                                                                                                                                                       | `gs://<project>-indooratlas/floorplans/{floorPlanId}/{hash}.{png,jpg,webp}` |
+| Geofences GeoJSON: polygons and POIs with all properties (`floor`, `name`, `description`)                                                                               | snapshot `geofences`                                                        |
+| Wayfinding GeoJSON (graph edges `[lng, lat, floor]`)                                                                                                                    | snapshot `wayfinding`                                                       |
+| Radios GeoJSON (BLE beacons, Wi-Fi access points)                                                                                                                       | snapshot `radios`                                                           |
+| Enabled paths GeoJSON per floor plan                                                                                                                                    | snapshot `paths[floorPlanId]`                                               |
+
+Snapshots are JSON files `gs://<project>-indooratlas/raw/{venueId}/{contentHash}.json`;
+Firestore `indoorAtlasRaw/{venueId}` holds the current hash, `fetchedAt`, counts,
+image paths and the last 10 snapshots (`history`), so a change can be diffed and
+a bad publish rolled back from the previous snapshot. 404 answers are `null`.
+
+Get it all as files (Cloud Shell, repository root, after `npm ci`):
+
+```sh
+INDOORATLAS_ARCHIVE_BUCKET=gen-lang-client-0467526025-indooratlas \
+  npm run indoor-venues --workspace backend -- export all ./indooratlas-raw
+```
+
+This writes `indooratlas-raw/<venueId>/{meta,snapshot,venue,floorplans}.json`,
+`{geofences,wayfinding,radios}.geojson`, `paths/<floorPlanId>.geojson` and
+`images/<floorPlanId>.<ext>`. No API key is stored or exported. In code, use
+`readRawSnapshot()` from `backend/src/services/indoorAtlasArchive.ts`, or the
+private `GET /jobs/indooratlas/raw/{venueId}` on `contour-jobs`.
 
 ## IndoorAtlas Mapping API (what you will call)
 
@@ -77,8 +111,11 @@ Feature ids must be UUID v1. POI properties: `floor`, `name`, `description`.
 - Walls: port the approach in `docs/automatic-floor-walls.md` (normalized line
   segments, doorway gaps) to TypeScript or keep it native and export.
 - Keys: `indooratlas-mapping-api-key` in Secret Manager, already attached to
-  `contour-jobs` by `infra/setup-cloud-jobs.sh`. Publishing needs a key allowed to
-  write; reading needs nothing new.
+  `contour-jobs` (and to `api` for the floor plan image proxy) by
+  `infra/setup-cloud-jobs.sh`. Publishing needs a key allowed to write; reading
+  needs nothing new.
+- Backups: before a `PUT`, compare with the latest raw snapshot (see
+  [Data available](#data-available)); its `history` already keeps the last 10.
 
 ## Safety rules (from AGENTS.md)
 

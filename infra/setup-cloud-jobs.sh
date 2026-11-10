@@ -5,16 +5,18 @@
 # Build trigger that keeps them in sync with main. It also prepares warning push
 # (FCM API, sender role, outbox index) but leaves FCM_DELIVERY_ENABLED off, and
 # the IndoorAtlas venue sync (Secret Manager secret indooratlas-mapping-api-key,
-# workflow indooratlas-sync, enabled 15-minute schedule; harmless until the
-# secret has a version). Run it in Cloud Shell from the
+# workflow indooratlas-sync, enabled 5-minute schedule, private raw-archive
+# bucket <project>-indooratlas; harmless until the secret has a version). The
+# public api service also gets the key (floor plan image proxy) and read access
+# to the bucket's images. Run it in Cloud Shell from the
 # repository root with the project selected:
 #
 #   gcloud config set project gen-lang-client-0467526025
 #   bash infra/setup-cloud-jobs.sh
 #
 # Optional environment overrides: REGION (asia-northeast1), API_SERVICE (api),
-# JOBS_SERVICE (contour-jobs), REDEPLOY_JOBS=1 to redeploy contour-jobs from the
-# current api image even if it already exists.
+# JOBS_SERVICE (contour-jobs), IA_BUCKET (<project>-indooratlas), REDEPLOY_JOBS=1
+# to redeploy contour-jobs from the current api image even if it already exists.
 #
 # Safe to rerun: existing database, index, accounts, service (including its
 # FCM_DELIVERY_ENABLED value), schedules (including their paused/resumed state),
@@ -36,6 +38,7 @@ WORKFLOWS_SA="contour-workflows@${PROJECT}.iam.gserviceaccount.com"
 DEPLOYER_SA="contour-jobs-deployer@${PROJECT}.iam.gserviceaccount.com"
 CONSOLE="https://console.cloud.google.com"
 IA_SECRET=indooratlas-mapping-api-key
+IA_BUCKET="${IA_BUCKET:-${PROJECT}-indooratlas}"
 
 echo "Project: $PROJECT | Region: $REGION | Jobs service: $JOBS_SERVICE"
 
@@ -44,7 +47,7 @@ gcloud services enable workflows.googleapis.com workflowexecutions.googleapis.co
   cloudscheduler.googleapis.com firestore.googleapis.com run.googleapis.com \
   cloudbuild.googleapis.com artifactregistry.googleapis.com iam.googleapis.com \
   fcm.googleapis.com fcmregistrations.googleapis.com firebaseinstallations.googleapis.com \
-  secretmanager.googleapis.com --project "$PROJECT"
+  secretmanager.googleapis.com storage.googleapis.com --project "$PROJECT"
 
 echo "2/10 Firestore database (default)"
 if gcloud firestore databases describe --database='(default)' --project "$PROJECT" \
@@ -132,7 +135,15 @@ gcloud run services add-iam-policy-binding "$JOBS_SERVICE" --project "$PROJECT" 
   --region "$REGION" --member="serviceAccount:$WORKFLOWS_SA" --role=roles/run.invoker >/dev/null
 echo "    $WORKFLOWS_SA -> roles/run.invoker on $JOBS_SERVICE only"
 
-echo "6/10 IndoorAtlas Mapping API key (Secret Manager $IA_SECRET)"
+echo "6/10 IndoorAtlas Mapping API key (Secret Manager $IA_SECRET) and raw archive (gs://$IA_BUCKET)"
+# Runtime service account of the public api service (floor plan image proxy).
+API_SA="$(gcloud run services describe "$API_SERVICE" --project "$PROJECT" --region "$REGION" \
+  --format='value(spec.template.spec.serviceAccountName)')"
+if [ -z "$API_SA" ]; then
+  # No explicit account: Cloud Run runs as the Compute Engine default service account.
+  API_SA="$(gcloud projects describe "$PROJECT" --format='value(projectNumber)')-compute@developer.gserviceaccount.com"
+fi
+echo "    $API_SERVICE runs as $API_SA"
 # The secret is created empty; add the key as a version yourself (never in this repo):
 #   printf %s "$KEY" | gcloud secrets versions add indooratlas-mapping-api-key --data-file=-
 if gcloud secrets describe "$IA_SECRET" --project "$PROJECT" >/dev/null 2>&1; then
@@ -146,12 +157,37 @@ gcloud secrets add-iam-policy-binding "$IA_SECRET" --project "$PROJECT" \
   --member="serviceAccount:$RUNTIME_SA" --role=roles/secretmanager.secretAccessor \
   --condition=None >/dev/null
 echo "    $RUNTIME_SA -> roles/secretmanager.secretAccessor on $IA_SECRET only"
+gcloud secrets add-iam-policy-binding "$IA_SECRET" --project "$PROJECT" \
+  --member="serviceAccount:$API_SA" --role=roles/secretmanager.secretAccessor \
+  --condition=None >/dev/null
+echo "    $API_SA -> roles/secretmanager.secretAccessor on $IA_SECRET only"
+# Private bucket: raw IndoorAtlas snapshots and floor plan images (docs/indoor-venues.md).
+if gcloud storage buckets describe "gs://$IA_BUCKET" --project "$PROJECT" >/dev/null 2>&1; then
+  echo "    bucket gs://$IA_BUCKET exists"
+else
+  gcloud storage buckets create "gs://$IA_BUCKET" --project "$PROJECT" --location "$REGION" \
+    --uniform-bucket-level-access --public-access-prevention >/dev/null
+  echo "    created private bucket gs://$IA_BUCKET"
+fi
+gcloud storage buckets add-iam-policy-binding "gs://$IA_BUCKET" \
+  --member="serviceAccount:$RUNTIME_SA" --role=roles/storage.objectAdmin >/dev/null
+echo "    $RUNTIME_SA -> roles/storage.objectAdmin on gs://$IA_BUCKET only"
+gcloud storage buckets add-iam-policy-binding "gs://$IA_BUCKET" \
+  --member="serviceAccount:$API_SA" --role=roles/storage.objectViewer >/dev/null
+echo "    $API_SA -> roles/storage.objectViewer on gs://$IA_BUCKET only"
+gcloud run services update "$JOBS_SERVICE" --project "$PROJECT" --region "$REGION" \
+  --update-env-vars "INDOORATLAS_ARCHIVE_BUCKET=$IA_BUCKET" --quiet >/dev/null
+gcloud run services update "$API_SERVICE" --project "$PROJECT" --region "$REGION" \
+  --update-env-vars "INDOORATLAS_ARCHIVE_BUCKET=$IA_BUCKET" --quiet >/dev/null
+echo "    INDOORATLAS_ARCHIVE_BUCKET=$IA_BUCKET on $JOBS_SERVICE and $API_SERVICE"
 # Cloud Run refuses a revision whose secret has no enabled version, so attach it only once one exists.
 if [ -n "$(gcloud secrets versions list "$IA_SECRET" --project "$PROJECT" \
   --filter='state=ENABLED' --limit=1 --format='value(name)' 2>/dev/null)" ]; then
-  gcloud run services update "$JOBS_SERVICE" --project "$PROJECT" --region "$REGION" \
-    --update-secrets "INDOORATLAS_MAPPING_API_KEY=${IA_SECRET}:latest" --quiet >/dev/null
-  echo "    attached to $JOBS_SERVICE as INDOORATLAS_MAPPING_API_KEY (latest version)"
+  for service in "$JOBS_SERVICE" "$API_SERVICE"; do
+    gcloud run services update "$service" --project "$PROJECT" --region "$REGION" \
+      --update-secrets "INDOORATLAS_MAPPING_API_KEY=${IA_SECRET}:latest" --quiet >/dev/null
+    echo "    attached to $service as INDOORATLAS_MAPPING_API_KEY (latest version)"
+  done
   IA_KEY_STATE=attached
 else
   echo "    no enabled version yet: the sync reports configured=false until you add one and rerun"
@@ -163,6 +199,8 @@ PROJECT="$PROJECT" REGION="$REGION" JOBS_SERVICE="$JOBS_SERVICE" WORKFLOWS_SA="$
   bash "$ROOT/infra/deploy-workflows.sh"
 
 echo "8/10 Scheduler jobs (new jobs start PAUSED like unpublished n8n workflows; the IndoorAtlas sync starts enabled)"
+# The IndoorAtlas job keeps its original name (indooratlas-sync-every-15-minutes) so a
+# rerun updates it in place; its schedule is now every 5 minutes.
 ensure_schedule() {
   local job="$1" workflow="$2" schedule="$3" retries="$4" description="$5" initial="${6:-paused}"
   local uri="https://workflowexecutions.googleapis.com/v1/projects/${PROJECT}/locations/${REGION}/workflows/${workflow}/executions"
@@ -192,8 +230,8 @@ ensure_schedule nagoya-import-hourly nagoya-import "0 * * * *" 1 \
   "Hourly Nagoya evacuation destination import (n8n workflow 1)"
 ensure_schedule jma-warnings-every-minute jma-warnings "* * * * *" 0 \
   "Every-minute JMA weather and earthquake/tsunami/volcano check (n8n workflow 2)"
-ensure_schedule indooratlas-sync-every-15-minutes indooratlas-sync "*/15 * * * *" 1 \
-  "IndoorAtlas venue sync into Firestore indoorVenues (docs/indoor-venues.md)" enabled
+ensure_schedule indooratlas-sync-every-15-minutes indooratlas-sync "*/5 * * * *" 1 \
+  "IndoorAtlas venue sync every 5 minutes into Firestore indoorVenues and the raw archive (docs/indoor-venues.md)" enabled
 
 echo "9/10 Cloud Build trigger: $TRIGGER"
 if gcloud builds triggers describe "$TRIGGER" --project "$PROJECT" >/dev/null 2>&1; then
@@ -238,7 +276,9 @@ has google-services.json, turn it on with:
 Turn it off again with FCM_DELIVERY_ENABLED=false.
 
 IndoorAtlas venue sync (docs/indoor-venues.md): schedule indooratlas-sync-every-15-minutes
-is enabled (unless you paused it). Mapping API key: ${IA_KEY_STATE}.
+runs every 5 minutes and is enabled (unless you paused it). Mapping API key: ${IA_KEY_STATE}.
+Raw archive: gs://$IA_BUCKET + Firestore indoorAtlasRaw. Export it with
+  INDOORATLAS_ARCHIVE_BUCKET=$IA_BUCKET npm run indoor-venues --workspace backend -- export all ./indooratlas-raw
 EOF
 if [ "$IA_KEY_STATE" = missing ]; then
   cat <<EOF

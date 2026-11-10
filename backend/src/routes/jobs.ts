@@ -18,6 +18,7 @@ import {
 } from "../schemas/jobs.js";
 import { indoorAtlasSyncSummarySchema } from "../schemas/indoorAtlas.js";
 import { syncIndoorAtlasVenues } from "../services/indoorAtlasSync.js";
+import { readRawSnapshot } from "../services/indoorAtlasArchive.js";
 import type { JobsContext } from "../services/jobs/context.js";
 import { JobError } from "../services/jobs/errors.js";
 import { checkEqvol, processEqvol } from "../services/jobs/jmaEqvol.js";
@@ -149,9 +150,38 @@ export function createJobsRouter(context: JobsContext): Router {
         syncIndoorAtlasVenues({
           client: context.indoorAtlas?.client ?? null,
           repository: context.indoorAtlas?.venues ?? null,
+          archive: context.indoorAtlas?.archive ?? null,
           now: context.now,
         }),
     ),
   );
+  // Raw IndoorAtlas snapshot of one venue (private: jobs service only).
+  router.get("/indooratlas/raw/:venueId", async (req, res) => {
+    const archive = context.indoorAtlas?.archive;
+    const venueId = req.params.venueId.toLowerCase();
+    if (!archive) {
+      res.status(503).json({ error: "NOT_CONFIGURED" });
+      return;
+    }
+    if (
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(
+        venueId,
+      )
+    ) {
+      res.status(404).json({ error: "NOT_FOUND" });
+      return;
+    }
+    try {
+      const stored = await readRawSnapshot(archive, venueId);
+      if (!stored) {
+        res.status(404).json({ error: "NOT_FOUND" });
+        return;
+      }
+      res.set("Cache-Control", "no-store").json(stored);
+    } catch (error) {
+      console.error("Reading the raw IndoorAtlas snapshot failed", error);
+      res.status(500).json({ error: "INTERNAL_ERROR" });
+    }
+  });
   return router;
 }

@@ -10,6 +10,8 @@ import { RateLimiter } from "./services/rateLimiter.js";
 import { indoorRouter } from "./routes/indoor.js";
 import { createIndoorVenuesRouter } from "./routes/indoorVenues.js";
 import { IndoorVenueService } from "./services/indoorVenueService.js";
+import { createFloorPlanImagesRouter } from "./routes/floorPlanImages.js";
+import { FloorPlanImageService } from "./services/floorPlanImageService.js";
 import type { JobsContext } from "./services/jobs/context.js";
 
 const noStore = "no-store";
@@ -19,13 +21,15 @@ const noStore = "no-store";
  * supplied (JOBS_ENABLED=true on the private jobs service). `/api` (live
  * sites, alerts and the assistant) is mounted when live data is supplied.
  * `/api/indoor/venues` is always mounted; without `indoorVenues` it serves
- * the bundled seed only.
+ * the bundled seed only. `/api/indoor/floorplans/:id/image` is always
+ * mounted; without `floorPlanImages` (no Mapping API key) it answers 404/503.
  */
 export function createApp(
   options: {
     jobs?: JobsContext;
     live?: LiveContext;
     indoorVenues?: IndoorVenueService;
+    floorPlanImages?: FloorPlanImageService;
   } = {},
 ): Express {
   const app = express();
@@ -46,9 +50,14 @@ export function createApp(
   app.use("/destinations", destinationsRouter);
   app.use("/directions", directionsRouter);
   app.use("/app", webAppRouter);
+  const indoorVenues = options.indoorVenues ?? new IndoorVenueService();
+  app.use("/api/indoor/venues", createIndoorVenuesRouter(indoorVenues));
   app.use(
-    "/api/indoor/venues",
-    createIndoorVenuesRouter(options.indoorVenues ?? new IndoorVenueService()),
+    "/api/indoor/floorplans",
+    createFloorPlanImagesRouter(
+      options.floorPlanImages ??
+        new FloorPlanImageService({ venues: indoorVenues, client: null }),
+    ),
   );
   app.use("/api/indoor", indoorRouter);
   if (options.live) app.use("/api", createLiveRouter(options.live));

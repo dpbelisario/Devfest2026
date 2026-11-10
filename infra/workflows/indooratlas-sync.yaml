@@ -1,5 +1,5 @@
 # Cloud Workflows: IndoorAtlas venue sync.
-# Mirrors the venue owner's IndoorAtlas account (venues, floor plans, POIs,
+# Mirrors the venue owner's IndoorAtlas account (venues, floor plans, POIs, geofences,
 # exits marked as POIs, wayfinding presence) into Firestore `indoorVenues`, so
 # the app's venue list follows IndoorAtlas without a rebuild.
 # All IndoorAtlas calls (GET only), mapping and Firestore writes live in the
@@ -8,7 +8,8 @@
 # {"configured": false} and changes nothing.
 # Base URL: runtime argument {"baseUrl": "https://..."} or the deploy-time
 # environment variable JOBS_BASE_URL (set by infra/deploy-workflows.sh).
-# Trigger: Cloud Scheduler job indooratlas-sync-every-15-minutes (created enabled).
+# Trigger: Cloud Scheduler job indooratlas-sync-every-15-minutes (created enabled;
+# despite its original name it runs every 5 minutes).
 # Docs: docs/indoor-venues.md#indooratlas-sync and docs/cloud-jobs.md.
 
 main:

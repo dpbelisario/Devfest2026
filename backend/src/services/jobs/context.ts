@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import type { IndoorVenuesRepository } from "../../repositories/indoorVenuesRepository.js";
 import type { JobsRepository } from "../../repositories/jobsRepository.js";
 import type { IndoorAtlasClient } from "../indoorAtlasClient.js";
+import type { IndoorAtlasArchiveStore } from "../indoorAtlasArchive.js";
 import type { FetchText } from "./http.js";
 import type { WarningSender } from "./warningPush.js";
 
@@ -29,6 +30,8 @@ export interface JobsContext {
   indoorAtlas?: {
     client: IndoorAtlasClient | null;
     venues: IndoorVenuesRepository;
+    /** Raw archive; null when INDOORATLAS_ARCHIVE_BUCKET is unset. */
+    archive?: IndoorAtlasArchiveStore | null;
   };
 }
 

@@ -1,6 +1,24 @@
 {
   "venues": [
     {
+      "id": "nu-library",
+      "name": {
+        "en": "Central Library",
+        "ja": "中央図書館"
+      },
+      "enabled": true,
+      "floorLevels": [-1, 1, 2, 3, 4],
+      "location": {
+        "lat": 35.15507,
+        "lng": 136.96378,
+        "radiusM": 60
+      },
+      "exits": [],
+      "pois": [],
+      "updatedAt": "2026-11-10T00:00:00+09:00",
+      "notes": "Seed listing of the Central Library floor-map flow (no IndoorAtlas venue). Name and floors from backend/data/indoor.json (nu-library, official schematic floor maps, not surveyed); location is the campus pin in contour.html; radiusM 60 is a coarse display gate, not surveyed. No exits are listed: the library exit previews in docs/library-demo.md are schematic map routes without coordinates."
+    },
+    {
       "id": "nu-engineering-2",
       "name": {
         "en": "Engineering Building II",

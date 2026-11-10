@@ -43,8 +43,10 @@ import kotlinx.coroutines.launch
 class WebUiActivity : ComponentActivity() {
 
     lateinit var web: WebView
-    /** Supported IndoorAtlas venues, refreshed from the backend on start (docs/indoor-venues.md). */
+    /** Supported IndoorAtlas venues, refreshed from the backend on resume (docs/indoor-venues.md). */
     private val indoorVenues by lazy { com.contour.app.indoor.IndoorVenueRepository(this) }
+    private var venuesRefreshedAt = Long.MIN_VALUE
+    private var venuesRefresh: kotlinx.coroutines.Job? = null
     private val indoor by lazy {
         com.contour.app.indoor.IndoorNavigationController(this, { indoorVenues.current }) { data ->
             web.evaluateJavascript("window.dispatchEvent(new CustomEvent('contour-indoor',{detail:$data}))", null)
@@ -493,12 +495,6 @@ class WebUiActivity : ComponentActivity() {
             isAppearanceLightNavigationBars = true
         }
 
-        // Venue list for IndoorAtlas: cached copy first, then the server; cancelled with the activity.
-        lifecycleScope.launch {
-            if (indoorVenues.refresh() && ::web.isInitialized && pageReady)
-                web.evaluateJavascript("window.dispatchEvent(new CustomEvent('contour-indoor-venues'))", null)
-        }
-
         // Pre-download supported translation language models in the background
         kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
             com.contour.app.translation.SUPPORTED_LANGUAGES.forEach { lang ->
@@ -725,6 +721,22 @@ class WebUiActivity : ComponentActivity() {
         }
         indoorRequest?.takeIf { it.generation == pageGeneration && pendingIndoorPermission == null }?.let { indoor.start(it.id, indoorTarget) }
         nativeCameraRequest?.let { continueNativeCamera(it) }
+        refreshIndoorVenues()
+    }
+
+    /**
+     * Venue list for IndoorAtlas: cached copy first, then the server. Runs on every resume (so a venue
+     * renamed in IndoorAtlas shows without restarting the app), at most once per minute; cancelled
+     * with the activity.
+     */
+    private fun refreshIndoorVenues() {
+        val now = android.os.SystemClock.elapsedRealtime()
+        if (venuesRefresh?.isActive == true || (venuesRefreshedAt != Long.MIN_VALUE && now - venuesRefreshedAt < 60_000)) return
+        venuesRefreshedAt = now
+        venuesRefresh = lifecycleScope.launch {
+            if (indoorVenues.refresh() && ::web.isInitialized && pageReady)
+                web.evaluateJavascript("window.dispatchEvent(new CustomEvent('contour-indoor-venues'))", null)
+        }
     }
 
     override fun onStop() {

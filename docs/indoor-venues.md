@@ -2,14 +2,18 @@
 
 Supported IndoorAtlas venues are runtime data. Adding, changing or disabling a
 venue needs no GitHub push, APK rebuild or backend redeploy: write a Firestore
-document and phones pick it up within about 5 minutes (next app start after the
-server cache expires).
+document and phones pick it up within about 2 minutes (60-second server cache,
+60-second CDN cache, the app refreshes on resume at most once a minute).
 
 **The venue list follows the owner's IndoorAtlas account.** A scheduled job
-copies every IndoorAtlas venue (floor plans, POIs, POIs named like exits,
-whether a wayfinding graph exists) into Firestore every 15 minutes. Synced
-venues are listed first; the first one is shown in the app as **"01 · <name>"**.
-See [IndoorAtlas sync](#indooratlas-sync).
+copies every IndoorAtlas venue (name, address, description, location, floor
+plans with their map placement, POIs, POIs named like exits, geofence polygons,
+whether a wayfinding graph exists) into Firestore every 5 minutes. Synced venues
+are listed first; the first one is shown in the app as **"01 · <name>"**, then
+the app's own venues continue the numbering (**02 · Central Library**,
+**03 · Engineering Building II**). See [IndoorAtlas sync](#indooratlas-sync),
+[What changes in the app](#what-changes-in-the-app-when-you-edit-indooratlas)
+and the [raw archive](#raw-indooratlas-archive) kept for floor-plan tooling.
 
 **One-time prerequisite:** the backend that serves `GET /api/indoor/venues` must
 be deployed once (this code on `main` and the `api` service rebuilt). After that,
@@ -21,19 +25,27 @@ venue changes are data only.
   venues. It reads the Firestore collection `indoorVenues` (one document per
   venue, document ID = venue `id`), validates every document with the zod schema
   in `backend/src/schemas/indoorVenue.ts`, skips invalid documents with a logged
-  warning, and caches the result in-process for 5 minutes (CDN `max-age=60`).
+  warning, and caches the result in-process for 60 seconds (CDN `max-age=60`).
   `LIVE_DATA_STORE=memory|off` serves only the seed.
-- **Seed:** `backend/data/indoor-venues.json` holds the current Engineering
-  Building II pilot (venue `0d3ece20-da98-11f1-95cb-e11cd22c6739`, 2F/3F floor
-  plans, room 221 POI `e8679fc0-da9a-11f1-b91e-6591398611dd`), copied from
-  [indooratlas.md](indooratlas.md). It has **no exits**: none have been surveyed.
+- **Seed:** `backend/data/indoor-venues.json` holds, in this order, the
+  **Central Library** (no IndoorAtlas venue: name and floors B1, 1F–4F from
+  `backend/data/indoor.json`, location from the campus pin; listed and numbered
+  only, the library floor-map and exit-preview flows are unchanged) and the
+  Engineering Building II pilot (venue `0d3ece20-da98-11f1-95cb-e11cd22c6739`,
+  2F/3F floor plans, room 221 POI `e8679fc0-da9a-11f1-b91e-6591398611dd`), copied
+  from [indooratlas.md](indooratlas.md). Neither has **exits**: none have been
+  surveyed (the library's exit previews are schematic map routes without
+  coordinates).
   A Firestore document with the same `id` overrides the seed venue (including
   disabling it); seed venues without a document stay listed. When Firestore has
   no valid documents or cannot be read, the seed is served, so behaviour is the
   same as before this change.
-- **Android:** on start the app loads its on-device copy of the last good list,
-  then fetches `${API_BASE_URL}api/indoor/venues` (or the hosted UI's origin when
-  no API URL is configured) off the main thread and caches the response. The
+- **Android:** on every resume (at most once a minute) the app loads its
+  on-device copy of the last good list, then fetches
+  `${API_BASE_URL}api/indoor/venues` (or the hosted UI's origin when no API URL
+  is configured) off the main thread and caches the response; the page is told
+  with the `contour-indoor-venues` event. Venues without `indoorAtlas` are listed
+  for the page only (no SDK matching, no Nearest exit). The
   IndoorAtlas SDK detects the venue itself; the app matches the SDK venue ID
   against the list. Unlisted venues show the existing "not detected" message.
   For a listed venue the app uses its area (`location`) as the building gate,
@@ -42,8 +54,11 @@ venue changes are data only.
   route. If the endpoint fails it keeps the cached list, then the build-time
   default (`INDOORATLAS_VENUE_ID` / `INDOORATLAS_ROOM221_POI_ID`).
 - **Web page:** the Student Ask note shows `01 · <venue name>` for the server's
-  primary venue (`ContourBridge.indoorVenues()`; `IndoorAtlas · <name>` when an
-  older server sends no rank), falling back to "Engineering Building II".
+  primary venue with its IndoorAtlas address on the next line
+  (`ContourBridge.indoorVenues()`; `IndoorAtlas · <name>` when an older server
+  sends no rank), falling back to "Engineering Building II". The Google map
+  shows the synced venue's floor plan, geofences, POIs and exits, see
+  [Map overlay](#map-overlay).
 
 - **Nearest exit (Android):** in Student mode, Ask offers **Nearest exit** when
   any listed venue has exits. Native positioning detects the venue, picks the
@@ -55,7 +70,7 @@ venue changes are data only.
   IndoorAtlas are labelled "exit marked in IndoorAtlas · not verified on site".
   The room 221 flow is unchanged and still works when its venue is listed.
 
-Not implemented yet: exits are not drawn on a map; the floor estimate
+Not implemented yet: the floor estimate
 (barometer/GPS altitude) and manual floor − / + correction are still calibrated
 for Engineering Building II (floors 1–4) only; nearest-exit guidance has not been
 tested on site.
@@ -71,12 +86,30 @@ Listing a venue does not make an unsurveyed building positionable.
   "id": "example-building", // lowercase slug; also the Firestore document ID
   "name": { "en": "…", "ja": "…" },
   "enabled": true,
+  "address": "…", // optional, display only
+  "description": "…", // optional, display only
   "indoorAtlas": {
+    // optional: without it the venue is listed and numbered only
     "venueId": "<IndoorAtlas venue UUID>",
     "floors": [
-      { "floorPlanId": "<floor plan UUID>", "floorLevel": 1, "name": "1F" },
+      {
+        "floorPlanId": "<floor plan UUID>",
+        "floorLevel": 1,
+        "name": "1F",
+        "plan": {
+          // optional (synced): where the image lies on the map; never the image URL
+          "topLeft": { "lat": 35.0, "lng": 136.0 },
+          "topRight": { "lat": 35.0, "lng": 136.001 },
+          "bottomLeft": { "lat": 34.999, "lng": 136.0 },
+          "bottomRight": { "lat": 34.999, "lng": 136.001 },
+          "center": { "lat": 34.9995, "lng": 136.0005 }, // optional
+          "bearing": 0, // optional, degrees clockwise from north
+          "widthPx": 1000, "heightPx": 1000, "widthM": 90, "heightM": 110, // optional
+        },
+      },
     ],
   },
+  "floorLevels": [-1, 1, 2], // optional, for venues without IndoorAtlas floor plans
   "location": { "lat": 35.0, "lng": 136.0, "radiusM": 100 }, // building centre + gate radius
   "exits": [
     {
@@ -100,6 +133,17 @@ Listing a venue does not make an unsurveyed building positionable.
       "lng": 136.0,
     },
   ],
+  "areas": [
+    // optional (synced): IndoorAtlas geofence polygons, display only
+    {
+      "id": "ia-<geofence UUID>",
+      "name": { "en": "…", "ja": "…" }, // optional
+      "description": "…", // optional
+      "floorLevel": 1,
+      "indoorAtlasGeofenceId": "<geofence UUID>",
+      "ring": [{ "lat": 35.0, "lng": 136.0 }, …], // 3–64 points, no closing point
+    },
+  ],
   "updatedAt": "2026-11-09T00:00:00.000Z", // set by the script
   "notes": "internal; not returned by the API",
 }
@@ -120,11 +164,11 @@ The API returns `{ venues: [...], source: "firestore" | "seed", checkedAt }`;
 each venue has the fields above without `enabled`, `notes` and `syncOrder`, plus
 `origin: "firestore" | "seed"`, `rank` (1-based) and `primary` (true for rank 1).
 
-**Order:** IndoorAtlas-synced venues first (IndoorAtlas list order, then name),
-then manual Firestore venues (by id), then seed venues (by id). While at least one
-synced venue is enabled, seed venues without a Firestore document are hidden: the
-Engineering II seed belongs to another IndoorAtlas account. To list it anyway,
-give it a Firestore document (`indoor-venues enable nu-engineering-2`).
+**Order and numbers:** IndoorAtlas-synced venues first (IndoorAtlas list order,
+then name), then manual Firestore venues (by id), then seed venues (seed file
+order: Central Library, then Engineering II). Ranks are continuous (01, 02, 03…).
+Every enabled venue is listed; a Firestore document with a seed venue's id can
+still disable it (`indoor-venues disable nu-library`).
 
 ## IndoorAtlas sync
 
@@ -132,9 +176,11 @@ give it a Firestore document (`indoor-venues enable nu-engineering-2`).
 IndoorAtlas account that owns the Mapping API key. It only calls `GET` endpoints of
 the [Mapping REST API](https://mapping-api.indooratlas.com/public/v1) with the key
 in the `X-API-Key` header (10 s timeout per call), and writes only documents with
-`syncedFrom: "indooratlas"`. The Cloud Workflow `indooratlas-sync` calls it every
-15 minutes (Cloud Scheduler `indooratlas-sync-every-15-minutes`, created enabled
-by `infra/setup-cloud-jobs.sh`). The answer is a summary:
+`syncedFrom: "indooratlas"` (plus the [raw archive](#raw-indooratlas-archive)).
+The Cloud Workflow `indooratlas-sync` calls it every 5 minutes (Cloud Scheduler
+job `indooratlas-sync-every-15-minutes`: the original name is kept so reruns of
+`infra/setup-cloud-jobs.sh` update it in place; created enabled). The answer is a
+summary:
 
 ```json
 {
@@ -143,6 +189,8 @@ by `infra/setup-cloud-jobs.sh`). The answer is a summary:
   "floors": 1,
   "pois": 12,
   "exits": 3,
+  "areas": 2,
+  "archived": 1,
   "updated": 1,
   "disabled": 0,
   "skipped": 0
@@ -156,10 +204,13 @@ Mapping, per IndoorAtlas venue (`GET /venues`, then `/venues/{id}/floorplans`,
 | ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | venue `id`                                            | document ID `ia-<venue UUID>` (lowercase), `indoorAtlas.venueId`                                                                                          |
 | venue `name`                                          | `name.en` and `name.ja`; a name containing `" / "` is split into `en / ja`                                                                                |
+| venue `address`, `description`                        | `address` (max 300 chars), `description` (max 1000); omitted when empty                                                                                   |
 | venue `coordinates`                                   | `location.lat` / `lng`                                                                                                                                    |
 | floor-plan corners                                    | `location.radiusM` = farthest corner from the venue coordinates + 20 m, clamped to 50–2000 m; **120 m** when no floor plan has corners                    |
 | floor plan `id`, `floorNumber`                        | `indoorAtlas.floors[]`: `floorPlanId`, `floorLevel`, name `2F` / `B1`; floors outside −5…60 and a second plan on the same floor number are skipped        |
-| GeoJSON `Point` feature                               | `pois[]`: id `ia-<feature UUID>`, `indoorAtlasPoiId`, `lat`/`lng`, `floorLevel` = `properties.floor`; polygons (geofences) are ignored                    |
+| floor plan `image` corners, center, bearing, size     | `floors[].plan` (all four corners required, else omitted); the image `url` expires and is **never stored**                                                |
+| GeoJSON `Point` feature                               | `pois[]`: id `ia-<feature UUID>`, `indoorAtlasPoiId`, `lat`/`lng`, `floorLevel` = `properties.floor`                                                      |
+| GeoJSON `Polygon` feature (geofence)                  | `areas[]`: id `ia-<feature UUID>`, name/description, floor, outer ring (closing point dropped, evenly sampled to ≤ 64 points); at most 100 per venue      |
 | POI whose name or description matches an exit keyword | also `exits[]` with `source: "indooratlas"` and `kind`: exit/emergency exit/出口/非常口/避難 → `exit`, entrance/入口 → `entrance`, stairs/階段 → `stairs` |
 | wayfinding graph with at least one edge (404 = none)  | `indoorAtlas.hasWayfinding: true`; the graph itself is not stored (the SDK routes on it)                                                                  |
 | venue no longer in `GET /venues`                      | its synced document is set `enabled: false`                                                                                                               |
@@ -198,9 +249,64 @@ npm run indoor-venues --workspace backend -- sync
 npm run indoor-venues --workspace backend -- list
 ```
 
-The public `api` service caches the list for 5 minutes, so a sync reaches phones
-within about 20 minutes in the worst case (15-minute schedule + cache), or about
-5 minutes after a manual run.
+### What changes in the app when you edit IndoorAtlas
+
+| Edit in IndoorAtlas                  | Where it shows                                                                                   |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------ |
+| Venue name                           | "01 · <name>" (Student Ask note), AR exit header, `venue.name` in native `contour-indoor` events |
+| Address                              | Second line under "01 · <name>"; `venue.address` in `contour-indoor` events                      |
+| Location (venue coordinates)         | Building gate (`location`), radius from the floor-plan corners                                   |
+| Floor plan (image, alignment, floor) | Map overlay image and floor switcher; SDK floor cross-check                                      |
+| Geofences (polygons)                 | Faint areas on the map, name/description on tap                                                  |
+| POIs / exit POIs                     | Small map markers; exits highlighted ("marked in IndoorAtlas"), Nearest exit                     |
+| Wayfinding graph                     | Nearest exit routes along it (`hasWayfinding`)                                                   |
+| Venue order / deletion               | "01" is the first venue; deleted venues are disabled                                             |
+
+**How fast:** the sync runs every 5 minutes; the `api` service caches the list
+for 60 seconds (chosen over a Firestore "version" document: one collection read
+per minute per instance is cheap, needs no extra write path and cannot get out
+of step); the CDN caches it for 60 seconds; Android refetches on resume at most
+once a minute and the map page refetches when it becomes visible (also at most
+once a minute). Worst case about 8 minutes, typically 3–4; after a manual sync
+about 2 minutes. Floor plan images are cached up to 10 minutes on the server
+and 5 minutes in the browser/CDN.
+
+### Floor plan images
+
+`GET /api/indoor/floorplans/{floorPlanId}/image` (public `api` service) serves
+the image of a floor plan that belongs to an **enabled, synced** venue in the
+public list; any other ID answers 404 without contacting IndoorAtlas (not an
+open proxy). It serves the copy archived by the sync (bucket
+`INDOORATLAS_ARCHIVE_BUCKET`) first, else asks the Mapping API for a fresh URL
+(`GET /venues/{id}/floorplans` with the key, server-side only) and downloads it:
+10 s timeout, 8 MiB cap, PNG/JPEG/WebP only (content type and magic bytes must
+agree). Bytes are cached in memory for 10 minutes (failures for 30 s).
+
+| Status | Body                               | When                                                   |
+| ------ | ---------------------------------- | ------------------------------------------------------ |
+| 200    | image, `public, max-age=300`, ETag | found (304 on a matching `If-None-Match`)              |
+| 404    | `{"error":"NOT_FOUND"}`            | not a floor plan of a listed synced venue              |
+| 503    | `{"error":"NOT_CONFIGURED"}`       | neither the key nor the archive bucket on `api`        |
+| 502    | `{"error":"UPSTREAM_UNAVAILABLE"}` | IndoorAtlas/image host failed or the image was refused |
+
+The key is sent only to the Mapping API, never to the image host, and never
+appears in responses or logs.
+
+### Map overlay
+
+`contour.html` (script `indoorAtlasMapOverlay`) draws, on the Google map only
+(the offline Leaflet map shows nothing extra):
+
+- the floor plan image of the focused synced venue (the venue IndoorAtlas
+  detected on Android, else the first synced venue with a floor plan), placed by
+  its top-left, top-right and bottom-left corners with a CSS affine matrix in a
+  `google.maps.OverlayView` (this carries rotation/`bearing` and scale; one code
+  path for rotated and north-up plans);
+- the floor shown is the IndoorAtlas floor (`contour-indoor` with
+  `floorSource` `indooratlas` or `corrected`), else the lowest floor; a small
+  floor switcher appears on the right when the venue has several floors;
+- geofence polygons faintly, name and description on tap (no evacuation meaning);
+- POIs as small grey dots and exits as green dots labelled "marked in IndoorAtlas".
 
 ## Add or change a venue
 
@@ -229,7 +335,7 @@ within about 20 minutes in the worst case (15-minute schedule + cache), or about
    `{ "venues": [...] }`. Set `GOOGLE_CLOUD_PROJECT` / `FIRESTORE_DATABASE_ID` to
    target another project or database.
 
-5. **Wait about 5 minutes** (server cache) and restart the app. No rebuild.
+5. **Wait about 2 minutes** (server and CDN cache), then bring the app back to the foreground. No rebuild.
 
 Enable or disable a venue (a seed venue is first copied into Firestore):
 
@@ -244,13 +350,67 @@ until the API reads them: an invalid document is skipped (see the Cloud Run log
 warning `Skipping invalid indoorVenues/<id>`) and `list` marks it `INVALID`. Prefer
 the script.
 
+## Raw IndoorAtlas archive
+
+Each sync also keeps a complete, read-only copy of everything the Mapping API
+key can read, separate from the app-facing `indoorVenues` documents, for
+floor-plan tooling ([floorplan-to-indooratlas.md](floorplan-to-indooratlas.md)).
+It is **never served by the public API**. Enabled when `INDOORATLAS_ARCHIVE_BUCKET`
+is set on `contour-jobs` (the setup script sets it to `<project>-indooratlas`).
+
+| What (GET only)                                                                                                                    | Stored                                                                                                       |
+| ---------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `GET /venues` entry (id, name, description, address, coordinates)                                                                  | snapshot `venue`, verbatim                                                                                   |
+| `GET /venues/{id}/floorplans` (every field, incl. center, bearing, corners, width/height px and m, metersToPixels, pixelsToMeters) | snapshot `floorPlans`, verbatim **without `image.url`** (expires), plus `storedImage: { path, contentType }` |
+| `GET /venues/{id}/geofences/geojson` (polygons + POIs, all properties)                                                             | snapshot `geofences`, verbatim                                                                               |
+| `GET /venues/{id}/wayfinding/geojson`                                                                                              | snapshot `wayfinding`, verbatim                                                                              |
+| `GET /venues/{id}/radios/geojson` (BLE beacons, Wi-Fi)                                                                             | snapshot `radios`, verbatim                                                                                  |
+| `GET /floorplans/{floorPlanId}/paths/geojson` (enabled paths), per floor plan                                                      | snapshot `paths[floorPlanId]`, verbatim                                                                      |
+| floor plan images (downloaded during the sync, 8 MiB cap, PNG/JPEG/WebP)                                                           | `gs://<bucket>/floorplans/{floorPlanId}/{sha256 prefix}.{png,jpg,webp}`                                      |
+
+A 404 answer is stored as `null`. Where:
+
+- **Snapshots:** `gs://<bucket>/raw/{venueId}/{contentHash}.json`
+  (`format: "contour-indooratlas-raw/1"`, `venueId`, `contentHash`, `fetchedAt`
+  and the fields above). Cloud Storage rather than Firestore because GeoJSON has
+  nested arrays (Firestore cannot store them) and can exceed 1 MiB.
+- **Metadata:** Firestore `indoorAtlasRaw/{venueId}`: `name`, `contentHash`
+  (SHA-256 of the content, key order independent), `fetchedAt` (when this content
+  was first seen), `snapshotPath`, `counts`, `images` and `history` (the last 10
+  snapshots, newest first; older snapshot objects are deleted).
+- A new snapshot is written only when the content hash changes. Images are
+  downloaded again only when their floor plan object (without URL) changes; a
+  failed download keeps the previous image.
+- Archive failures are logged and never block the venue sync.
+
+**Export** (Cloud Shell, repository root, `npm ci` done; ADC with read access to
+the bucket and Firestore):
+
+```sh
+INDOORATLAS_ARCHIVE_BUCKET=gen-lang-client-0467526025-indooratlas \
+  npm run indoor-venues --workspace backend -- export all ./indooratlas-raw
+```
+
+writes `indooratlas-raw/<venueId>/` with `meta.json`, `snapshot.json`,
+`venue.json`, `floorplans.json`, `geofences.geojson`, `wayfinding.geojson`,
+`radios.geojson`, `paths/<floorPlanId>.geojson` and
+`images/<floorPlanId>.<ext>`. Use a venue UUID instead of `all` for one venue.
+Older snapshots: `gcloud storage cp gs://<bucket>/raw/<venueId>/<hash>.json .`
+(hashes in `history`). On the private jobs service,
+`GET /jobs/indooratlas/raw/{venueId}` (IAM-authenticated) returns
+`{ meta, snapshot }`. No API key is stored anywhere in the archive.
+
 ## Permissions
 
 The public `api` Cloud Run service needs Firestore read access
-(`roles/datastore.viewer` or broader), as it already has for `/api/sites`. Only
-the admin running the script needs write access. The sync runs as
-`contour-jobs-runtime` (`roles/datastore.user`, plus
-`roles/secretmanager.secretAccessor` on `indooratlas-mapping-api-key` only).
+(`roles/datastore.viewer` or broader), as it already has for `/api/sites`, plus
+`roles/secretmanager.secretAccessor` on `indooratlas-mapping-api-key` and
+`roles/storage.objectViewer` on the archive bucket (both granted by
+`infra/setup-cloud-jobs.sh`, for the floor plan image proxy). Only the admin
+running the script needs write access. The sync runs as `contour-jobs-runtime`
+(`roles/datastore.user`, `roles/secretmanager.secretAccessor` on
+`indooratlas-mapping-api-key` only, `roles/storage.objectAdmin` on the archive
+bucket only).
 
 ## Not verified
 
@@ -259,4 +419,7 @@ against its example responses only; it has not been run against the real
 IndoorAtlas account. Unchecked: whether `GET /venues` lists every venue of the
 account (no paging is documented), the real POI naming in the owner's venue
 (e.g. "SAI Dining"), the actual floor numbers, and SDK routing to exit coordinates
-on site.
+on site. The radios and paths endpoints, the image host's content types and
+redirects, and the map overlay's alignment against a real rotated floor plan
+were only tested with fixtures and stubs (the overlay math with a flat-projection
+stub in headless Chromium).

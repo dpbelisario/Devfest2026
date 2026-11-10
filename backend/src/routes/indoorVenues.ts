@@ -4,7 +4,7 @@ import type { IndoorVenueService } from "../services/indoorVenueService.js";
 /**
  * `GET /api/indoor/venues`: public list of enabled IndoorAtlas venues
  * (see schemas/indoorVenue.ts). Short public caching keeps CDN copies close to
- * the server's own 5-minute cache, so venue edits reach phones in minutes.
+ * the server's own 60-second cache, so venue edits reach phones in about 2 minutes.
  */
 export function createIndoorVenuesRouter(service: IndoorVenueService): Router {
   const router = Router();

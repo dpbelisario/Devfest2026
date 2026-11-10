@@ -147,13 +147,44 @@ test("maps the spec example venue, floor plans, POIs and wayfinding", async () =
     en: "IndoorAtlas office building",
     ja: "IndoorAtlas office building",
   });
-  assert.equal(venue.indoorAtlas.venueId, specVenueId);
-  assert.equal(venue.indoorAtlas.hasWayfinding, true);
-  assert.deepEqual(venue.indoorAtlas.floors, [
+  assert.equal(venue.indoorAtlas!.venueId, specVenueId);
+  assert.equal(venue.indoorAtlas!.hasWayfinding, true);
+  assert.deepEqual(venue.indoorAtlas!.floors, [
     {
       floorPlanId: "fa622b60-8180-11f0-8e93-87f6b9a47be8",
       floorLevel: 1,
       name: "1F",
+      // Placement only: the expiring image URL is never stored.
+      plan: {
+        topLeft: { lat: 65.0608881, lng: 25.4396979 },
+        topRight: { lat: 65.0608881, lng: 25.4406979 },
+        bottomLeft: { lat: 65.0599881, lng: 25.4396979 },
+        bottomRight: { lat: 65.0599881, lng: 25.4406979 },
+        center: { lat: 65.0603881, lng: 25.4401979 },
+        widthPx: 1000,
+        heightPx: 1000,
+        widthM: 100,
+        heightM: 100,
+      },
+    },
+  ]);
+  assert.ok(!JSON.stringify(venue).includes("cdn.indooratlas.com"));
+  assert.equal(venue.address, "10-N Electronic Avenue, 90590-OULU, Finland");
+  assert.equal(venue.description, "IndoorAtlas offices in Oulu, Finland");
+  // The spec's geofence polygon becomes a display-only area (closing point dropped).
+  assert.deepEqual(venue.areas, [
+    {
+      id: "ia-c48b8e70-8309-11f0-8a1f-7f0e3a839157",
+      name: { en: "Test Rectangle", ja: "Test Rectangle" },
+      description: "This is a test.",
+      floorLevel: 3,
+      indoorAtlasGeofenceId: "c48b8e70-8309-11f0-8a1f-7f0e3a839157",
+      ring: [
+        { lat: 65.0605, lng: 25.4401 },
+        { lat: 65.0605, lng: 25.44031 },
+        { lat: 65.06059, lng: 25.44031 },
+        { lat: 65.06059, lng: 25.4401 },
+      ],
     },
   ]);
   assert.equal(venue.location.lat, 65.0605);
@@ -193,6 +224,8 @@ test("maps the spec example venue, floor plans, POIs and wayfinding", async () =
     floors: 1,
     pois: 8,
     exits: 6,
+    areas: 1,
+    archived: 0,
     updated: 1,
     disabled: 0,
     skipped: 0,
@@ -328,9 +361,9 @@ test("missing geofences and wayfinding (404) are empty, with the default radius"
   });
   assert.equal(summary.venues, 1);
   const venue = indoorVenueSchema.parse(repository.documents.get(syncedId));
-  assert.equal(venue.indoorAtlas.hasWayfinding, false);
+  assert.equal(venue.indoorAtlas!.hasWayfinding, false);
   assert.deepEqual(venue.pois, []);
-  assert.deepEqual(venue.indoorAtlas.floors, []);
+  assert.deepEqual(venue.indoorAtlas!.floors, []);
   assert.equal(venue.location.radiusM, defaultVenueRadiusM);
 });
 
@@ -347,6 +380,8 @@ test("not configured: nothing fetched, nothing written", async () => {
     floors: 0,
     pois: 0,
     exits: 0,
+    areas: 0,
+    archived: 0,
     updated: 0,
     disabled: 0,
     skipped: 0,
@@ -404,7 +439,7 @@ test("POST /jobs/indooratlas/sync returns the summary and never the key", async 
   assert.deepEqual(failing.body, { error: "UPSTREAM_UNAVAILABLE" });
 });
 
-test("listing: synced venues first as 01, then manual, seed hidden while synced exist", async () => {
+test("listing: synced venues first as 01, then manual, then seed (02, 03…)", async () => {
   const repository = new MemoryIndoorVenuesRepository();
   const seed = loadSeedVenues();
   const manual: IndoorVenue = {
@@ -428,22 +463,29 @@ test("listing: synced venues first as 01, then manual, seed hidden while synced 
     [
       [syncedId, 1, true],
       ["manual-hall", 2, false],
+      ["nu-library", 3, false],
+      ["nu-engineering-2", 4, false],
     ],
   );
   assert.equal(list.venues[0]!.syncedFrom, "indooratlas");
   assert.equal("syncOrder" in list.venues[0]!, false);
-  // An explicit Firestore doc for the seed venue keeps it listed (after manual ones by id).
-  repository.documents.set(seed[0]!.id, { ...seed[0]!, enabled: true });
-  const withSeedDoc = await new IndoorVenueService({
+  // A Firestore doc can still disable a seed venue; ranks stay continuous.
+  const library = seed.find((venue) => venue.id === "nu-library")!;
+  repository.documents.set(library.id, { ...library, enabled: false });
+  const withoutLibrary = await new IndoorVenueService({
     repository,
     seed,
   }).listEnabledVenues();
   assert.deepEqual(
-    withSeedDoc.venues.map((venue) => venue.id),
-    [syncedId, "manual-hall", "nu-engineering-2"],
+    withoutLibrary.venues.map((venue) => [venue.id, venue.rank]),
+    [
+      [syncedId, 1],
+      ["manual-hall", 2],
+      ["nu-engineering-2", 3],
+    ],
   );
-  // With the synced venue disabled, the seed comes back.
-  repository.documents.delete(seed[0]!.id);
+  // With the synced venue disabled, the manual venue becomes 01.
+  repository.documents.delete(library.id);
   const synced = indoorVenueSchema.parse(repository.documents.get(syncedId));
   repository.documents.set(syncedId, { ...synced, enabled: false });
   const noSynced = await new IndoorVenueService({
@@ -454,6 +496,7 @@ test("listing: synced venues first as 01, then manual, seed hidden while synced 
     noSynced.venues.map((venue) => [venue.id, venue.origin, venue.primary]),
     [
       ["manual-hall", "firestore", true],
+      ["nu-library", "seed", false],
       ["nu-engineering-2", "seed", false],
     ],
   );
