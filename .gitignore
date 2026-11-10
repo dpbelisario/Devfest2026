@@ -27,3 +27,6 @@ __pycache__/
 gha-creds-*.json
 
 .contour-gradle-cache/
+
+# Floor plan publish backups (backend/scripts/floorplan.ts)
+floorplan-backups/

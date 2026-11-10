@@ -1,6 +1,6 @@
 # Floor plans to IndoorAtlas: OCR, walls and mapping
 
-Owner: Minh (@Deadspree). Status: proposed. Tracking issue: see "Floor-plan ingestion" on GitHub.
+Owner: Minh (@Deadspree). Status: implemented for SAI Dining 2F (publish not yet run; see "Status and how to run"). Tracking issue: see "Floor-plan ingestion" on GitHub.
 
 ## Why
 
@@ -116,6 +116,54 @@ Feature ids must be UUID v1. POI properties: `floor`, `name`, `description`.
   needs nothing new.
 - Backups: before a `PUT`, compare with the latest raw snapshot (see
   [Data available](#data-available)); its `history` already keeps the last 10.
+
+## Status and how to run
+
+Implemented in `backend/src/services/floorplanIngestion/` with the CLI
+`backend/scripts/floorplan.ts` (`npm run floorplan --workspace backend -- …`).
+
+| Step       | State                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1. extract | `extract` sends a PNG/JPEG to Gemini on Vertex AI (structured output: label text, class, box, confidence) and a deterministic post-processor turns the labels into a **proposed** proposal. Exit/entrance/stairs come from the same keyword rules the app sync uses; the model's class is only a fallback. Walls are **not** extracted; the reviewer draws the walkable graph.                                                                                                                                 |
+| 2. align   | Uses the corners of the floor plan already placed in IndoorAtlas. Proposals are in normalized image coordinates, and publish refuses a plan whose aspect ratio differs by more than 1% (a different crop).                                                                                                                                                                                                                                                                                                     |
+| 3. review  | Proposal JSON (`schemaVersion: 1`): POIs with `kind`, `confidence`, `origin` (`manual-trace` or `ocr`), display areas, and a graph of named nodes and edges. `check` validates it: names must classify as their kind in the app, nothing may claim to be verified, the graph must be connected. Only `review.status: "reviewed"` can be published.                                                                                                                                                             |
+| 4. publish | Dry run by default (prints the diff). `--apply` backs up the replaced geofences/wayfinding documents (local `floorplan-backups/`, plus `gs://$INDOORATLAS_ARCHIVE_BUCKET/floorplan-backups/` when set), then PUTs only what changed. Merge: features are matched by id, everything else in the venue is kept; same name + floor with another id is a conflict (stop, or `--replace-conflicts`). Graph edges are added without duplicates, or `--replace-graph`. `restore <backup> --apply` puts a backup back. |
+| 5. sync    | Unchanged: `indooratlas-sync` picks the result up.                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+
+**SAI Dining 2F** is done as a reviewed proposal:
+`backend/data/floorplans/sai-dining-2f.json`. It was traced by hand on page 11 of
+the OSJ 2026 programme (the same approach as the Central Library overlay): Exit /
+出口, Entrance / 入口, Stairs and elevator / 階段・EV, Toilets / トイレ, two display
+areas, and a 19-edge walkable graph joining the poster rooms and aisles to the
+exit and the entrance (with a second route along the east side). It assumes the
+IndoorAtlas 2F image is the whole page 11 (aspect 0.7075, which the uploaded
+1273×1800 image matches). Desk review only: positions, the exit door and the
+toilet direction are not checked on site.
+
+Publish it from Cloud Shell (repo root, Node 24, after `npm ci`):
+
+```bash
+export INDOORATLAS_MAPPING_API_KEY="$(gcloud secrets versions access latest --secret=indooratlas-mapping-api-key)"
+npm run floorplan --workspace backend -- publish backend/data/floorplans/sai-dining-2f.json
+npm run floorplan --workspace backend -- publish backend/data/floorplans/sai-dining-2f.json --apply
+gcloud workflows run indooratlas-sync --location asia-northeast1
+```
+
+Expect `"pois":4`, `"exits":3` in the sync result and `hasWayfinding: true`
+for `ia-4402be90-…` in `/api/indoor/venues`. A 401/403 on `--apply` means the
+key is read-only: create a key with write access in the IndoorAtlas web app and
+store it as a new version of `indooratlas-mapping-api-key`.
+
+New building:
+
+```bash
+npm run floorplan --workspace backend -- extract plan.png --venue <venue uuid> --floor 2 --floor-plan <floor plan uuid> --name "English / 日本語" --title "Source" --out proposal.json
+# edit proposal.json: fix POIs, add graph nodes/edges, set review.status to "reviewed"
+npm run floorplan --workspace backend -- check proposal.json
+```
+
+Not done: wall detection and the walkable mask (`PUT /floorplans/{id}/mask/geojson`),
+a review UI (the JSON is edited by hand), and the MapCreator 2 walk-through.
 
 ## Safety rules (from AGENTS.md)
 
