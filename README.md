@@ -3,6 +3,9 @@
 Native Android evacuation-navigation prototype with a TypeScript/Express API for
 Google Cloud Run. This replaces the previous React/FastAPI project.
 
+## Demo Video and Presentation
+https://docs.google.com/presentation/d/13b0pMzGWjMkAsG5idMJSqRn1ljnxMMLzGI1mmqVTCwE/edit?slide=id.p#slide=id.p
+
 ## Current state
 
 This commit scaffolds the project, not a functioning evacuation system.
